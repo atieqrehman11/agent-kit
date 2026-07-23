@@ -12,6 +12,9 @@ Claude Code sessions — with no machine-specific paths baked in.
 | `/scaffold:new` | Scaffold a new Databricks repo (type-driven wizard: `api` · `etl` · `job` · `agent` · `genie`). |
 | `/scaffold:configure` | Fill the remaining per-repo `TODO_SET_*` placeholders a scaffolded repo ships with (`CONFIG.md` → repo). |
 
+See [`commands/scaffold/README.md`](commands/scaffold/README.md) for the scaffold skill in
+depth — the two-level config model, repo types, and the token-resolution pipeline.
+
 **Two levels of configuration.** The **profile** holds what's constant across a team's
 repos — collected once and baked into every scaffold. **`CONFIG.md`** holds what's genuinely
 per-repo (workspace hosts, service principals, repo URL, catalog, table prefix). Anything you
