@@ -1,0 +1,26 @@
+# ── App resource ─────────────────────────────────────────────────────────────
+# `resources.apps` is the DAB schema collection key (always plural, even for one
+# app). TPLVAR_RESOURCE_KEY is the single resource key — `databricks bundle run
+# TPLVAR_RESOURCE_KEY` targets it. Do not rename it once deployed: renaming makes
+# DAB destroy + recreate the app, minting a new client id / secret.
+#
+# This file DECLARES the app for deployment (name, source, permissions). It does
+# NOT set command/env — the runtime spec lives in app.yml at the source root, which
+# is the single source of truth for how the app starts. (Databricks Apps supports
+# defining command/env either here in `config:` or in app.yml; keeping it only in
+# app.yml avoids maintaining the same block in two places.)
+resources:
+  apps:
+    TPLVAR_RESOURCE_KEY:
+      name: "TPLVAR_SLUG"
+      description: "TPLVAR_DESCRIPTION"
+      source_code_path: ..
+
+      permissions:
+        - group_name: TODO_SET_DEVELOPERS_GROUP
+          level: CAN_MANAGE
+        # The frontend app's service principal must be able to invoke this API.
+        # Without CAN_USE the frontend reverse-proxy gets 401. Declared here so
+        # it survives every redeploy.
+        - service_principal_name: TODO_SET_FRONTEND_SP_ID
+          level: CAN_USE

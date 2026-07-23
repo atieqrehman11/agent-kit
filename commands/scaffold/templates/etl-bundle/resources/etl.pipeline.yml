@@ -1,0 +1,24 @@
+# ── ETL (Lakeflow) resource ──────────────────────────────────────────────────
+# `resources.pipelines` is the DAB schema collection key (always plural, even for
+# one pipeline). TPLVAR_RESOURCE_KEY_pipeline is the single resource key.
+# Library paths are relative to THIS file's directory (resources/), so the task
+# notebooks under pipeline/ are referenced as ../pipeline/taskN_*.py
+resources:
+  pipelines:
+    TPLVAR_RESOURCE_KEY_pipeline:
+      name: "TPLVAR_SLUG-etl"
+      catalog: TPLVAR_CATALOG
+      target: bronze
+      channel: "CURRENT"
+      serverless: true
+      continuous: false
+      development: false
+      libraries:
+        - file:
+            path: ../pipeline/task1_ingestion.py
+        - file:
+            path: ../pipeline/task2_parse_extract.py
+        - file:
+            path: ../pipeline/task3_chunk_classify.py
+        - file:
+            path: ../pipeline/task4_embeddings_vectorindex.py

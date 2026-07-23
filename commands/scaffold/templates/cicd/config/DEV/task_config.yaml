@@ -1,0 +1,8 @@
+# Per-environment task config — DEV
+# Referenced by resources via ${var.config_dir}/task_config.yaml
+# (config_dir resolves to config/DEV for the dev target).
+env: DEV
+catalog: TPLVAR_CATALOG
+table_prefix: TPLVAR_TABLE_PREFIX
+# Add task parameters your resource reads at runtime:
+# batch_size: 1000

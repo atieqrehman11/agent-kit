@@ -1,0 +1,5 @@
+# Supervisor deploy dependencies. The supervisor_agents SDK service (Agent Bricks,
+# Preview) is present in databricks-sdk 0.120.0 — pin at/above that.
+databricks-sdk>=0.120.0
+protobuf>=4.0
+pyyaml>=6.0

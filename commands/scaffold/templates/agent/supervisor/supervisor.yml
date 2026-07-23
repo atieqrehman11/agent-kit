@@ -1,0 +1,33 @@
+# Multi-Agent Supervisor definition — deployed via the Databricks SDK
+# (w.supervisor_agents), NOT the Agents-tab UI. This file + instructions.md are the
+# only things you edit to spin up (or re-spin) a supervisor: give it instructions and
+# a list of tools to attach, then run ./deploy.sh.
+#
+# supervisor_agent_id is written back by deploy.py on first create; a set value means
+# UPDATE the same supervisor instead of creating a new one. Do not hand-edit it.
+supervisor_agent_id: ""
+
+display_name: "TPLVAR_DISPLAY_NAME"
+description: "TPLVAR_DESCRIPTION"
+
+# Long-form instructions live in their own file (prose), pointed to here.
+instructions_file: instructions.md
+
+# Tools / subagents to attach. Each item is one tool the supervisor can route to:
+#   id          a stable key for this tool within the supervisor (kebab/snake)
+#   type        one of the supported tool types (see deploy.py _build_tool)
+#   description what the tool does — the supervisor uses this to decide when to call it
+#   + the type-specific reference field (e.g. knowledge_assistant_id, genie_space_id)
+#
+# Confirm the exact tool_type names + fields for your SDK version:
+# https://docs.databricks.com/aws/en/generative-ai/agent-bricks/multi-agent-supervisor
+tools: []
+  # - id: my_knowledge
+  #   type: knowledge_assistant
+  #   description: "Look up documented definitions and background."
+  #   knowledge_assistant_id: <knowledge-assistant-id>
+  #
+  # - id: my_genie
+  #   type: genie_space
+  #   description: "Query curated tables in natural language."
+  #   genie_space_id: <genie-space-id>

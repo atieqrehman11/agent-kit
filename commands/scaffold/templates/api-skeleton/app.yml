@@ -1,0 +1,30 @@
+command:
+  - uvicorn
+  - app:app
+  - --host
+  - 0.0.0.0
+  - --port
+  # Keep in sync with databricks.yml config.command port (8000).
+  # Databricks Apps routes to a fixed port — a mismatch causes 502s.
+  - "8000"
+
+env:
+  # ── SQL warehouse (gold-layer panel queries) ────────────────────────────────
+  - name: DATABRICKS_HTTP_PATH
+    value: "/sql/1.0/warehouses/TODO_SET_WAREHOUSE_ID"
+  - name: DATABRICKS_CATALOG
+    value: "TPLVAR_CATALOG"
+  - name: DATABRICKS_GOLD_SCHEMA
+    value: "gold"
+  - name: TABLE_PREFIX
+    value: "TPLVAR_TABLE_PREFIX"
+
+  # ── Shared Chat Gateway (ai-prototype-chat-api) ─────────────────────────────
+  - name: CHAT_GATEWAY_URL
+    value: "TODO_SET_CHAT_GATEWAY_URL"
+  - name: CHAT_GATEWAY_DOMAIN
+    value: "TPLVAR_SLUG"
+
+  # ── Genie space (if applicable) ─────────────────────────────────────────────
+  - name: GENIE_SPACE_ID
+    value: "TODO_SET_GENIE_SPACE_ID"

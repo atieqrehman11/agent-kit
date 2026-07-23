@@ -1,0 +1,53 @@
+# ============================================================================
+# GITLAB CI/CD — Genie space deploy (management API, not a DAB bundle)
+# ============================================================================
+# Genie is not a DAB resource, so this does NOT use the controller / bundle
+# deploy. Instead:
+#   • validate  — parse genie-space/space.yml and assert required fields.
+#   • deploy    — run deploy_genie.py: apply the backing-view / UC-function DDL,
+#                 then create/update the Genie space via the management API.
+#
+# Needs DATABRICKS_HOST + DATABRICKS_TOKEN (or a workspace CLI profile) in the
+# GitLab CI/CD variables. warehouse_id comes from genie-space/space.yml.
+# ============================================================================
+
+stages:
+  - validate
+  - deploy
+
+variables:
+  GITLAB_RUNNER: "TPLVAR_GITLAB_RUNNER"
+
+validate:
+  stage: validate
+  tags:
+    - $GITLAB_RUNNER
+  image: TODO_SET_CI_IMAGE
+  script:
+    - pip install -q pyyaml
+    - |-
+      python - <<'PY'
+      import sys, yaml
+      s = yaml.safe_load(open("genie-space/space.yml"))
+      for k in ("title", "warehouse_id", "data_sources"):
+          if not s.get(k):
+              print(f"ERROR: genie-space/space.yml missing '{k}'"); sys.exit(1)
+      print("✓ space.yml valid")
+      PY
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+deploy_genie:
+  stage: deploy
+  tags:
+    - $GITLAB_RUNNER
+  image: TODO_SET_CI_IMAGE
+  script:
+    - pip install -q -r requirements.txt
+    - python deploy_genie.py --space genie-space/space.yml --apply-ddl
+  rules:
+    - if: $CI_COMMIT_BRANCH == "stg"
+      when: manual
+    - if: $CI_COMMIT_BRANCH == "prod"
+      when: manual

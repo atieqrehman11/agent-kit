@@ -1,0 +1,46 @@
+# ── Job resource ─────────────────────────────────────────────────────────────
+# `resources.jobs` is the DAB schema collection key (always plural, even for one
+# job). TPLVAR_RESOURCE_KEY_job is the single resource key —
+# `databricks bundle run TPLVAR_RESOURCE_KEY_job` targets it.
+# Paths are relative to THIS file's directory (resources/): ../src/main.py
+resources:
+  jobs:
+    TPLVAR_RESOURCE_KEY_job:
+      name: "TPLVAR_SLUG-job"
+
+      schedule:
+        quartz_cron_expression: "0 0 7 * * ?"   # daily 07:00 — adjust or remove
+        timezone_id: "America/Denver"
+        pause_status: PAUSED
+
+      email_notifications:
+        on_failure:
+          - TPLVAR_TEAM_EMAIL
+
+      tasks:
+        - task_key: main
+          job_cluster_key: job_cluster
+          spark_python_task:
+            python_file: ../src/main.py
+            parameters:
+              - "--config"
+              - "${var.config_dir}/task_config.yaml"
+
+      job_clusters:
+        - job_cluster_key: job_cluster
+          new_cluster:
+            spark_version: 15.4.x-scala2.12
+            node_type_id: i3.xlarge
+            data_security_mode: SINGLE_USER
+            policy_id: ${var.policy_id}
+            autoscale:
+              min_workers: 1
+              max_workers: 4
+            aws_attributes:
+              first_on_demand: 1
+
+      tags:
+        ci_commit_sha: ${var.commit_sha}
+        environment: ${bundle.target}
+        team: ${var.team_tag}
+        project: ${var.project_tag}

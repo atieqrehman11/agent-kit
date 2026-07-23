@@ -1,0 +1,19 @@
+# Curated example SQL queries — question <-> trusted-SQL pairs Genie uses as
+# few-shot examples. OPTIONAL and the biggest accuracy lever. This is a TEMPLATE:
+# the list is empty, so nothing is sent until you add entries. Each entry pairs a
+# natural-language `question` with the exact single-statement `sql` that answers
+# it against this space's data_sources. See docs/GENIE_STANDARDS.md §6.
+example_queries: []
+  # - question: "How many active customers are there by region?"
+  #   sql: |
+  #     SELECT region, COUNT(*) AS active_customers
+  #     FROM your_catalog.gold.customers
+  #     WHERE status = 'ACTIVE'
+  #     GROUP BY region
+  #     ORDER BY active_customers DESC
+  # - question: "What was total revenue last month?"
+  #   sql: |
+  #     SELECT SUM(amount) AS total_revenue
+  #     FROM your_catalog.gold.orders
+  #     WHERE order_date >= date_trunc('month', current_date - INTERVAL 1 MONTH)
+  #       AND order_date <  date_trunc('month', current_date)

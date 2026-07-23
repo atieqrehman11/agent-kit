@@ -1,0 +1,17 @@
+.venv/
+venv/
+env/
+.git/
+.idea/
+.vscode/
+__pycache__/
+*.pyc
+.databricks/
+out/
+dist/
+build/
+*.csv
+*.parquet
+*.json
+data/
+.pytest_cache/

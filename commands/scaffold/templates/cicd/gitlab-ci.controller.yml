@@ -1,0 +1,85 @@
+# ============================================================================
+# GITLAB CI/CD — Databricks Asset Bundle deployment via the shared controller
+# ============================================================================
+# This file is CLOUD deployment. It does NOT run `databricks bundle deploy`
+# locally — it triggers the shared DAB CI/CD controller pipeline, which deploys
+# the bundle into the stg / prod workspaces.
+#
+#   • Local dev loop  → run `./bundle.sh` on your laptop (deploys to DEV only).
+#   • Cloud stg/prod  → merge to the `stg` / `prod` branch → this pipeline fires.
+#
+# Values already filled by the scaffold: GITLAB_RUNNER, CONTROLLER_PROJECT_ID,
+# BUNDLE_TAG, TEAM_TAG. Set CONTROLLER_TRIGGER_TOKEN in
+# Settings > CI/CD > Variables before the first stg/prod deploy.
+# ============================================================================
+
+stages:
+  - validate
+  - trigger-deploy
+
+variables:
+  GITLAB_RUNNER: "TPLVAR_GITLAB_RUNNER"
+  CONTROLLER_PROJECT_ID: "TPLVAR_CONTROLLER_PROJECT_ID"
+  BUNDLE_TAG: "TPLVAR_BUNDLE_NAME"           # must match bundle.name in databricks.yml
+  TEAM_TAG: "TPLVAR_TEAM_TAG"
+  CONTROLLER_REPO_URL: "TODO_SET_CONTROLLER_REPO_URL"
+
+# ── Validate on every push / MR ─────────────────────────────────────────────
+validate:
+  stage: validate
+  tags:
+    - $GITLAB_RUNNER
+  image: TODO_SET_CI_IMAGE
+  script:
+    - |-
+      if [ ! -f "databricks.yml" ]; then
+        echo "ERROR: databricks.yml not found"; exit 1
+      fi
+    - echo "✓ Bundle configuration exists"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+# ── STG deploy (cloud) — triggered on merge to stg ───────────────────────────
+trigger_deploy_stg:
+  stage: trigger-deploy
+  tags:
+    - $GITLAB_RUNNER
+  script:
+    - |-
+      curl -X POST \
+        -F token=$CONTROLLER_TRIGGER_TOKEN \
+        -F ref=prod \
+        -F "variables[PROJECT_REPO_URL]=$CI_PROJECT_URL" \
+        -F "variables[PROJECT_REPO_REF]=$CI_COMMIT_REF_NAME" \
+        -F "variables[PROJECT_REPO_SHA]=$CI_COMMIT_SHA" \
+        -F "variables[TARGET_ENV]=stg" \
+        -F "variables[BUNDLE_TAG]=$BUNDLE_TAG" \
+        -F "variables[TEAM_TAG]=$TEAM_TAG" \
+        -F "variables[TEAM_TRIGGER_TOKEN]=$CONTROLLER_TRIGGER_TOKEN" \
+        "https://gitlab.com/api/v4/projects/$CONTROLLER_PROJECT_ID/trigger/pipeline"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "stg"
+      when: manual
+
+# ── PROD deploy (cloud) — triggered on merge to prod ─────────────────────────
+trigger_deploy_prod:
+  stage: trigger-deploy
+  tags:
+    - $GITLAB_RUNNER
+  script:
+    - |-
+      curl -X POST \
+        -F token=$CONTROLLER_TRIGGER_TOKEN \
+        -F ref=prod \
+        -F "variables[PROJECT_REPO_URL]=$CI_PROJECT_URL" \
+        -F "variables[PROJECT_REPO_REF]=$CI_COMMIT_REF_NAME" \
+        -F "variables[PROJECT_REPO_SHA]=$CI_COMMIT_SHA" \
+        -F "variables[TARGET_ENV]=prod" \
+        -F "variables[BUNDLE_TAG]=$BUNDLE_TAG" \
+        -F "variables[TEAM_TAG]=$TEAM_TAG" \
+        -F "variables[TEAM_TRIGGER_TOKEN]=$CONTROLLER_TRIGGER_TOKEN" \
+        "https://gitlab.com/api/v4/projects/$CONTROLLER_PROJECT_ID/trigger/pipeline"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "prod"
+      when: manual   # keep manual for production safety

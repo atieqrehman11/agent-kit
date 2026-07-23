@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Tooling caches
+.ruff_cache/
+.pytest_cache/
+
+# OS
+.DS_Store
+
+# Generated per-install profile (never committed)
+scaffold-profile.md
+scaffold-profile.json
