@@ -50,6 +50,9 @@ A capability that fails all three is a skill. A skill nobody deliberately invoke
 core/skills/<name>/
   SKILL.md               REQUIRED   frontmatter + body. The model-invoked entry point.
   commands/<verb>.md     optional   user-invoked entry points → /<name>:<verb>
+  README.md              optional   DOCUMENTATION — for whoever maintains the skill.
+                                    Never registered, never installed. Lives here so it
+                                    cannot drift away from what it documents.
   reference/**           optional   PAYLOAD — long-form material the skill reads
   templates/**           optional   PAYLOAD — files the skill copies or renders
   *.py                   optional   PAYLOAD — scripts the skill runs
@@ -64,8 +67,9 @@ core/skills/<name>/SKILL.md          → one model-invoked entry
 core/skills/<name>/commands/*.md     → one user-invoked entry each  (depth 1 only)
 ```
 
-**Everything else is payload.** Payload is read, copied, executed or rendered *by* a skill. It is
-never itself invocable, at any depth.
+**Everything else is payload or documentation.** Payload is read, copied, executed or rendered
+*by* a skill; `README.md` documents the skill for its maintainers. Neither is ever invocable, at
+any depth, and an adapter installs payload but not documentation.
 
 This is an **allowlist, and that is the point.** The predecessor to this standard used a
 denylist — "register every `.md`, except the `README.md` at the skill root" — and a denylist

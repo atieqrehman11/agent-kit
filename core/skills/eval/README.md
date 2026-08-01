@@ -6,7 +6,7 @@ installed, never copied.
 
 | Command | What it does | Direction |
 |---|---|---|
-| [`/eval:new`](new.md) | Scaffold `evaluation/` (spec + run wrapper + starter datasets) in the repo that owns the eval. | templates → repo |
+| [`{{cmd:eval:new}}`](commands/new.md) | Scaffold `evaluation/` (spec + run wrapper + starter datasets) in the repo that owns the eval. | templates → repo |
 
 ## The split this skill enforces
 
@@ -33,7 +33,7 @@ Nothing is ever written back into the engine repo.
 
 ## Targets
 
-`/eval:new` asks what the spec evaluates and wires the adapters accordingly — there is no
+`{{cmd:eval:new}}` asks what the spec evaluates and wires the adapters accordingly — there is no
 default, because it is the spec's core decision:
 
 | Target | What it is |
@@ -57,7 +57,7 @@ No path is hardcoded anywhere. The generated `run.sh` resolves the engine in thi
 3. auto-detect — a sibling checkout of the repo that provides `harness/`.
 
 Set `eval_engine_path` once in the shared profile sheet and apply it with
-`/scaffold:profile` to bake it into every eval you scaffold thereafter.
+`{{cmd:scaffold:profile}}` to bake it into every eval you scaffold thereafter.
 
 ## Files
 

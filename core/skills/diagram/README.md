@@ -5,8 +5,8 @@ shown** — architecture, network, data-flow, auth, and ERDs.
 
 | Command | What it does | Direction |
 |---|---|---|
-| [`/diagram:build`](build.md) | Build a diagram from the reference spec + the project's brand, then check, render, and self-review it. | system → `.drawio` + PNG |
-| [`/diagram:review`](review.md) | Audit an existing `.drawio`: geometry check + rendered read-through + verdict. | `.drawio` → findings |
+| [`{{cmd:diagram:build}}`](commands/build.md) | Build a diagram from the reference spec + the project's brand, then check, render, and self-review it. | system → `.drawio` + PNG |
+| [`{{cmd:diagram:review}}`](commands/review.md) | Audit an existing `.drawio`: geometry check + rendered read-through + verdict. | `.drawio` → findings |
 
 ## Why it exists
 
@@ -56,7 +56,7 @@ and every one is optional:
 | draw.io binary | `--bin` > `$DRAWIO_BIN` > profile `drawio_bin` > `PATH` > the usual install locations for the OS |
 
 Set the profile values once in the shared profile sheet and apply them with
-`/scaffold:profile`; the fields are declared in this skill's `profile_fields.py`.
+`{{cmd:scaffold:profile}}`; the fields are declared in this skill's `profile_fields.py`.
 
 ## Files
 
