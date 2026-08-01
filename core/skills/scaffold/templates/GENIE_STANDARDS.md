@@ -146,7 +146,7 @@ The scaffold is a skeleton. To turn it into a working space:
    pairs (§6). Highest-leverage step for accuracy.
 5. **Set `sample_questions`** to real starter questions (§7).
 6. **Fill config** — `warehouse_id` (and `catalog`, if referenced) via `CONFIG.md` →
-   `/scaffold:configure`.
+   `{{cmd:scaffold:configure}}`.
 7. **Confirm the API calls** — verify the `w.genie.*` method and `serialized_space` field
    names (Public Preview), then uncomment them in `deploy_genie.py`.
 8. **Deploy** — `./deploy.sh` locally, or merge to `stg` / `prod` for CI.
@@ -174,4 +174,4 @@ plus a `warehouse_id` in `space.yml`.
 
 - Keep `CHANGELOG.md`: version → date → eval baseline → what changed, one row per deploy.
 - The loop: **edit `genie-space/` → deploy → run `evaluation/` → record the baseline**.
-  Scaffold the eval area with `/usecase-eval:new` and point the spec at the deployed space.
+  Scaffold the eval area with `{{cmd:eval:new}}` and point the spec at the deployed space.

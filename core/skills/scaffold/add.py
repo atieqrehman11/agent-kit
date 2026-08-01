@@ -27,7 +27,7 @@ Safety rules, because the target is someone's working repo:
 
 Values come from the repo itself first (type, bundle name/uuid, slug), then the
 shared install profile, then a ``TODO_SET_*`` placeholder that ``CONFIG.md`` +
-``/scaffold:configure`` resolve in one pass — the same order ``new.py`` uses.
+``{{cmd:scaffold:configure}}`` resolve in one pass — the same order ``new.py`` uses.
 """
 
 import argparse
@@ -231,7 +231,7 @@ def _resolve_keys(requested, repo, rtype):
         return None
 
     if "all" in requested:
-        # "all" = bring the repo up to what /scaffold:new would have produced for
+        # "all" = bring the repo up to what {{cmd:scaffold:new}} would have produced for
         # its type. An aspect valid for the type but outside its standard set (the
         # `api` surface in an already-scaffolded api repo) stays opt-in by name.
         keys = [
@@ -385,7 +385,7 @@ def _print_list():
     print("Always included with any add, wherever missing — never asked about:")
     print("  .gitignore    the shared Python / Databricks ignore file")
     print("  CONFIG.md     regenerated, keeping any value already filled in\n")
-    print("Standards docs (docs/*_STANDARDS.md) ship with /scaffold:new per repo type.")
+    print("Standards docs (docs/*_STANDARDS.md) ship with {{cmd:scaffold:new}} per repo type.")
 
 
 def _an(word):
@@ -411,7 +411,7 @@ def _print_detect(repo, rtype, type_note, bundle_name, bundle_uuid):
     width = max(len(k) for k in aspects.SELECTABLE)
     for key in aspects.SELECTABLE:
         st = aspects.status(key, repo, rtype)
-        # Standard = part of what /scaffold:new gives this type. Flagging the rest
+        # Standard = part of what {{cmd:scaffold:new}} gives this type. Flagging the rest
         # only matters when it is missing: it says why `all` will not pick it up.
         tag = (
             "  (not in the standard set — ask for it by name)"
@@ -476,7 +476,7 @@ def _report(repo, written, skipped, wiring, notes, dry_run, force=False):
         for key, step in wiring:
             print(f"    [{key}] {step}")
     print("\n  Then:")
-    print("    1. Fill CONFIG.md and apply it:   /scaffold:configure")
+    print("    1. Fill CONFIG.md and apply it:   {{cmd:scaffold:configure}}")
     print("    2. Review the added files in git before committing:  git status")
     print()
 

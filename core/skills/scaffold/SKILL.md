@@ -12,10 +12,10 @@ description: >
 
 ## Entry points
 
-- `/scaffold:new` — new repo, type-driven wizard
-- `/scaffold:add` — add a single aspect to an existing repo
-- `/scaffold:configure` — fill config placeholders (`CONFIG.md` → repo)
-- `/scaffold:profile` — set up the shared org/project profile sheet
+- `{{cmd:scaffold:new}}` — new repo, type-driven wizard
+- `{{cmd:scaffold:add}}` — add a single aspect to an existing repo
+- `{{cmd:scaffold:configure}}` — fill config placeholders (`CONFIG.md` → repo)
+- `{{cmd:scaffold:profile}}` — set up the shared org/project profile sheet
 
 ## Payload
 

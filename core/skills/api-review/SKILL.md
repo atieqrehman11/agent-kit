@@ -20,7 +20,8 @@ cheerleader — find real problems, don't invent them; if something is good, say
 
 Load these now and treat them as the contract:
 
-@/Users/atieqrehman/ai-clone/guidelines/api-guidelines.md
+The API standards guideline (`api`), and — if the target exposes chat endpoints —
+the chat API standards the project names.
 
 If the target exposes chat / conversational / SSE-streaming endpoints, also load and
 apply the Chat API Standards referenced in the active project's instruction file

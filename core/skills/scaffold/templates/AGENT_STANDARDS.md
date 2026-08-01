@@ -82,7 +82,7 @@ builder. `knowledge_assistant` and `genie_space` ship wired. To attach another k
 
 - Keep `CHANGELOG.md`: version → date → eval baseline → what changed, one row per deploy.
 - The loop: **edit `supervisor/` → deploy → run `evaluation/` → record the baseline**.
-  Scaffold the eval area with `/usecase-eval:new` and point the spec at the supervisor's
+  Scaffold the eval area with `{{cmd:eval:new}}` and point the spec at the supervisor's
   query URL.
 
 ---

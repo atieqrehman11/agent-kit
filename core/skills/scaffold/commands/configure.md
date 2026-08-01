@@ -1,7 +1,7 @@
 # Fill a repo's config placeholders (CONFIG.md → repo)
 
 Resolves the `TODO_SET_*` placeholders a scaffolded repo ships with. Every repo created
-by `/scaffold:new` gets a one-page **`CONFIG.md`** at its root listing exactly the
+by `{{cmd:scaffold:new}}` gets a one-page **`CONFIG.md`** at its root listing exactly the
 placeholders it still contains, grouped and annotated (label + example + which files use
 it). This command drives that sheet: it can (re)generate it and it applies the filled
 values across the whole repo tree by exact token replacement.
@@ -42,7 +42,7 @@ repos in the output directory (`$SCAFFOLD_OUTPUT_DIR` or the current directory, 
 Re-running is safe and idempotent: the sheet is never rewritten by an apply, so its keys
 survive, and only the still-present tokens get replaced next time.
 
-Regenerating (`--generate`, and the automatic regeneration after `/scaffold:add`) **keeps any
+Regenerating (`--generate`, and the automatic regeneration after `{{cmd:scaffold:add}}`) **keeps any
 value already typed into the sheet** and drops tokens that no longer appear anywhere in the
 tree — those have already been applied. So a half-filled sheet is never lost by adding new
 files to the repo.

@@ -17,7 +17,7 @@ Targets:
     http-backend      REST backend answering {"query": ...} -> {"answer": ...}
     openai            OpenAI-compatible chat endpoint
 
-Token resolution (first match wins), mirroring /scaffold:new:
+Token resolution (first match wins), mirroring {{cmd:scaffold:new}}:
     endpoint       --endpoint  >  transport default (local URL, or a TODO_SET_ token)
     engine path    --engine-path  >  $EVAL_ENGINE_PATH  >  profile `eval_engine_path`
                    >  TODO_SET_EVAL_ENGINE_PATH (the generated run.sh then auto-detects a
@@ -90,7 +90,7 @@ _DEFAULT_ENDPOINT = {
 }
 
 
-# Shared install profile saved by /scaffold:profile, in the kit data dir. Returns only non-empty string values; {} when there is no profile.
+# Shared install profile saved by {{cmd:scaffold:profile}}, in the kit data dir. Returns only non-empty string values; {} when there is no profile.
 def _load_profile():
     root = _kit_data_dir()
     path = os.path.join(root, "scaffold-profile.json")
@@ -267,7 +267,7 @@ def _next_steps(dest, endpoint, transport, engine_path):
         print(
             "       `harness`; otherwise set EVAL_ENGINE_PATH=... (or fill eval_engine_path"
         )
-        print("       in the shared profile and re-run /scaffold:profile).")
+        print("       in the shared profile and re-run {{cmd:scaffold:profile}}).")
     else:
         print(f"    ·  Engine: {engine_path}  (override with EVAL_ENGINE_PATH=...)")
     print()
