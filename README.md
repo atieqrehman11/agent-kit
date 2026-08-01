@@ -31,8 +31,15 @@ they are shown.
 | `/diagram:build` | Build a diagram from the reference spec + the project's brand, then check, render, and self-review it. |
 | `/diagram:review` | Audit an existing `.drawio`: geometry check + rendered read-through + verdict. |
 
+**[`plan`](commands/plan/README.md)** — release plans that are scheduled and validated
+before they are shown.
+
+| Command | What it does |
+|---|---|
+| `/plan:release` | Read the code, ask one batched round of questions, then author, schedule, validate and report a full release plan (backlog · priorities · man-days · dependencies · Gantt · milestones). |
+
 Each skill's own `README.md` covers it in depth — the scaffold two-level config model and
-repo types, the eval engine/spec split, the diagram verify loop.
+repo types, the eval engine/spec split, the diagram verify loop, the plan gate order.
 
 **A repo is a skeleton plus aspects.** An **aspect** is one named slice of a repo, defined once
 in `scaffold/aspects.py`. `/scaffold:new` applies a type's standard set to a fresh tree;
@@ -63,9 +70,26 @@ root (it appends `/.claude`):
 ./install.sh /path/to/my-project  # just that project (installs to its .claude/)
 ```
 
-It copies the skills into `<target>/.claude/commands/` and rewrites the `__SKILL_DIR__`
-install-time path token — per skill, to that skill's installed directory — so the slash
-commands find their scripts. Re-run it any time to update an install.
+It reports each step as it runs, so a failure is visible where it happens rather than at the
+end:
+
+```
+  [1/5]  Checking prerequisites     python3, target writable, openpyxl, draw.io
+  [2/5]  Installing skills          per skill: commands, files, installed / updated
+  [3/5]  Wiring script paths        __SKILL_DIR__ → that skill's installed directory
+  [4/5]  Verifying                  commands registered · scripts compile · no stale tokens
+  [5/5]  Generating the profile sheet
+```
+
+Step 1 is advisory except for `python3`: a missing `openpyxl` or draw.io binary warns and
+carries on, because each is needed only when a particular skill runs. Step 4 exits non-zero
+if a skill script does not compile, so a broken snapshot never installs silently.
+
+Each skill is **replaced, not merged**, so a file deleted from the repo does not linger as a
+stale slash command — the run reports how many stale files it removed. Anything hand-edited
+inside an installed skill directory is lost; edit the repo and re-run instead. Re-run it any
+time to update an install; `commands/.claude-skills-install` records which commit is in
+place.
 
 It then generates a fill-in **profile sheet** at `<target>/.claude/scaffold-profile.md`.
 Fill in the values shared across your work (all optional) and apply them with
@@ -80,6 +104,29 @@ folder, brand guide, and draw.io binary. Each skill declares its own fields in i
 
 Re-run `python3 <target>/.claude/commands/scaffold/profile.py` any time to update the
 profile (edit the sheet, then apply).
+
+## Uninstall
+
+```bash
+./uninstall.sh ~/.claude --dry-run   # show exactly what would go; change nothing
+./uninstall.sh ~/.claude             # same plan, then a y/N prompt
+```
+
+It removes **only** the skill directories listed in the install receipt
+(`<target>/commands/.claude-skills-install`). Commands you installed from anywhere else are
+listed under *Left alone* and never touched. Nothing is deleted before you have seen the
+plan, and it refuses to run unprompted unless you pass `--yes`.
+
+The **profile sheet is kept by default** — it holds values you typed in by hand. Delete it
+too with `--profile`, or take everything with `--all`:
+
+```bash
+./uninstall.sh ~/.claude --all --yes   # skills + profile + receipt, unattended
+./uninstall.sh --caches                # tidy this repo: __pycache__, .ruff_cache, .DS_Store
+```
+
+Removing an install does not change a Claude Code session already running — the slash
+commands disappear once it restarts.
 
 ## Where scaffolded repos land
 
@@ -103,8 +150,11 @@ commands/            one folder per slash-command skill (mirrors .claude/command
   eval/              new.(md|py) + profile_fields.py + templates/
   diagram/           build.md + review.md + check.py + render.py
                      + profile_fields.py + reference/
+  plan/              release.md + schedule.py + triage.py + validate.py + reference/
 install.sh           copies commands/ into a target .claude, fixes paths, seeds the profile
+uninstall.sh         removes what the receipt says was installed; --dry-run, --all, --caches
 scaffold-profile.{md,json}   generated per-install profile (in .claude/ root; gitignored)
+.claude-skills-install       install receipt (in <target>/commands/; drives uninstall)
 ```
 
 To add a skill, drop a new folder under `commands/` following the same shape; `install.sh`
