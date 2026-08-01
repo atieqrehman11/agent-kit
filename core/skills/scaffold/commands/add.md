@@ -37,10 +37,10 @@ The target is someone's working repo, so:
 Run this as an interactive wizard using the **`AskUserQuestion`** tool — every field, no
 inline text prompts. Batch questions onto one screen (max four per screen). Free-text values
 are captured through the auto-added **"Other"** option, so a free-text field still needs two
-example options. Skip any question `$ARGUMENTS` already answers.
+example options. Skip any question `{{args}}` already answers.
 
 **Step 0 — Find the repo, then detect (no question yet).** Resolve the repo path from
-`$ARGUMENTS`, the current directory, or the profile's `output_dir`. Then run the detector and
+`{{args}}`, the current directory, or the profile's `output_dir`. Then run the detector and
 **read its output before asking anything**:
 
 ```bash

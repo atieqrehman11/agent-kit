@@ -96,12 +96,16 @@ Optional:
 
 ```yaml
 version: 1.0
+arguments: "[path or branch; default = current diff]"   # hint for entry points that take input
 requires:
   bin: [drawio]               # adapter warns, never blocks, when missing
   python: [openpyxl]
 applies_to:                   # guidelines only — the context that should trigger loading
   - "**/*.py"
 ```
+
+`arguments` is a **description**, not a schema. Each adapter maps it onto whatever its tool
+uses to advertise arguments; an adapter with no such concept ignores it.
 
 **`description` must be prose, and must say when to use the thing.** It is the only signal a
 model has when choosing between artifacts. Nine personas in the predecessor set had a body
@@ -161,6 +165,9 @@ Write this                     Claude renders          another adapter renders
 
 - `{{cmd:<skill>:<verb>}}` refers to a `commands/<verb>.md` entry point.
 - `{{cmd:<skill>}}` refers to the skill itself, via its `SKILL.md`.
+- `{{args}}` is whatever the caller passed to this entry point. Every tool has some way to
+  hand an invocation its arguments; none of them spell it the same, so artifacts must not
+  spell it at all.
 - The adapter renders both in its own syntax at install time.
 - **The reference must resolve.** An adapter MUST fail on a `{{cmd:…}}` naming a skill or
   verb that does not exist — this is a broken link in user-facing text, and it is exactly
@@ -179,6 +186,8 @@ Write this                     Claude renders          another adapter renders
   adapter's directory layout, or a literal `/skill:verb` invocation. Use `{{cmd:…}}` (§1.5.1).
 - **The name of any agent tool** — in prose, in comments, in generated templates. Naming an
   LLM *provider* or model is fine: that is what the code integrates with, not what runs it.
+- **A tool's frontmatter keys or argument variables** — use `arguments:` (§1.4) and `{{args}}`
+  (§1.5.1), which adapters map onto their own.
 - **Client names.** No client, engagement or customer appears in `core/`. Client-specific
   material belongs in that client's own project configuration, not here.
 - **Secrets, tokens, hostnames, internal URLs, policy IDs, or personal paths.** Installed-time
@@ -251,7 +260,7 @@ wrong trade.
 - [ ] Every artifact has valid frontmatter; every `name` matches its path
 - [ ] Every `description` is prose, not a path or a filename
 - [ ] **Registered entry-point count equals declared entry-point count** — zero payload registered
-- [ ] Zero surviving `__SKILL_DIR__`, `__KIT_DATA_DIR__` or `{{cmd:…}}` markers
+- [ ] Zero surviving `__SKILL_DIR__`, `__KIT_DATA_DIR__`, `{{cmd:…}}` or `{{args}}` markers
 - [ ] Every `{{cmd:…}}` resolved to a skill and verb that exist
 - [ ] The kit data dir exists, and its contents are byte-identical to before the install
 - [ ] Every installed script parses
