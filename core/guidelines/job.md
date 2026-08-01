@@ -4,6 +4,9 @@ kind: guideline
 description: >
   Standards for scheduled Databricks jobs: task structure, retries, alerting and
   idempotency. Applies when writing or reviewing a scheduled job.
+applies_to:
+  - "**/resources/*.job.yml"
+  - "**/docs/JOB_STANDARDS.md"
 ---
 
 # Job Standards — __ORG_PREFIX__Scheduled Databricks Job Reference
