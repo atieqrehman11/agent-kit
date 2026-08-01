@@ -35,7 +35,7 @@ python3 __SKILL_DIR__/render.py <file>.drawio         # --scale · --page · --b
 Read the PNG against the reference for its type —
 [`reference/architecture.md`](reference/architecture.md) or
 [`reference/erd.md`](reference/erd.md) — plus the project's brand guide (profile
-`brand_guidelines`, else the guide named in the active `CLAUDE.md`):
+`brand_guidelines`, else the guide named in the active project's instruction file):
 
 - [ ] Icons, not plain boxes, for major components; consistent sizing
 - [ ] Layered/hub layout as the reference prescribes, in one consistent direction

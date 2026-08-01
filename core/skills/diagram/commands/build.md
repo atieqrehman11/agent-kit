@@ -20,7 +20,7 @@ step 4 is not optional.
   2. the `brand_guidelines` value in the shared profile
      (`python3 __SKILL_DIR__/../scaffold/profile.py --show`, if the scaffold skill is
      installed),
-  3. the style/brand guide the active project's `CLAUDE.md` points at,
+  3. the style/brand guide the active project's instruction file points at,
   4. no brand guide → use the reference file's own defaults and say so when presenting.
 - **Output folder** → a design/docs workspace, never a deployed code repo. Resolve:
   `$DIAGRAMS_DIR` > profile `diagrams_dir` > the folder the user names > the project's
