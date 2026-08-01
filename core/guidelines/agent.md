@@ -1,3 +1,11 @@
+---
+name: agent
+kind: guideline
+description: >
+  Standards for multi-agent supervisor services: agent boundaries, tool exposure,
+  instructions and evaluation. Applies when building or reviewing an agent service.
+---
+
 # Agent Standards — __ORG_PREFIX__Multi-Agent Supervisor Reference
 
 Standard for the `agent` repo type: a Databricks **Agent Bricks Multi-Agent Supervisor**

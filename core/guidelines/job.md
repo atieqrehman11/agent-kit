@@ -1,3 +1,11 @@
+---
+name: job
+kind: guideline
+description: >
+  Standards for scheduled Databricks jobs: task structure, retries, alerting and
+  idempotency. Applies when writing or reviewing a scheduled job.
+---
+
 # Job Standards — __ORG_PREFIX__Scheduled Databricks Job Reference
 
 Best practices for the `job` repo type: a scheduled (or triggered) **Databricks Job**
