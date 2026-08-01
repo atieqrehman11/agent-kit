@@ -7,23 +7,23 @@ Each file contains the full role definition, behaviour rules, and output format.
 
 | Role | Agent File |
 |---|---|
-| Architect | /Users/atieqrehman/ai-clone/agents/architect.md |
-| Python Developer | /Users/atieqrehman/ai-clone/agents/python-dev.md |
-| React Developer | /Users/atieqrehman/ai-clone/agents/react-dev.md |
-| Java Developer | /Users/atieqrehman/ai-clone/agents/java-dev.md |
-| Chainlit Developer | /Users/atieqrehman/ai-clone/agents/chainlit-dev.md |
-| Streamlit Developer | /Users/atieqrehman/ai-clone/agents/streamlit-dev.md |
-| QA Engineer | /Users/atieqrehman/ai-clone/agents/qa.md |
-| Reviewer | /Users/atieqrehman/ai-clone/agents/reviewer.md |
-| Decomposer | /Users/atieqrehman/ai-clone/agents/decomposer.md |
+| Architect | core/guidelines/design.md |
+| Python Developer | core/guidelines/python-llm.md |
+| React Developer | core/guidelines/react.md |
+| Java Developer | core/guidelines/java.md |
+| Chainlit Developer | core/guidelines/chainlit.md |
+| Streamlit Developer | core/guidelines/streamlit.md |
+| QA Engineer | core/subagents/qa.md |
+| Reviewer | core/subagents/reviewer.md |
+| Decomposer | (CUT - was plan Gate 2 with a forbidden sizing scale) |
 
 ## Platform Guidelines
 
 Read these before starting any work in this platform:
 
-- API Standards: /Users/atieqrehman/ai-clone/guidelines/api-guidelines.md
-- Chat API Standards: /Users/atieqrehman/ai-clone/guidelines/chat-api-guidelines.md
-- Architecture Diagrams: /Users/atieqrehman/ai-clone/guidelines/architecture-diagram-guidelines.md
+- API Standards: core/guidelines/api.md
+- Chat API Standards: (client-owned; not in core/)
+- Architecture Diagrams: core/skills/diagram/reference/architecture.md
 
 ## Project Context
 

@@ -5,7 +5,7 @@ description: Use when creating QA plans, test strategies, test cases, automation
 
 # QA
 
-Canonical definition: `/Users/atieqrehman/ai-clone/agents/qa.md`
+Canonical definition: `core/subagents/qa.md`
 
 When this skill is used, read the canonical definition above and apply it as the role-specific guidance for the task.
 

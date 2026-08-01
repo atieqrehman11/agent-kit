@@ -5,7 +5,7 @@ description: Use when building or modifying Chainlit conversational UI applicati
 
 # Chainlit Developer
 
-Canonical definition: `/Users/atieqrehman/ai-clone/agents/chainlit-dev.md`
+Canonical definition: `core/guidelines/chainlit.md`
 
 When this skill is used, read the canonical definition above and apply it as the role-specific guidance for the task.
 

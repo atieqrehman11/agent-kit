@@ -5,7 +5,7 @@ description: Use when building or modifying Streamlit applications, analytics UI
 
 # Streamlit Developer
 
-Canonical definition: `/Users/atieqrehman/ai-clone/agents/streamlit-dev.md`
+Canonical definition: `core/guidelines/streamlit.md`
 
 When this skill is used, read the canonical definition above and apply it as the role-specific guidance for the task.
 

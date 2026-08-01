@@ -5,7 +5,7 @@ description: Use when reviewing code, diffs, pull requests, implementation outpu
 
 # Reviewer
 
-Canonical definition: `/Users/atieqrehman/ai-clone/agents/reviewer.md`
+Canonical definition: `core/subagents/reviewer.md`
 
 When this skill is used, read the canonical definition above and apply it as the role-specific guidance for the task.
 

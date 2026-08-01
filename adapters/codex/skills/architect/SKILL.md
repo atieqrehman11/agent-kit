@@ -5,7 +5,7 @@ description: Use when designing software architecture, system boundaries, APIs, 
 
 # Architect
 
-Canonical definition: `/Users/atieqrehman/ai-clone/agents/architect.md`
+Canonical definition: `core/guidelines/design.md`
 
 When this skill is used, read the canonical definition above and apply it as the role-specific guidance for the task.
 
