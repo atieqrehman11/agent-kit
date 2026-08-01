@@ -47,13 +47,18 @@ import shutil
 import sys
 import uuid
 
-
 _HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _HERE)
+
+# The composable slices of a repo (CI/CD, standards docs, per-env config, ...).
+# `new` applies them to a fresh tree; `/scaffold:add` applies one to a repo that
+# already exists. One registry, so an aspect means the same thing in both.
+import aspects  # noqa: E402
+
 _TPL = _HERE + "/templates"
 API_TPL = _TPL + "/api-skeleton"
 ETL_TPL = _TPL + "/etl-bundle"
 JOB_TPL = _TPL + "/job-bundle"
-CICD_TPL = _TPL + "/cicd"
 
 
 # Where scaffolded repos are created. Resolved at runtime — no hardcoded path:
@@ -86,35 +91,21 @@ def _load_profile():
         return {}
 
 
-# One standards file per type: (source in templates/, filename in the scaffolded
-# repo). Every repo gets a consistently named <TYPE>_STANDARDS.md next to its README.
-STANDARDS = {
-    "api": (_TPL + "/API_STANDARDS.md", "API_STANDARDS.md"),
-    "etl": (_TPL + "/PIPELINE_STANDARDS.md", "PIPELINE_STANDARDS.md"),
-    "job": (_TPL + "/JOB_STANDARDS.md", "JOB_STANDARDS.md"),
-    "agent": (_TPL + "/AGENT_STANDARDS.md", "AGENT_STANDARDS.md"),
-    "genie": (_TPL + "/GENIE_STANDARDS.md", "GENIE_STANDARDS.md"),
-}
-
-# Cross-cutting code standard shipped into EVERY repo alongside its per-type file.
-# Different axis from the *_STANDARDS.md above (code style vs resource domain), so
-# they do not conflict.
-PYTHON_STD = _TPL + "/PYTHON_STANDARDS.md"
-
-# Bundle types deploy via `databricks bundle deploy` (dev) + the CI/CD controller
-# (stg/prod): api, etl, job.
 # Tool caches a formatter/linter might drop in a template dir — never copy into a repo.
 _IGNORE_CACHES = shutil.ignore_patterns(
     "__pycache__", "*.pyc", ".ruff_cache", ".pytest_cache", ".DS_Store"
 )
 
-BUNDLE_TYPES = ("api", "etl", "job")
-# Script types have no DAB bundle; a deploy script calls a Databricks management API.
-#   genie: build serialized_space from space.yml → Genie createspace/updatespace API.
-#   agent: a Multi-Agent Supervisor created via the supervisor_agents SDK from config
-#          (instructions + a tools list) — the scripted equivalent of the Agents-tab UI.
-API_TYPES = ("genie", "agent")
-ALL_TYPES = BUNDLE_TYPES + API_TYPES
+# Repo types, defined once in aspects.py (add.py needs them without importing new).
+#   Bundle types deploy via `databricks bundle deploy` (dev) + the CI/CD controller
+#   (stg/prod): api, etl, job.
+#   Script types have no DAB bundle; a deploy script calls a Databricks management API.
+#     genie: build serialized_space from space.yml → Genie createspace/updatespace API.
+#     agent: a Multi-Agent Supervisor created via the supervisor_agents SDK from config
+#            (instructions + a tools list) — the scripted equivalent of the Agents-tab UI.
+BUNDLE_TYPES = aspects.BUNDLE_TYPES
+API_TYPES = aspects.API_TYPES
+ALL_TYPES = aspects.ALL_TYPES
 
 # Org-wide values that appear as bare TODO_SET_ tokens in templates (not TPLVAR_).
 # The install profile (/scaffold:profile) fills these at scaffold time when present;
@@ -272,12 +263,13 @@ def main(argv=None):
 
     _banner(repo_name, repo_dir, args.type)
 
+    # The type's own skeleton, then the aspects layered on top. Every aspect here
+    # is the same one /scaffold:add can put into a repo later — see aspects.py.
     _scaffold(args.type, repo_dir)
-    if args.type in BUNDLE_TYPES:
-        _scaffold_cicd_controller(args.type, repo_dir, run_resource_key)
+    vars_["TPLVAR_RUN_RESOURCE_KEY"] = run_resource_key or ""
+    for key in aspects.DEFAULT_BY_TYPE[args.type]:
+        _apply_aspect(key, repo_dir, args.type, vars_)
 
-    _copy_standards(args.type, repo_dir)
-    _write_common(repo_dir, args.type, vars_)
     _patch_tree(repo_dir, vars_)
     _write_config_sheet(repo_dir, args.display_name)
     _print_next_steps(repo_dir, args.type, bundle_name, resource_key)
@@ -311,82 +303,21 @@ def _scaffold(rtype: str, repo_dir: str) -> None:
             os.chmod(os.path.join(repo_dir, fn), 0o755)
 
 
-# Only this bundle type reads a per-env config file (${var.config_dir}/...).
-# api serves env from app.yml; etl bakes the catalog into its tasks — neither
-# references config_dir, so shipping config/ for them would be dead weight.
-_USES_CONFIG = {"job"}
+# ─── Aspects layered onto the skeleton ──────────────────────────────────────────
+
+# Which aspects a fresh repo of each type gets is defined once, in aspects.py
+# (DEFAULT_BY_TYPE) — the same set /scaffold:add restores in an older repo.
 
 
-def _scaffold_cicd_controller(rtype: str, repo_dir: str, run_resource_key) -> None:
-    """Wire the enterprise controller CI/CD for a bundle repo."""
-    extras = ""
-    if rtype in _USES_CONFIG:
-        shutil.copytree(
-            os.path.join(CICD_TPL, "config"),
-            os.path.join(repo_dir, "config"),
-            ignore=_IGNORE_CACHES,
-        )
-        extras = " + config/{DEV,STG,PROD}"
-    shutil.copy(
-        os.path.join(CICD_TPL, "team_config.yaml"),
-        os.path.join(repo_dir, "team_config.yaml"),
-    )
-    shutil.copy(
-        os.path.join(CICD_TPL, "gitlab-ci.controller.yml"),
-        os.path.join(repo_dir, ".gitlab-ci.yml"),
-    )
-    _write_file(
-        os.path.join(repo_dir, "run_resources.yml"),
-        _run_resources_yaml(run_resource_key),
-    )
-    shutil.copy(
-        os.path.join(CICD_TPL, "bundleignore"), os.path.join(repo_dir, ".bundleignore")
-    )
-    print(
-        f"  [cicd] controller .gitlab-ci.yml + team_config.yaml + run_resources.yml{extras}"
-    )
-
-
-def _run_resources_yaml(run_resource_key) -> str:
-    """run_resources.yml body. Deployment != execution, so most bundles are
-    deploy-only (empty). A resource key is listed only when it must run to
-    complete the deploy (agent's deploy job)."""
-    header = (
-        "# Resource keys the controller runs immediately after deploy.\n"
-        "# Deployment only registers a definition — execution is separate. Leave\n"
-        "# empty for deploy-only bundles (an app starts itself; a job/pipeline runs\n"
-        "# on its own schedule or a manual trigger). List a key here only to force\n"
-        "# a run after every deploy.\n"
-    )
-    if run_resource_key:
-        return f"{header}resources:\n  - {run_resource_key}\n"
-    return f"{header}resources: []\n  # e.g. - my_resource_key   # uncomment to run after deploy\n"
-
-
-# ─── API type (genie) ────────────────────────────────────────────────────────
-
-
-# ─── Standards + common files (readme, gitignore) ───────────────────────────────
-
-
-def _copy_standards(rtype: str, repo_dir: str) -> None:
-    """Two non-overlapping standards layers, both kept under docs/:
-    the cross-cutting PYTHON_STANDARDS.md (code style) + the per-type
-    <TYPE>_STANDARDS.md (resource domain). README.md links into docs/."""
-    src, dest_name = STANDARDS[rtype]
-    docs = os.path.join(repo_dir, "docs")
-    os.makedirs(docs, exist_ok=True)
-    shutil.copy(src, os.path.join(docs, dest_name))
-    shutil.copy(PYTHON_STD, os.path.join(docs, "PYTHON_STANDARDS.md"))
-    print(f"  [{rtype}] docs/{dest_name} + docs/PYTHON_STANDARDS.md")
-
-
-def _write_common(repo_dir: str, rtype: str, vars_: dict) -> None:
-    # README.md now ships in each template dir (with TPLVAR tokens, patched below).
-    shutil.copy(
-        os.path.join(_TPL, "common", "gitignore"), os.path.join(repo_dir, ".gitignore")
-    )
-    print("  [common] created .gitignore")
+def _apply_aspect(key: str, repo_dir: str, rtype: str, vars_: dict) -> None:
+    """Apply one aspect to the freshly copied skeleton, substituting tokens as it
+    writes. A file the skeleton already ships is kept (aspects never clobber), so
+    a type's own version of a file always wins over the shared one."""
+    written, skipped = aspects.apply(key, repo_dir, rtype, vars_)
+    shown = ", ".join(written) if len(written) <= 4 else f"{len(written)} files"
+    print(f"  [{key}] {shown}")
+    for path in skipped:
+        print(f"  [{key}] kept the skeleton's own {path}")
 
 
 def _write_config_sheet(repo_dir: str, display_name: str) -> None:
@@ -426,12 +357,6 @@ def _patch_tree(repo_dir: str, vars_: dict) -> None:
                 content = content.replace(k, v)
             with open(path, "w", encoding="utf-8") as f:
                 f.write(content)
-
-
-def _write_file(path: str, content: str) -> None:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(content)
 
 
 def _banner(repo_name: str, repo_dir: str, rtype: str) -> None:

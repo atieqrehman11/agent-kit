@@ -10,7 +10,7 @@ The heavy lifting is a deterministic script — do **not** hand-edit files to re
 placeholders. Run the script.
 
 ```bash
-python3 __SCAFFOLD_DIR__/configure.py \
+python3 __SKILL_DIR__/configure.py \
   --repo "<path-to-repo>" \
   [--generate] \        # (re)write CONFIG.md from the repo's remaining placeholders, then exit
   [--dry-run] \         # preview the apply without writing
@@ -41,6 +41,11 @@ repos in the output directory (`$SCAFFOLD_OUTPUT_DIR` or the current directory, 
 
 Re-running is safe and idempotent: the sheet is never rewritten by an apply, so its keys
 survive, and only the still-present tokens get replaced next time.
+
+Regenerating (`--generate`, and the automatic regeneration after `/scaffold:add`) **keeps any
+value already typed into the sheet** and drops tokens that no longer appear anywhere in the
+tree — those have already been applied. So a half-filled sheet is never lost by adding new
+files to the repo.
 
 ## Notes
 

@@ -131,7 +131,7 @@ that `/scaffold:configure` fills later from `CONFIG.md` (do not pass them at all
 not type the placeholder yourself):
 
 ```bash
-python3 __SCAFFOLD_DIR__/new.py \
+python3 __SKILL_DIR__/new.py \
   --type <api|etl|job|genie|agent> \
   --slug "<slug>" \
   --display-name "<display name>" \
@@ -170,7 +170,8 @@ checklist.
   principals) before the first cloud deploy, and to set `CONTROLLER_TRIGGER_TOKEN` in GitLab
   CI/CD variables. Local dev testing: `./bundle.sh`.
 - **api** also: set `TODO_SET_WAREHOUSE_ID` / `TODO_SET_CHAT_GATEWAY_URL` in `app.yml`
-  (the runtime env), and register the domain in `ai-prototype-chat-api/api/domain_configs/`.
+  (the runtime env), and register the domain with the shared chat gateway service
+  (its `domain_configs/`).
 - **agent** — no bundle: a Multi-Agent Supervisor deployed by script. Write the routing
   guidance in `supervisor/instructions.md`, set `display_name`/`description` and the `tools`
   list (each: `id`, `type`, `description` + its id) in `supervisor/supervisor.yml`, then
@@ -185,7 +186,11 @@ checklist.
   optionally fill `example_queries.yml` (question→SQL few-shot pairs — the biggest accuracy
   lever), confirm the `w.genie.*` calls in `deploy_genie.py`, then `./deploy.sh` (local) or
   merge to stg/prod (CI). Full walkthrough: `docs/GENIE_STANDARDS.md` §5–§8.
-- To score the deployed stack, scaffold `evaluation/` with `/usecase-eval:new`.
+- To score the deployed stack, scaffold `evaluation/` with `/eval:new`.
+- To add a **single piece** later — or to a repo this command never created — use
+  **`/scaffold:add`**: the `cicd` deploy pipeline, or the `api` surface (`/v1/health` +
+  `/v1/info`). It restores what a repo of that type would have had, without touching anything
+  else in the repo.
 
 ## Example
 

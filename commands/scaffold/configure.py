@@ -71,9 +71,20 @@ def _group_of(tok):
     return META[tok][1] if tok in META else "Other"
 
 
-def generate(repo_dir, display_name):
-    """Write ``<repo>/CONFIG.md``. Returns ``(path, present_tokens_dict)``."""
+def generate(repo_dir, display_name, preserve=True):
+    """Write ``<repo>/CONFIG.md``. Returns ``(path, present_tokens_dict)``.
+
+    ``preserve`` keeps any value already typed into an existing sheet, so
+    regenerating after ``/scaffold:add`` introduces new placeholders never
+    discards work in progress. A token that no longer appears anywhere in the
+    tree is dropped either way — its value has already been applied.
+    """
     present = scan_tokens(repo_dir)
+    existing = {}
+    if preserve:
+        path = os.path.join(repo_dir, CONFIG_NAME)
+        if os.path.exists(path):
+            existing = parse(path)
     known = [tok for (tok, *_) in TOKENS if tok in present]
     unknown = sorted(t for t in present if t not in META)
     ordered = known + unknown
@@ -107,7 +118,11 @@ def generate(repo_dir, display_name):
                 else:
                     hint = ""
                 key = f"{tok}:"
-                lines.append(f"{key.ljust(width)}# {hint}" if hint else key)
+                val = existing.get(tok, "")
+                if val:  # already typed in — carry it over, hint no longer needed
+                    lines.append(f"{key.ljust(width)}{val}")
+                else:
+                    lines.append(f"{key.ljust(width)}# {hint}" if hint else key)
             lines.append("")
 
     text = "\n".join(lines).rstrip() + "\n"
@@ -172,9 +187,7 @@ def main(argv=None):
         default=None,
         help="title for the generated sheet (default: repo folder name)",
     )
-    ap.add_argument(
-        "--file", default=None, help="config sheet path (default: <repo>/CONFIG.md)"
-    )
+    ap.add_argument("--file", default=None, help="config sheet path (default: <repo>/CONFIG.md)")
     ap.add_argument(
         "--dry-run",
         action="store_true",
@@ -192,9 +205,7 @@ def main(argv=None):
         path, present = generate(repo, name)
         print(f"Wrote {path}")
         if present:
-            print(
-                f"  {len(present)} placeholder(s) to fill: {', '.join(sorted(present))}"
-            )
+            print(f"  {len(present)} placeholder(s) to fill: {', '.join(sorted(present))}")
         else:
             print("  no TODO_SET_ placeholders remain in this repo")
         return 0
@@ -205,9 +216,7 @@ def main(argv=None):
     values = parse(config_path)
     if not values:
         remaining = scan_tokens(repo)
-        print(
-            "No filled values found in the sheet (every line is blank). Nothing applied."
-        )
+        print("No filled values found in the sheet (every line is blank). Nothing applied.")
         if remaining:
             print(
                 f"  {len(remaining)} placeholder(s) still unresolved: {', '.join(sorted(remaining))}"

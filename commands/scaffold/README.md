@@ -1,6 +1,6 @@
 # scaffold
 
-A three-command Claude Code skill for standing up **Databricks repos** — and
+A four-command Claude Code skill for standing up **Databricks repos** — and
 keeping their config out of your way. You scaffold a repo of one type, and every
 machine- and repo-specific value is either baked in from a shared profile or left as a
 `TODO_SET_*` placeholder you fill in one pass later.
@@ -9,6 +9,7 @@ machine- and repo-specific value is either baked in from a shared profile or lef
 |---|---|---|
 | [`/scaffold:profile`](profile.md) | Set up the org/project values shared by every repo (branding, team, CI/CD, cluster policies) — once per install. | sheet → `scaffold-profile.json` |
 | [`/scaffold:new`](new.md) | Scaffold a new repo (type-driven wizard: `api` · `etl` · `job` · `agent` · `genie`). | templates → new repo |
+| [`/scaffold:add`](add.md) | Add **one aspect** — the `cicd` deploy pipeline or the `api` surface — to a repo that already exists. | templates → existing repo |
 | [`/scaffold:configure`](configure.md) | Fill the per-repo `TODO_SET_*` placeholders a scaffolded repo ships with. | `CONFIG.md` → repo |
 
 ## The two-level config model
@@ -37,6 +38,10 @@ edit .claude/scaffold-profile.md      # fill shared values
 /scaffold:new                          # interactive wizard → creates the repo
 edit <repo>/CONFIG.md                  # fill the per-repo placeholders
 /scaffold:configure                    # apply them across the repo tree
+
+# for a repo that already exists (including one this tool never made)
+/scaffold:add                          # pick an aspect → cicd (deploy pipeline) or api
+/scaffold:configure                    # apply the placeholders the new files brought in
 ```
 
 ## Repo types
@@ -57,13 +62,55 @@ graph of Delta tables via declarative transforms? Yes → `etl`. No — it perfo
 (export, orchestrate, score, maintain, trigger) → `job`.** See [new.md](new.md) for the
 full decision table.
 
+## Aspects — the same pieces, à la carte
+
+A repo is not monolithic: it is a type skeleton plus a few **aspects**. Each aspect is one
+named slice, defined once in [`aspects.py`](aspects.py) and applied through one function, so
+*"the cicd aspect"* means the identical set of files whether it lands in a brand-new repo or a
+five-year-old one. Two are choosable:
+
+| Aspect | Adds | Types |
+|---|---|---|
+| `cicd` | `.gitlab-ci.yml` + `team_config.yaml` + `run_resources.yml` + `.bundleignore` (genie: its space-validating pipeline); on a `job` repo also `config/{DEV,STG,PROD}/task_config.yaml` | `api` `etl` `job` `genie` |
+| `api` | `routers/platform.py` + `config.py` — `GET /v1/health` + `GET /v1/info` | `api` |
+
+The rest are **not decisions**, so they are never offered: `.gitignore` and a regenerated
+`CONFIG.md` come with any add wherever they are missing, and the standards docs
+(`docs/*_STANDARDS.md`) ship with `/scaffold:new` per repo type. They still live in the same
+registry — one definition each — just flagged `selectable: False`.
+
+Per-environment config is deliberately *inside* `cicd` rather than beside it: the DEV/STG/PROD
+split exists because the controller deploys per target, so it is part of the deploy story, not
+a separate thing to choose. Only `job` reads it (`${var.config_dir}/task_config.yaml`) — `api`
+serves env from `app.yml` and `etl` bakes the catalog into its tasks.
+
+`/scaffold:new` applies each type's **standard set** (`DEFAULT_BY_TYPE`); `/scaffold:add`
+applies a single aspect to an existing repo, and `--aspect all` restores exactly that standard
+set. An aspect valid for a type but outside its standard set (`api` in an already-scaffolded
+api repo) stays opt-in by name.
+
+Adding an aspect is **one entry in `ASPECTS`** — both commands pick it up, and
+`add.py --detect` reports its status against any repo with no further wiring.
+
+### Writing into a repo you did not create
+
+`/scaffold:add` is the only command that touches an existing repo, so it is deliberately
+narrow: it writes **only the files the chosen aspect owns** (no tree-wide token substitution),
+it **skips and reports** any file that already exists (`--force` replaces it and keeps a
+`.bak`), `--dry-run` writes nothing, and `--detect` tells you the repo's type, its bundle
+identity, and what is missing before anything is written. Steps a file copy cannot perform —
+editing the repo's own `databricks.yml` or `app.py` — are printed as **manual wiring** rather
+than left implied.
+
 ## Files
 
 ```
 scaffold/
   profile.md      profile.py         shared-profile command + its script
   new.md          new.py             scaffold-a-repo command + its script
+  add.md          add.py             add-one-aspect-to-an-existing-repo command + its script
   configure.md    configure.py       fill-placeholders command + its script
+  aspects.py                         aspect registry (files / types / wiring) + repo-type detection
   config_tokens.py                   TODO_SET_* token registry (group / label / example)
   templates/                         one dir per type + shared standards docs
     api-skeleton/  etl-bundle/  job-bundle/  agent/  genie/
@@ -92,6 +139,11 @@ To extend the system:
 - **New per-repo placeholder** → register it in `config_tokens.py` (token → group, label,
   example) so it groups correctly in generated `CONFIG.md` sheets. Unregistered tokens still
   appear under an "Other" group, so nothing is silently missed.
+- **New aspect** → one entry in `ASPECTS` in `aspects.py` (files/dirs it owns, which types it
+  applies to, `selectable`, any manual wiring), plus its key in `ORDER` and — if new repos
+  should get it — in `DEFAULT_BY_TYPE`. `/scaffold:new`, `/scaffold:add` and `add.py --detect`
+  all pick it up with no further changes. Keep the choosable set small: anything a user should
+  never have to think about belongs in `AUTO` or in a type's skeleton, not in a picker.
 
 ## Where repos land
 

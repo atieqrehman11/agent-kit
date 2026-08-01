@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Run this use case's evaluation.
+#
+# Installs the shared eval engine (the repo providing the `harness` package) into the
+# active Python environment if it isn't importable, then runs the eval against spec.py
+# beside this script.
+#
+#   ./run.sh              # default dataset (smoke)
+#   ./run.sh smoke        # quick screen  (holistic judges)
+#   ./run.sh hard         # graded benchmark  (rubric + failure report)
+#   ./run.sh --show       # inspect the resolved spec without calling the model
+#
+# Endpoint / judge overrides pass straight through as env, e.g.:
+#   AGENT_ENDPOINT=https://host/v1/chat/query ./run.sh hard
+#   AGENT_AUTH_TOKEN=... JUDGE_MODEL=... ./run.sh
+#
+# Engine location, first match wins:
+#   1. EVAL_ENGINE_PATH=/path/to/engine ./run.sh      (per-run / per-machine override)
+#   2. the value baked in at scaffold time            (ENGINE_PATH below)
+#   3. auto-detect: a sibling checkout of this repo that provides `harness/`
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SPEC="$SCRIPT_DIR/spec.py"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Results (report + tables) live with the spec, not in whatever cwd you launched from.
+export EVAL_RESULTS_DIR="${EVAL_RESULTS_DIR:-$SCRIPT_DIR/eval-results}"
+
+# Baked at scaffold time from --engine-path / $EVAL_ENGINE_PATH / the shared profile.
+# Left as a TODO_SET_ placeholder when none was configured — auto-detection covers that.
+ENGINE_PATH="${EVAL_ENGINE_PATH:-TPLVAR_ENGINE_PATH}"
+if [ ! -d "$ENGINE_PATH" ]; then
+  # No configured engine: look for a sibling checkout that ships the `harness` package.
+  for cand in "$REPO_DIR"/../*/; do
+    if [ -d "$cand/harness" ]; then ENGINE_PATH="${cand%/}"; break; fi
+  done
+fi
+
+# Prefer the repo's virtualenv (modern Python/pip) over whatever python3 is on PATH.
+PY="python3"
+for cand in "$REPO_DIR/.venv/bin/python" "$REPO_DIR/.venv/bin/python3"; do
+  if [ -x "$cand" ]; then PY="$cand"; break; fi
+done
+
+if ! "$PY" -c "import harness" >/dev/null 2>&1; then
+  if [ ! -d "$ENGINE_PATH" ]; then
+    echo "[run.sh] ERROR: eval engine not found (looked for: $ENGINE_PATH)" >&2
+    echo "         Point at your engine checkout and re-run:" >&2
+    echo "           EVAL_ENGINE_PATH=/path/to/engine $0 $*" >&2
+    echo "         (or set eval_engine_path in the shared profile before scaffolding)" >&2
+    exit 1
+  fi
+  echo "[run.sh] eval engine not installed — installing from $ENGINE_PATH (using $PY)"
+  # Editable first (so engine updates reflect); fall back to a plain install for old pip
+  # that can't do PEP 660 editable installs from a pyproject-only project.
+  "$PY" -m pip install -e "$ENGINE_PATH" \
+    || "$PY" -m pip install "$ENGINE_PATH" \
+    || true
+  if ! "$PY" -c "import harness" >/dev/null 2>&1; then
+    echo "[run.sh] ERROR: engine still not importable after install." >&2
+    echo "         The engine needs Python >= 3.10 and a recent pip/setuptools." >&2
+    echo "         Create/activate a repo venv on 3.10+, then install manually:" >&2
+    echo "           $PY -m pip install -e $ENGINE_PATH" >&2
+    exit 1
+  fi
+fi
+
+exec "$PY" -m harness.cli --spec "$SPEC" "$@"

@@ -14,7 +14,7 @@ The heavy lifting is a deterministic script — do **not** hand-edit the saved p
 Run the script.
 
 ```bash
-python3 __SCAFFOLD_DIR__/profile.py \
+python3 __SKILL_DIR__/profile.py \
   [--generate] \   # (re)write the fill-in sheet, then exit
   [--show]         # print the saved profile, then exit
 # no flag = apply: parse the sheet and save to scaffold-profile.json
@@ -51,6 +51,12 @@ so you can edit and re-apply any time. Newly scaffolded repos pick up the curren
   `TODO_SET_*` placeholder — it only tells `new.py` where to create the repo folder.
   Resolution: `--output-dir` > `$SCAFFOLD_OUTPUT_DIR` > profile `output_dir` > current dir
   (`~` and `$VARS` are expanded).
-- **Add a new profile field?** Add a row to `FIELDS` in `profile.py` (key, group, label,
-  example) and map the key to its template token in `new.py` (`_PROFILE_TODO_TOKENS`, or
-  a `TPLVAR_` assignment for tokens filled inline).
+- **One sheet, every skill.** The profile is shared across the install. Other skills
+  contribute their own fields (each declares them in its own `profile_fields.py`), so the
+  sheet may list groups this skill never uses — e.g. an eval engine path or a diagrams
+  output folder. Fill only what you need.
+- **Add a new profile field?** For a scaffold field, add a row to `FIELDS` in `profile.py`
+  (key, group, label, example, used-in, source) and map the key to its template token in
+  `new.py` (`_PROFILE_TODO_TOKENS`, or a `TPLVAR_` assignment for tokens filled inline).
+  For another skill's field, add the row to **that skill's** `profile_fields.py` instead —
+  it is picked up here automatically.

@@ -7,10 +7,11 @@
 #   ./install.sh /path/to/project      # install into that project's .claude
 #   ./install.sh ~/.claude --no-profile   # install only; set up the profile later
 #
-# Copies the skills (a snapshot) and rewrites the __SCAFFOLD_DIR__ path token so the
-# slash commands find their scripts. Then generates PROFILE.md — a fill-in sheet for
-# the org/project values (branding, team, CI/CD, policies) that new.py bakes into
-# every scaffolded repo. Fill it in and apply with /scaffold:profile (all optional).
+# Copies the skills (a snapshot) and rewrites the __SKILL_DIR__ path token — in every
+# skill, to that skill's installed directory — so the slash commands find their scripts.
+# Then generates the shared profile sheet: the org/project values (branding, team, CI/CD,
+# policies, engine/tool paths) skills bake into what they generate. Fill it in and apply
+# with /scaffold:profile (all optional).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -41,6 +42,9 @@ for skill_dir in "$REPO_ROOT"/commands/*/; do
   # Never ship caches.
   find "$dest" -name '.DS_Store' -delete 2>/dev/null || true
   rm -rf "$dest/.ruff_cache" "$dest/__pycache__" 2>/dev/null || true
+  # The skill's own README documents the repo, not a command — and every *.md at a
+  # skill's root registers as a slash command. Leave it out of the install.
+  rm -f "$dest/README.md"
   # Rewrite the install-time path token across every text file.
   DEST="$dest" python3 - <<'PY'
 import os
@@ -54,7 +58,9 @@ for root, dirs, files in os.walk(dest):
                 s = fh.read()
         except (UnicodeDecodeError, IsADirectoryError):
             continue
-        t = s.replace("__SCAFFOLD_DIR__", dest)
+        # __SKILL_DIR__ is the token every skill uses; __SCAFFOLD_DIR__ is the
+        # pre-rename alias, kept so an older skill copy still installs correctly.
+        t = s.replace("__SKILL_DIR__", dest).replace("__SCAFFOLD_DIR__", dest)
         if t != s:
             with open(p, "w", encoding="utf-8") as fh:
                 fh.write(t)
@@ -76,7 +82,7 @@ rule() { printf '  %s\n' "──────────────────
 
 echo
 rule
-echo "  ✓  Claude scaffold skills installed"
+echo "  ✓  Claude skills installed"
 rule
 echo
 echo "  Created"
@@ -89,9 +95,17 @@ if [[ "$PROFILE_READY" -eq 1 ]]; then
 fi
 echo
 echo "  Commands available (in a Claude Code session using $TARGET)"
-echo "    /scaffold:profile     set up shared org/project values (profile sheet → profile)"
-echo "    /scaffold:new         scaffold a new repo"
-echo "    /scaffold:configure   fill a repo's CONFIG.md placeholders"
+# Derived from what was installed — each top-level <skill>/<cmd>.md is /<skill>:<cmd>,
+# described by its first markdown heading. Nothing about the skill set is hardcoded here.
+for n in "${installed[@]}"; do
+  for md in "$TARGET/commands/$n"/*.md; do
+    [[ -e "$md" ]] || continue
+    cmd="$(basename "$md" .md)"
+    desc="$(grep -m1 '^# ' "$md" 2>/dev/null || true)"
+    desc="${desc#\# }"
+    printf '    %-22s %s\n' "/$n:$cmd" "$desc"
+  done
+done
 echo
 echo "  Next steps"
 if [[ "$PROFILE_READY" -eq 1 ]]; then

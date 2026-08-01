@@ -19,7 +19,7 @@ env:
   - name: TABLE_PREFIX
     value: "TPLVAR_TABLE_PREFIX"
 
-  # ── Shared Chat Gateway (ai-prototype-chat-api) ─────────────────────────────
+  # ── Shared Chat Gateway (the conversational API service) ────────────────────
   - name: CHAT_GATEWAY_URL
     value: "TODO_SET_CHAT_GATEWAY_URL"
   - name: CHAT_GATEWAY_DOMAIN

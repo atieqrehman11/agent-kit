@@ -13,6 +13,12 @@ never silently incomplete.
 TOKENS = [
     # token, group, label, example
     (
+        "TODO_SET_DESCRIPTION",
+        "Service Identity",
+        "One-sentence description of the service — shown in GET /v1/info",
+        "KPI reporting, anomaly summaries, and report generation.",
+    ),
+    (
         "TODO_SET_TEAM_NAME",
         "Team & Ownership",
         "Team name (hyphenated) — CI registration + job alerts",
@@ -146,7 +152,7 @@ TOKENS = [
     (
         "TODO_SET_CHAT_GATEWAY_URL",
         "API Runtime",
-        "Shared chat gateway base URL (ai-prototype-chat-api)",
+        "Shared chat gateway base URL (the conversational API service)",
         "",
     ),
     (

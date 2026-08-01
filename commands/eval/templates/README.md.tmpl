@@ -1,0 +1,77 @@
+# TPLVAR_DISPLAY_NAME — Evaluation
+
+Eval spec for the **TPLVAR_DISPLAY_NAME** use case. This folder is self-contained and owned
+by this repo; the generic eval engine is installed as the `harness` package and imported —
+never copied here.
+
+**Target under test:** TPLVAR_TARGET_LABEL
+
+## Files
+
+| File | Purpose |
+|---|---|
+| `run.sh` | Installs the engine if needed and runs the eval — the one-command entry point. |
+| `spec.py` | Declares the target, datasets, and judges — the one file you edit. |
+| `questions.csv` | `smoke` set — quick screen (`key,question,gold`). |
+| `benchmark.csv` | `hard` set — graded benchmark (rubric columns; only `human_approval_status=approved` rows load). |
+
+## 1. Configure
+
+1. Set the endpoint in `spec.py` — `default_endpoint` (currently `TPLVAR_ENDPOINT`) is
+   TPLVAR_ENDPOINT_HINT. Or override per run with `AGENT_ENDPOINT=...`. TPLVAR_TOKEN_NOTE
+2. Edit `questions.csv` (the smoke set) and fill `benchmark.csv` (the hard set); mark
+   benchmark rows `human_approval_status=approved` to include them.
+
+## 2. Run
+
+`run.sh` installs the shared engine into the active Python environment on first use, then
+runs the eval:
+
+```bash
+./evaluation/run.sh --show    # inspect the resolved spec without calling the model
+./evaluation/run.sh smoke     # quick smoke screen (holistic judges)
+./evaluation/run.sh hard      # graded benchmark (rubric scoring + failure report)
+./evaluation/run.sh           # default dataset (smoke)
+```
+
+**Engine location** — first match wins: `EVAL_ENGINE_PATH=/path/to/engine` (per machine),
+then the path baked in at scaffold time (`TPLVAR_ENGINE_PATH`), then auto-detection of a
+sibling checkout that provides `harness/`. To call the CLI directly instead:
+`ai-eval --spec evaluation/spec.py <dataset>`.
+
+**Results** land in `evaluation/eval-results/` (next to this spec, regardless of cwd):
+- `<dataset>_report.md` — the analysis page: per failing/partial question it shows the
+  question, expected answer, LLM answer, status, and failure reason (answers truncated for
+  concision).
+- `<dataset>_results.json` — the full table, each row keyed, with every `*/value` +
+  `*/rationale`.
+
+Override the location with `EVAL_RESULTS_DIR=/path`. Aggregate metrics also log to the MLflow
+experiment (dashboard).
+
+- `EVAL_SKIP_REPORT=1` — skip the markdown report (metrics + table still saved).
+- `EVAL_REPORT_ANSWERS=1` — show expected/LLM answers full-length in the report (default
+  truncates them; full text also lives in `<dataset>_results.json`).
+
+## Runtime overrides (env)
+
+| Var | Effect |
+|---|---|
+| `AGENT_ENDPOINT` | Override the endpoint/URL to hit. |
+| `AGENT_AUTH_TOKEN` | Bearer token, if the endpoint needs one. |
+| `JUDGE_MODEL` | Override the judge model. |
+| `EVAL_ENGINE_PATH` | Where the eval engine checkout lives. |
+| `EVAL_RESULTS_DIR` | Where results are written. |
+
+## Judges
+
+`Correctness`, `RelevanceToQuery`, and `no_hallucination` run automatically. Add more engine
+built-ins by name (e.g. `"cites_source"`) or custom `Guideline(...)` objects in `spec.py`;
+disable the default hallucination judge with `use_no_hallucination=False`.
+
+**Judge cost — `judge_mode`.** Default `"separate"` runs one LLM call per judge (built-ins +
+each guideline + rubric). Set `judge_mode="panel"` in `spec.py` to grade every criterion in
+**one call per question** (N calls instead of N×judges); each criterion is still its own
+dashboard metric. Trade-off: panel replaces the built-in Correctness/Relevance judges with
+the engine's combined prompt, and a malformed judge reply costs the whole row (retried +
+tolerantly parsed).

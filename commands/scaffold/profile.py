@@ -3,6 +3,10 @@
 team scaffolds (doc branding, workspace project, team, permissions, CI/CD, cluster
 policies). Mirrors the CONFIG.md model, but ONE sheet for the whole install.
 
+The profile is shared by every installed skill, not just this one: any sibling skill
+may contribute its own fields via a ``profile_fields.py`` (see ``_sibling_fields``),
+so one sheet covers the whole install and each skill still owns its own settings.
+
 Two modes (just like /scaffold:configure):
 
   --generate     (Re)write ``scaffold-profile.md`` — a one-page fill-in sheet of
@@ -177,6 +181,46 @@ FIELDS = [
         "Databricks admin",
     ),
 ]
+
+
+def _sibling_fields():
+    """Profile fields contributed by the OTHER skills installed alongside this one.
+
+    The profile is shared by every skill in the install, but each skill owns its own
+    fields: a skill declares them in a ``profile_fields.py`` next to its commands,
+    exporting ``FIELDS`` in the same 6-tuple shape as above. They are loaded by path
+    (never imported as a package) so skills stay independent — a skill that is not
+    installed simply contributes nothing, and a broken one cannot break the profile.
+    """
+    import importlib.util
+
+    commands_dir = os.path.dirname(_HERE)
+    extra, seen = [], {f[0] for f in FIELDS}
+    try:
+        names = sorted(os.listdir(commands_dir))
+    except OSError:
+        return extra
+    for name in names:
+        path = os.path.join(commands_dir, name, "profile_fields.py")
+        if name == os.path.basename(_HERE) or not os.path.isfile(path):
+            continue
+        try:
+            spec = importlib.util.spec_from_file_location(
+                f"_profile_fields_{name}", path
+            )
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            rows = list(getattr(mod, "FIELDS", []))
+        except Exception:  # a malformed sibling must not break /scaffold:profile
+            continue
+        for row in rows:
+            if len(row) == 6 and row[0] not in seen:
+                seen.add(row[0])
+                extra.append(tuple(row))
+    return extra
+
+
+FIELDS = FIELDS + _sibling_fields()
 KEYS = {f[0] for f in FIELDS}
 
 LINE_RE = re.compile(r"^-?\s*([a-z][a-z0-9_]*)\s*:\s*(.*)$")

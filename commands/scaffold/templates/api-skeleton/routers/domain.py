@@ -10,7 +10,7 @@ router = APIRouter(prefix="/v1", tags=["Domain"])
 #   - Responses: objects, not bare arrays; include X-Request-ID
 #   - Lists:   use the pagination envelope (items, limit, offset, total, has_more)
 #   - Errors:  return ErrorResponse from schema/models.py — never FastAPI's {"detail": ...}
-#   - No POST /v1/chat/message — chat belongs in ai-prototype-chat-api
+#   - No POST /v1/chat/message — chat belongs in the conversational API service
 #
 # Example — list endpoint:
 #

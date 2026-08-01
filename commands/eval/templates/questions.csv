@@ -1,0 +1,4 @@
+key,question,gold
+q1,REPLACE ME — ask a real question your system should answer.,REPLACE ME — the correct reference answer.
+q2,REPLACE ME — another question your system should answer.,REPLACE ME — the correct reference answer.
+q3_absence,REPLACE ME — ask something NOT in your data.,The system should say it does not have this information.
