@@ -13,7 +13,7 @@ Checks (errors fail the run, warnings do not):
 
 This is a geometry check, not a taste check: it cannot tell you the diagram reads well,
 matches the brand, or uses the right layout. Render it and look at it too — see
-`/diagram:review`.
+`{{cmd:diagram:review}}`.
 
 Edge routing is evaluated as straight segments between the points draw.io stores
 (source → waypoints → target). A right-angle edge drawn by the renderer can therefore

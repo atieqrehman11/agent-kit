@@ -66,7 +66,7 @@ def _kit_data_dir():
 sys.path.insert(0, _HERE)
 
 # The composable slices of a repo (CI/CD, standards docs, per-env config, ...).
-# `new` applies them to a fresh tree; `/scaffold:add` applies one to a repo that
+# `new` applies them to a fresh tree; `{{cmd:scaffold:add}}` applies one to a repo that
 # already exists. One registry, so an aspect means the same thing in both.
 import aspects  # noqa: E402
 
@@ -78,7 +78,7 @@ JOB_TPL = _TPL + "/job-bundle"
 
 # Where scaffolded repos are created. Resolved at runtime — no hardcoded path:
 #   --output-dir  >  $SCAFFOLD_OUTPUT_DIR  >  profile output_dir  >  current dir.
-# The install profile (/scaffold:profile) can set a default so it need not be an env
+# The install profile ({{cmd:scaffold:profile}}) can set a default so it need not be an env
 # var or flag on every run. `~` and $VARS in any source are expanded.
 def _resolve_output_dir(cli_value, profile=None):
     chosen = (
@@ -90,12 +90,12 @@ def _resolve_output_dir(cli_value, profile=None):
     return os.path.expanduser(os.path.expandvars(chosen))
 
 
-# Org/project profile saved by /scaffold:profile (profile.py) next to this script.
+# Org/project profile saved by {{cmd:scaffold:profile}} (profile.py) next to this script.
 # Returns only non-empty string values; {} when no profile has been set up.
 def _load_profile():
     import json
 
-    # Saved by /scaffold:profile in the kit data dir.
+    # Saved by {{cmd:scaffold:profile}} in the kit data dir.
     root = _kit_data_dir()
     path = os.path.join(root, "scaffold-profile.json")
     try:
@@ -123,8 +123,8 @@ API_TYPES = aspects.API_TYPES
 ALL_TYPES = aspects.ALL_TYPES
 
 # Org-wide values that appear as bare TODO_SET_ tokens in templates (not TPLVAR_).
-# The install profile (/scaffold:profile) fills these at scaffold time when present;
-# left unset, the token remains for the per-repo /scaffold:configure step.
+# The install profile ({{cmd:scaffold:profile}}) fills these at scaffold time when present;
+# left unset, the token remains for the per-repo {{cmd:scaffold:configure}} step.
 #   profile key -> template token
 _PROFILE_TODO_TOKENS = {
     "owner": "TODO_SET_OWNER",
@@ -201,9 +201,9 @@ def main(argv=None):
     # Repo name carries the type as a suffix (e.g. ai-payments-api).
     repo_name = args.repo_name or f"ai-{slug}-{args.type}"
 
-    # Org/project profile (set up once via /scaffold:profile; see profile.py). It
+    # Org/project profile (set up once via {{cmd:scaffold:profile}}; see profile.py). It
     # fills the values constant across every repo a team scaffolds. Precedence:
-    #   CLI arg  >  install profile  >  TODO_SET_ placeholder (left for /scaffold:configure).
+    #   CLI arg  >  install profile  >  TODO_SET_ placeholder (left for {{cmd:scaffold:configure}}).
     profile = _load_profile()
 
     def _pick(arg_val, key, todo):
@@ -271,7 +271,7 @@ def main(argv=None):
         "__ORG_PREFIX__": org_prefix,
     }
     # Org-wide values that live as bare TODO_SET_ tokens in templates: fill from the
-    # profile only when set, otherwise leave the token for /scaffold:configure.
+    # profile only when set, otherwise leave the token for {{cmd:scaffold:configure}}.
     for key, tok in _PROFILE_TODO_TOKENS.items():
         if profile.get(key):
             vars_[tok] = profile[key]
@@ -279,7 +279,7 @@ def main(argv=None):
     _banner(repo_name, repo_dir, args.type)
 
     # The type's own skeleton, then the aspects layered on top. Every aspect here
-    # is the same one /scaffold:add can put into a repo later — see aspects.py.
+    # is the same one {{cmd:scaffold:add}} can put into a repo later — see aspects.py.
     _scaffold(args.type, repo_dir)
     vars_["TPLVAR_RUN_RESOURCE_KEY"] = run_resource_key or ""
     for key in aspects.DEFAULT_BY_TYPE[args.type]:
@@ -321,7 +321,7 @@ def _scaffold(rtype: str, repo_dir: str) -> None:
 # ─── Aspects layered onto the skeleton ──────────────────────────────────────────
 
 # Which aspects a fresh repo of each type gets is defined once, in aspects.py
-# (DEFAULT_BY_TYPE) — the same set /scaffold:add restores in an older repo.
+# (DEFAULT_BY_TYPE) — the same set {{cmd:scaffold:add}} restores in an older repo.
 
 
 def _apply_aspect(key: str, repo_dir: str, rtype: str, vars_: dict) -> None:
@@ -338,14 +338,14 @@ def _apply_aspect(key: str, repo_dir: str, rtype: str, vars_: dict) -> None:
 def _write_config_sheet(repo_dir: str, display_name: str) -> None:
     """Emit CONFIG.md — the one-page sheet of every TODO_SET_* the repo still
     contains. Run after _patch_tree so the scan sees final, resolved content.
-    Generation + apply live in configure.py (the /scaffold:configure command)."""
+    Generation + apply live in configure.py (the {{cmd:scaffold:configure}} command)."""
     import configure
 
     _, present = configure.generate(repo_dir, display_name)
     n = len(present)
     if n:
         print(
-            f"  [config] CONFIG.md — {n} placeholder(s) to fill, then /scaffold:configure"
+            f"  [config] CONFIG.md — {n} placeholder(s) to fill, then {{cmd:scaffold:configure}}"
         )
     else:
         print("  [config] CONFIG.md — no placeholders to fill")
@@ -394,7 +394,7 @@ def _print_next_steps(
             "                             policy ids, team, repo url), then apply it with:"
         )
         print(
-            "                             /scaffold:configure   (uuid is already generated)"
+            "                             {{cmd:scaffold:configure}}   (uuid is already generated)"
         )
         if rtype == "api":
             print(
@@ -429,7 +429,7 @@ def _print_next_steps(
         print(
             "                                    attaches tools, prints the working URL)"
         )
-        print("    4. Scaffold evaluation with /usecase-eval:new")
+        print("    4. Scaffold evaluation with {{cmd:eval:new}}")
     else:  # genie
         print(
             "    1. genie-space/space.yml   — set warehouse_id, description, instructions,"
@@ -450,7 +450,7 @@ def _print_next_steps(
         print(
             "    5. Cloud deploy            — merge to the stg / prod branch (CI runs deploy_genie.py)"
         )
-        print("    6. Scaffold evaluation with /usecase-eval:new")
+        print("    6. Scaffold evaluation with {{cmd:eval:new}}")
     print()
 
 

@@ -91,5 +91,5 @@ code runs unchanged in dev, stg, and prod.
 ## 7. Relationship to evaluation
 
 If the job produces data or scores an agent/model consumes, scaffold `evaluation/` with
-`/usecase-eval:new` and point the spec at the gold table or endpoint the job feeds. Record
+`{{cmd:eval:new}}` and point the spec at the gold table or endpoint the job feeds. Record
 the eval baseline in the repo when the job's output logic changes materially.

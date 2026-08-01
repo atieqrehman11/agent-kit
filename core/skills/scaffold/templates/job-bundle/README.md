@@ -49,7 +49,7 @@ repo url, and any runtime env) is listed in one place — [`CONFIG.md`](CONFIG.m
 the values there, then apply them across the repo:
 
 ```
-/scaffold:configure          # or: python3 <commands>/scaffold/configure.py --repo .
+{{cmd:scaffold:configure}}          # or: python3 <commands>/scaffold/configure.py --repo .
 ```
 
 This replaces the `TODO_SET_*` tokens in `databricks.yml`, `team_config.yaml`, and the

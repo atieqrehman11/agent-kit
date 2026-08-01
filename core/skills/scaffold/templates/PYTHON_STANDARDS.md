@@ -6,8 +6,8 @@ Python here* layer; pair it with your repo's **resource** standard
 `GENIE_STANDARDS.md`), which covers *how to build this resource type*. The two layers do not
 overlap — style and structure live here, domain patterns live there.
 
-> Adopted from the enterprise `.amazonq/rules/python-standards.md` so Claude Code and Amazon Q
-> apply the **same** rules. Keep this in sync with that file rather than forking it.
+> Adopted from the enterprise Python rules so every coding assistant applies the **same**
+> rules. Keep this in sync with the enterprise copy rather than forking it.
 
 ## Applies to
 

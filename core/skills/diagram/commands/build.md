@@ -84,9 +84,9 @@ is visible. Never deliver only the XML.
 
 ## Notes
 
-- **Editing an existing diagram?** Run `/diagram:review` on it first — fix what it finds
+- **Editing an existing diagram?** Run `{{cmd:diagram:review}}` on it first — fix what it finds
   before layering new content onto an already-broken layout.
 - **File naming:** `{sequence}-{component}-{version}.drawio`, e.g. `03-network-topology-v3.drawio`.
 - **Nothing here is machine-specific.** Output folder, brand guide, and draw.io binary all
   come from the profile or the environment; set them once in the shared profile sheet and
-  apply with `/scaffold:profile`.
+  apply with `{{cmd:scaffold:profile}}`.

@@ -205,7 +205,7 @@ def cmd_new(args):
     print(f"\nFeature ID: {feature_id}")
     if repos:
         print(f"Repos: {', '.join(repos)}")
-    print(f"\nNext: fill spec.md, then /spec:plan {feature_id}")
+    print(f"\nNext: fill spec.md, then: python3 spec.py check {feature_id}")
 
 
 # ----------------------------------------------------------------- check

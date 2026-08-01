@@ -7,7 +7,7 @@ The profile is shared by every installed skill, not just this one: any sibling s
 may contribute its own fields via a ``profile_fields.py`` (see ``_sibling_fields``),
 so one sheet covers the whole install and each skill still owns its own settings.
 
-Two modes (just like /scaffold:configure):
+Two modes (just like {{cmd:scaffold:configure}}):
 
   --generate     (Re)write ``scaffold-profile.md`` — a one-page fill-in sheet of
                  the org fields, grouped and annotated. Every field is OPTIONAL.
@@ -15,7 +15,7 @@ Two modes (just like /scaffold:configure):
   (default) apply  Parse the sheet and save the filled values to
                  ``scaffold-profile.json``. ``new.py`` reads that file and bakes the
                  values into every scaffolded repo; anything left blank stays a
-                 ``TODO_SET_*`` placeholder for the per-repo /scaffold:configure step.
+                 ``TODO_SET_*`` placeholder for the per-repo {{cmd:scaffold:configure}} step.
 
 Sheet + saved profile live in the kit data dir, NOT in the skill dir: the skill dir is
 replaced wholesale on every install, and a filled-in profile must survive that. One
@@ -224,7 +224,7 @@ def _sibling_fields():
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
             rows = list(getattr(mod, "FIELDS", []))
-        except Exception:  # a malformed sibling must not break /scaffold:profile
+        except Exception:  # a malformed sibling must not break {{cmd:scaffold:profile}}
             continue
         for row in rows:
             if len(row) == 6 and row[0] not in seen:
@@ -266,7 +266,7 @@ def generate(sheet_path=DEFAULT_SHEET, current=None):
         "   where to get it.",
         "2. Fill in the ones you want in the **Values** section below (after each colon;",
         "   leave a line blank to skip it and keep that value per-repo).",
-        "3. Apply with `/scaffold:profile`. Keep the keys as-is.",
+        "3. Apply with `{{cmd:scaffold:profile}}`. Keep the keys as-is.",
         "",
         "## Reference",
         "",
@@ -354,7 +354,7 @@ def main(argv=None):
         path = generate(args.file, current=load(args.json))
         print(f"Wrote {path}")
         print(
-            "  Fill in the fields you want (all optional), then run /scaffold:profile to save."
+            "  Fill in the fields you want (all optional), then run {{cmd:scaffold:profile}} to save."
         )
         return 0
 

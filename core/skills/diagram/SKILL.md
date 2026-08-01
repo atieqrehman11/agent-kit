@@ -18,8 +18,8 @@ the PNG.
 
 ## Entry points
 
-- `/diagram:build` — create a diagram, then verify it
-- `/diagram:review` — audit a diagram that already exists
+- `{{cmd:diagram:build}}` — create a diagram, then verify it
+- `{{cmd:diagram:review}}` — audit a diagram that already exists
 
 ## Payload
 

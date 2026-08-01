@@ -52,5 +52,5 @@ most severe first: each one as the file/shape it affects, what is wrong, and the
 the deterministic findings (from `check.py`) separately from what you found by reading the
 render, so it is clear which are measured and which are judgment.
 
-Offer to fix them with `/diagram:build`, which rebuilds via a script and re-runs this loop.
+Offer to fix them with `{{cmd:diagram:build}}`, which rebuilds via a script and re-runs this loop.
 Do not edit large XML by hand.

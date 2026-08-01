@@ -1,6 +1,6 @@
 """Profile fields owned by the `diagram` skill.
 
-Picked up automatically by `/scaffold:profile` (see `_sibling_fields` in
+Picked up automatically by `{{cmd:scaffold:profile}}` (see `_sibling_fields` in
 `scaffold/profile.py`) when both skills are installed, and read straight from the saved
 profile by `render.py` when they are not. Same 6-tuple shape as the scaffold fields:
 
@@ -17,7 +17,7 @@ FIELDS = [
         "Diagrams",
         "Where diagrams are written (design workspace, never a deployed code repo)",
         "$HOME/design/system-diagrams",
-        "/diagram:build output folder",
+        "{{cmd:diagram:build}} output folder",
         "you choose (a design/docs workspace path; ~ and $VARS expand)",
     ),
     (
@@ -25,7 +25,7 @@ FIELDS = [
         "Diagrams",
         "Path to the brand/style guide diagrams must follow (palette, typography)",
         "$HOME/design/brand-guidelines.md",
-        "/diagram:build — loaded before drawing so output matches the brand",
+        "{{cmd:diagram:build}} — loaded before drawing so output matches the brand",
         "your brand/design system owner (blank = use the active project's style guide)",
     ),
     (
@@ -33,7 +33,7 @@ FIELDS = [
         "Diagrams",
         "draw.io desktop binary used to export PNGs for self-review",
         "/Applications/draw.io.app/Contents/MacOS/draw.io",
-        "/diagram:build + /diagram:review rendering step",
+        "{{cmd:diagram:build}} + {{cmd:diagram:review}} rendering step",
         "your local draw.io install (blank = auto-detected from PATH/usual locations)",
     ),
 ]

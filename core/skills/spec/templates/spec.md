@@ -16,7 +16,7 @@ TPLVAR_REPO_ROWS
 ## Requirements
 
 One row per requirement. `FR` = functional, `NFR` = non-functional. Every ID here MUST
-appear in some task's `Covers` column — `/spec:status` fails otherwise.
+appear in some task's `Covers` column — `spec.py check` fails otherwise.
 
 Acceptance criteria live here and nowhere else. Read each one as a list of required
 inputs: if it says "validated against an SME-labelled sample", a task MUST exist that
@@ -46,7 +46,7 @@ both sides.
 ## Open Decisions
 
 A task that depends on an open decision cannot start. Every open decision MUST have an
-owner and a `Needed by` date, and `/spec:status` reports any that are still open.
+owner and a `Needed by` date, and `spec.py check` reports any that are still open.
 
 | ID | Decision | Options | Recommendation | Owner | Needed by | Status |
 |---|---|---|---|---|---|---|

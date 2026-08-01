@@ -75,7 +75,7 @@ def generate(repo_dir, display_name, preserve=True):
     """Write ``<repo>/CONFIG.md``. Returns ``(path, present_tokens_dict)``.
 
     ``preserve`` keeps any value already typed into an existing sheet, so
-    regenerating after ``/scaffold:add`` introduces new placeholders never
+    regenerating after ``{{cmd:scaffold:add}}`` introduces new placeholders never
     discards work in progress. A token that no longer appears anywhere in the
     tree is dropped either way — its value has already been applied.
     """
@@ -93,7 +93,7 @@ def generate(repo_dir, display_name, preserve=True):
         f"# {display_name} — Configuration",
         "",
         "Fill in the values after each colon (leave blank to skip), then apply with",
-        "`/scaffold:configure`. Keep the keys as-is.",
+        "`{{cmd:scaffold:configure}}`. Keep the keys as-is.",
         "",
     ]
 

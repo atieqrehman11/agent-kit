@@ -201,7 +201,7 @@ ASPECTS = {
         "label": "CONFIG.md placeholder sheet",
         "summary": (
             "one page listing every TODO_SET_* the repo still contains, "
-            "for /scaffold:configure to apply"
+            "for {{cmd:scaffold:configure}} to apply"
         ),
         "applies_to": ALL_TYPES,
         "selectable": False,
@@ -227,7 +227,7 @@ AUTO = ["gitignore", "config-sheet"]
 MERGED = {
     "env-config": "config/{DEV,STG,PROD} now ships with the `cicd` aspect on job repos.",
     "api-platform": "it is now called `api`.",
-    "standards": "standards docs ship with /scaffold:new, per repo type.",
+    "standards": "standards docs ship with {{cmd:scaffold:new}}, per repo type.",
     "gitignore": ".gitignore is applied automatically wherever it is missing.",
     "config-sheet": "CONFIG.md is regenerated automatically after every add.",
 }

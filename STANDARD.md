@@ -147,12 +147,38 @@ __KIT_DATA_DIR__             baked in at install time
 repo root                    dev fallback: walk up to the directory holding STANDARD.md
 ```
 
+## 1.5.1 Command references
+
+Artifacts constantly need to name each other — in help text, in error messages, in prose
+("run the review command on it first"). Writing that as one tool's invocation syntax couples
+`core/` to that tool.
+
+```
+Write this                     Claude renders          another adapter renders
+{{cmd:diagram:review}}         /diagram:review         whatever it uses
+{{cmd:scaffold}}               /scaffold               ...
+```
+
+- `{{cmd:<skill>:<verb>}}` refers to a `commands/<verb>.md` entry point.
+- `{{cmd:<skill>}}` refers to the skill itself, via its `SKILL.md`.
+- The adapter renders both in its own syntax at install time.
+- **The reference must resolve.** An adapter MUST fail on a `{{cmd:…}}` naming a skill or
+  verb that does not exist — this is a broken link in user-facing text, and it is exactly
+  the class of bug that mechanical checking is for.
+
+> This rule paid for itself the day it was written. Tokenising 87 references surfaced eight
+> that pointed at nothing: five told the user to run `/usecase-eval:new`, a name the eval
+> skill has never had, and three referred to `spec` verbs that were never implemented. All
+> eight had been shipping as instructions to the user.
+
 ## 1.6 What may not appear in `core/`
 
 `core/` is tool-agnostic and client-agnostic. It must not contain:
 
-- **Tool-specific paths, filenames or syntax** — `~/.claude`, `CLAUDE.md`, `AGENTS.md`,
-  `/skill:verb` invocation syntax, or any adapter's directory layout.
+- **Tool-specific paths, filenames or syntax** — `~/.claude`, `CLAUDE.md`, `AGENTS.md`, any
+  adapter's directory layout, or a literal `/skill:verb` invocation. Use `{{cmd:…}}` (§1.5.1).
+- **The name of any agent tool** — in prose, in comments, in generated templates. Naming an
+  LLM *provider* or model is fine: that is what the code integrates with, not what runs it.
 - **Client names.** No client, engagement or customer appears in `core/`. Client-specific
   material belongs in that client's own project configuration, not here.
 - **Secrets, tokens, hostnames, internal URLs, policy IDs, or personal paths.** Installed-time
@@ -177,7 +203,7 @@ An adapter MUST:
 | 2 | **Validate before writing** | Reject missing or malformed frontmatter, a `name` that disagrees with its path, or a `description` that is not prose. Fail before the first byte is written, so a bad artifact cannot half-install. |
 | 3 | **Render by kind** | Map each kind onto the tool's native form (§2.2). |
 | 4 | **Register only entry points** | `SKILL.md` and `commands/*.md` at depth 1. Payload is copied, never registered. |
-| 5 | **Resolve both path tokens** | Rewrite every `__SKILL_DIR__` and `__KIT_DATA_DIR__`; verify zero remain. |
+| 5 | **Resolve tokens and command references** | Rewrite every `__SKILL_DIR__`, `__KIT_DATA_DIR__` and `{{cmd:…}}`; verify zero remain. A `{{cmd:…}}` naming a skill or verb that does not exist is a **failed install**, not a warning. |
 | 6 | **Replace, do not merge** | Per artifact: remove the installed copy, then write. A file deleted from `core/` must not linger as a stale command. |
 | 7 | **Preserve user data** | Never overwrite anything the user filled in — the profile sheet above all. Offer a flag to skip regeneration and default to preserving. |
 | 8 | **Verify** | §2.4. Report failures; do not exit 0 on a broken install. |
@@ -225,7 +251,8 @@ wrong trade.
 - [ ] Every artifact has valid frontmatter; every `name` matches its path
 - [ ] Every `description` is prose, not a path or a filename
 - [ ] **Registered entry-point count equals declared entry-point count** — zero payload registered
-- [ ] Zero surviving `__SKILL_DIR__` or `__KIT_DATA_DIR__` tokens
+- [ ] Zero surviving `__SKILL_DIR__`, `__KIT_DATA_DIR__` or `{{cmd:…}}` markers
+- [ ] Every `{{cmd:…}}` resolved to a skill and verb that exist
 - [ ] The kit data dir exists, and its contents are byte-identical to before the install
 - [ ] Every installed script parses
 - [ ] Every skipped artifact was logged by name

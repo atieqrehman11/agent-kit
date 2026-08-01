@@ -83,7 +83,7 @@ question. At the end, echo the full resolved config and get a confirm before run
 `repo-name`, `description`. The **display name is auto-derived** from the slug (Title Case,
 e.g. `payments` → `Payments`); do not spend a question on it (the author can rename it in the
 generated `spec.py`/docstring later). Everything else (workspace, catalog, table prefix,
-team) is written as a `TODO_SET_` placeholder that `/scaffold:configure` resolves in one
+team) is written as a `TODO_SET_` placeholder that `{{cmd:scaffold:configure}}` resolves in one
 pass from the generated `CONFIG.md`. **Do not** ask a separate "which optional inputs to set
 now?" screen — that work is deferred to `configure` by design.
 
@@ -112,7 +112,7 @@ now?" screen — that work is deferred to `configure` by design.
   ask them for the sentence before running rather than proceeding on the button label).
 
 The **display name is not asked** — derive it from the slug (Title Case). That is the *only*
-input screen; everything else is deferred to `/scaffold:configure`.
+input screen; everything else is deferred to `{{cmd:scaffold:configure}}`.
 
 **Step 2 — Confirm (AskUserQuestion, one screen).** Echo the full resolved config (type, slug,
 repo name, derived display name, description) and ask a single **Proceed / Cancel** confirm.
@@ -127,7 +127,7 @@ After confirming, run the scaffold script with the resolved values. Pass only `-
 `--slug`, `--display-name`, `--description` (and `--repo-name` if the user overrode the
 default). In the streamlined flow you **always omit** `--workspace-url`, `--catalog`,
 `--table-prefix`, `--team-name`, and `--team-email` — each becomes a `TODO_SET_` placeholder
-that `/scaffold:configure` fills later from `CONFIG.md` (do not pass them at all, and do
+that `{{cmd:scaffold:configure}}` fills later from `CONFIG.md` (do not pass them at all, and do
 not type the placeholder yourself):
 
 ```bash
@@ -160,7 +160,7 @@ checklist.
 - **Placeholders** — every deferred input is written as a `TODO_SET_` token (e.g.
   `TODO_SET_DEV_WORKSPACE_HOST`, `TODO_SET_CATALOG`, `TODO_SET_TABLE_PREFIX`,
   `TODO_SET_TEAM_NAME`) and listed in the repo's generated `CONFIG.md`. Tell the user to fill
-  `CONFIG.md` and run **`/scaffold:configure`** to apply them in one pass, and name which
+  `CONFIG.md` and run **`{{cmd:scaffold:configure}}`** to apply them in one pass, and name which
   tokens are outstanding.
 - **api** — domain schemas live in `schema/models.py`; runtime `command`/`env` live in
   `app.yml` (single source of truth — the app resource in `resources/api.app.yml` no longer
@@ -186,9 +186,9 @@ checklist.
   optionally fill `example_queries.yml` (question→SQL few-shot pairs — the biggest accuracy
   lever), confirm the `w.genie.*` calls in `deploy_genie.py`, then `./deploy.sh` (local) or
   merge to stg/prod (CI). Full walkthrough: `docs/GENIE_STANDARDS.md` §5–§8.
-- To score the deployed stack, scaffold `evaluation/` with `/eval:new`.
+- To score the deployed stack, scaffold `evaluation/` with `{{cmd:eval:new}}`.
 - To add a **single piece** later — or to a repo this command never created — use
-  **`/scaffold:add`**: the `cicd` deploy pipeline, or the `api` surface (`/v1/health` +
+  **`{{cmd:scaffold:add}}`**: the `cicd` deploy pipeline, or the `api` surface (`/v1/health` +
   `/v1/info`). It restores what a repo of that type would have had, without touching anything
   else in the repo.
 
@@ -197,7 +197,7 @@ checklist.
 Every step is an `AskUserQuestion` picker — no inline text prompts:
 
 ```
-/scaffold:new
+{{cmd:scaffold:new}}
 → [picker] Type / Slug / Repo / Desc?   etl |                       (ONE screen, 4 questions;
    (genie is a button; job named in       signal-quality |           free text via "Other";
     the Type question → Other)             ai-signal-quality-etl |
@@ -207,5 +207,5 @@ Every step is an `AskUserQuestion` picker — no inline text prompts:
 ✓ Confirm → runs new.py --type etl --slug signal-quality --display-name "Signal Quality" \
               --repo-name ai-signal-quality-etl --description "…"
    (workspace/catalog/table-prefix/team NOT passed → TODO_SET_ placeholders in CONFIG.md;
-    fill CONFIG.md, then /scaffold:configure)
+    fill CONFIG.md, then {{cmd:scaffold:configure}})
 ```

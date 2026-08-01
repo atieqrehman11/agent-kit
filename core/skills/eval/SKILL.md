@@ -15,7 +15,7 @@ code to the engine.
 
 ## Entry points
 
-- `/eval:new` — create `evaluation/` (spec + question CSVs + runner) in the owning repo
+- `{{cmd:eval:new}}` — create `evaluation/` (spec + question CSVs + runner) in the owning repo
 
 ## Payload
 

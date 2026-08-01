@@ -57,7 +57,7 @@ _KNOWN_LOCATIONS = {
 
 
 def _load_profile():
-    """Shared install profile saved by /scaffold:profile, in the kit data dir."""
+    """Shared install profile saved by {{cmd:scaffold:profile}}, in the kit data dir."""
     root = _kit_data_dir()
     try:
         with open(os.path.join(root, "scaffold-profile.json"), encoding="utf-8") as f:
@@ -153,7 +153,7 @@ def main(argv=None):
             "       Install draw.io desktop, then point at it with one of:\n"
             "         --bin /path/to/draw.io\n"
             "         DRAWIO_BIN=/path/to/draw.io\n"
-            "         drawio_bin in the shared profile sheet (apply with /scaffold:profile)",
+            "         drawio_bin in the shared profile sheet (apply with {{cmd:scaffold:profile}})",
             file=sys.stderr,
         )
         return 2

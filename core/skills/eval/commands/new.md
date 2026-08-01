@@ -30,7 +30,7 @@ generated `run.sh` auto-detects a sibling checkout that provides `harness/`.
 ## Steps
 
 1. **Find the candidate repos** (no hardcoded paths — resolve them the same way
-   `/scaffold:new` resolves where repos live):
+   `{{cmd:scaffold:new}}` resolves where repos live):
 
 ```bash
 ls -d "${SCAFFOLD_OUTPUT_DIR:-.}"/*/ 2>/dev/null
@@ -106,7 +106,7 @@ cd <repo>
 
    If it reports the engine was not found, the install has no engine path configured: tell
    the user to re-run with `EVAL_ENGINE_PATH=/path/to/engine`, or to set `eval_engine_path`
-   in the shared profile sheet and apply it with `/scaffold:profile`.
+   in the shared profile sheet and apply it with `{{cmd:scaffold:profile}}`.
 
 6. **Report** the created path and the next-steps the script printed: edit
    `evaluation/questions.csv`, fill `evaluation/benchmark.csv` (set
@@ -146,7 +146,7 @@ cd <repo>
 ## Example
 
 ```
-/eval:new cable-health
+{{cmd:eval:new}} cable-health
 → [picker] Repo / Slug / Target / Endpoint?   ai-cable-health-api |
                                                cable-health |
                                                HTTP backend |

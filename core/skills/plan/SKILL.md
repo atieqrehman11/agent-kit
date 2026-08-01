@@ -22,7 +22,7 @@ were never on the critical path.
 
 ## Entry points
 
-- `/plan:release` — run the gates and produce the artefact
+- `{{cmd:plan:release}}` — run the gates and produce the artefact
 
 ## Payload
 

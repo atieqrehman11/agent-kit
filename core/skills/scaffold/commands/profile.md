@@ -2,12 +2,12 @@
 
 Sets up the values that are the **same across every repo** a team scaffolds — doc
 branding, workspace project folder, team/ownership, app permissions, CI/CD, and cluster
-policies. Collected **once per install**, not per repo. `/scaffold:new` reads the saved
+policies. Collected **once per install**, not per repo. `{{cmd:scaffold:new}}` reads the saved
 profile and bakes these into every new repo, so they never appear in a repo's `CONFIG.md`.
 
-This mirrors `/scaffold:configure`, but there is **one sheet for the whole install** and
+This mirrors `{{cmd:scaffold:configure}}`, but there is **one sheet for the whole install** and
 **every field is optional** — anything left blank stays a `TODO_SET_*` placeholder that
-`/scaffold:configure` fills per repo. The sheet (`scaffold-profile.md`) and the saved
+`{{cmd:scaffold:configure}}` fills per repo. The sheet (`scaffold-profile.md`) and the saved
 profile (`scaffold-profile.json`) live in the **kit data dir**, not in the skill dir.
 
 The heavy lifting is a deterministic script — do **not** hand-edit the saved profile.
@@ -41,7 +41,7 @@ so you can edit and re-apply any time. Newly scaffolded repos pick up the curren
 ## Notes
 
 - **Optional by design.** A blank field is not an error — it just stays a `TODO_SET_*`
-  placeholder that `/scaffold:configure` resolves for each repo.
+  placeholder that `{{cmd:scaffold:configure}}` resolves for each repo.
 - **Precedence at scaffold time:** an explicit `new.py` CLI arg wins over the profile,
   which wins over the `TODO_SET_*` placeholder.
 - **Where values land in a scaffolded repo:** `databricks.yml` (workspace project folder,
