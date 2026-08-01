@@ -5,7 +5,7 @@ description: Use when decomposing architecture or product requirements into impl
 
 # Task Decomposer
 
-Canonical definition: `/Users/atieqrehman/ai-clone/agents/decomposer.md`
+Canonical definition: `(CUT - was plan Gate 2 with a forbidden sizing scale)`
 
 When this skill is used, read the canonical definition above and apply it as the role-specific guidance for the task.
 

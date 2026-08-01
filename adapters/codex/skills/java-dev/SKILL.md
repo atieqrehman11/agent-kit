@@ -5,7 +5,7 @@ description: Use when implementing or modifying Java, Spring Boot, REST APIs, pe
 
 # Java Developer
 
-Canonical definition: `/Users/atieqrehman/ai-clone/agents/java-dev.md`
+Canonical definition: `core/guidelines/java.md`
 
 When this skill is used, read the canonical definition above and apply it as the role-specific guidance for the task.
 
