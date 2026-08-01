@@ -1,3 +1,11 @@
+---
+name: genie
+kind: guideline
+description: >
+  Standards for Genie spaces: views, functions, instructions and benchmark coverage. Applies
+  when building or reviewing a Genie space.
+---
+
 # Genie Standards — __ORG_PREFIX__Genie Space Reference
 
 Standard for the `genie` repo type: a Databricks **Genie space** deployed via the Genie

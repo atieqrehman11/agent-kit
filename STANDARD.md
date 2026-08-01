@@ -123,6 +123,12 @@ resolved at install time. They exist separately because they have **opposite lif
 |---|---|---|
 | `__SKILL_DIR__` | the absolute path of *this artifact's* installed directory | **replaced wholesale on every install** (obligation 6) |
 | `__KIT_DATA_DIR__` | one directory per install, shared by every artifact | **never created over, never deleted** by an install |
+| `__GUIDELINES_DIR__` | where `core/guidelines/` was installed | replaced with the rest of `core/` |
+
+`__GUIDELINES_DIR__` exists because a skill sometimes needs a guideline as a *file*, not as
+context — `scaffold` writes the relevant standards into every repo it generates. Without it
+the skill keeps its own copy, which is how this repo came to hold two byte-identical copies
+of the API standards, 395 lines each, in two different folders.
 
 - Any text file in an artifact MAY contain either token.
 - An install with any surviving token is a **failed install**, not a warning.
@@ -260,7 +266,7 @@ wrong trade.
 - [ ] Every artifact has valid frontmatter; every `name` matches its path
 - [ ] Every `description` is prose, not a path or a filename
 - [ ] **Registered entry-point count equals declared entry-point count** — zero payload registered
-- [ ] Zero surviving `__SKILL_DIR__`, `__KIT_DATA_DIR__`, `{{cmd:…}}` or `{{args}}` markers
+- [ ] Zero surviving `__SKILL_DIR__`, `__KIT_DATA_DIR__`, `__GUIDELINES_DIR__`, `{{cmd:…}}` or `{{args}}` markers
 - [ ] Every `{{cmd:…}}` resolved to a skill and verb that exist
 - [ ] The kit data dir exists, and its contents are byte-identical to before the install
 - [ ] Every installed script parses

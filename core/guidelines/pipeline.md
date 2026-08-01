@@ -1,3 +1,11 @@
+---
+name: pipeline
+kind: guideline
+description: >
+  Standards for Lakeflow / ETL pipelines: medallion layering, table and checkpoint
+  conventions, and quality expectations. Applies when writing or reviewing a pipeline.
+---
+
 # Pipeline Standards — __ORG_PREFIX__Lakeflow Reference
 
 Best practices, AI Function guidance, and fallback options for the 4-task

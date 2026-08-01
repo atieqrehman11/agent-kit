@@ -32,6 +32,35 @@ import shutil
 _HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES = os.path.join(_HERE, "templates")
 
+
+def _guidelines_dir():
+    """The shared guidelines dir. The *_STANDARDS docs a scaffolded repo receives are
+    guidelines, not templates — one source of truth, read from here rather than copied."""
+    d = os.environ.get("AGENT_KIT_GUIDELINES_DIR") or "__GUIDELINES_DIR__"
+    if not d.startswith("__"):
+        return d
+    p = _HERE
+    while p != os.path.dirname(p):
+        if os.path.exists(os.path.join(p, "STANDARD.md")):
+            return os.path.join(p, "core", "guidelines")
+        p = os.path.dirname(p)
+    return os.path.join(_HERE, "templates")
+
+
+GUIDELINES = _guidelines_dir()
+
+
+def _src_path(src_rel):
+    """Resolve a files-tuple source. ``guidelines:<name>`` reads the shared guideline."""
+    if src_rel.startswith("guidelines:"):
+        return os.path.join(GUIDELINES, src_rel.split(":", 1)[1])
+    return os.path.join(TEMPLATES, src_rel)
+
+
+def _strip_frontmatter(text):
+    m = re.match(r"\A---\n.*?\n---\n+", text, re.S)
+    return text[m.end():] if m else text
+
 # Repo types, mirrored from new.py (kept here so add.py needs only this module).
 BUNDLE_TYPES = ("api", "etl", "job")
 API_TYPES = ("genie", "agent")
@@ -39,11 +68,11 @@ ALL_TYPES = BUNDLE_TYPES + API_TYPES
 
 # Per-type standards doc: repo type -> (template file, filename under docs/).
 STANDARDS = {
-    "api": ("API_STANDARDS.md", "API_STANDARDS.md"),
-    "etl": ("PIPELINE_STANDARDS.md", "PIPELINE_STANDARDS.md"),
-    "job": ("JOB_STANDARDS.md", "JOB_STANDARDS.md"),
-    "agent": ("AGENT_STANDARDS.md", "AGENT_STANDARDS.md"),
-    "genie": ("GENIE_STANDARDS.md", "GENIE_STANDARDS.md"),
+    "api": ("guidelines:api.md", "API_STANDARDS.md"),
+    "etl": ("guidelines:pipeline.md", "PIPELINE_STANDARDS.md"),
+    "job": ("guidelines:job.md", "JOB_STANDARDS.md"),
+    "agent": ("guidelines:agent.md", "AGENT_STANDARDS.md"),
+    "genie": ("guidelines:genie.md", "GENIE_STANDARDS.md"),
 }
 
 # Tool caches a formatter/linter may have dropped in a template dir.
@@ -185,7 +214,7 @@ ASPECTS = {
         "files": {
             t: [
                 (src, f"docs/{dest}"),
-                ("PYTHON_STANDARDS.md", "docs/PYTHON_STANDARDS.md"),
+                ("guidelines:python.md", "docs/PYTHON_STANDARDS.md"),
             ]
             for t, (src, dest) in STANDARDS.items()
         },
@@ -362,7 +391,10 @@ def apply(key, repo_dir, rtype, vars_, force=False, dry_run=False):
         written.append(dest_rel)
 
     for src_rel, dest_rel in _for_type(ASPECTS[key].get("files"), rtype):
-        _emit(dest_rel, src=os.path.join(TEMPLATES, src_rel))
+        if src_rel.startswith("guidelines:"):
+            _emit(dest_rel, text=_strip_frontmatter(_read(_src_path(src_rel))))
+        else:
+            _emit(dest_rel, src=_src_path(src_rel))
 
     for src_dir, dest_dir in _for_type(ASPECTS[key].get("dirs"), rtype):
         for src, dest_rel in _walk_dir(os.path.join(TEMPLATES, src_dir), dest_dir):

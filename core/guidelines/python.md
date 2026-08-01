@@ -2,85 +2,112 @@
 name: python
 kind: guideline
 description: >
-  Standards for writing Python in this org: tech stack, LLM integration, RAG pipelines,
-  Databricks conventions, quality rules, and the mandatory evaluation step for every LLM
-  feature. Applies whenever Python is written, changed or reviewed.
+  Baseline standards for all Python in any repo type: style, import organisation, function
+  design, error handling, configuration, testing, code reuse, and Databricks compute
+  conventions. Applies whenever Python is written or reviewed.
 applies_to:
   - "**/*.py"
 ---
 
-# Python / Gen AI Developer — standards
+# Python Standards — __ORG_PREFIX__shared standard, all repo types
 
-You are a senior Python engineer specialising in Gen AI systems, LLM pipelines,
-FastAPI microservices, and data engineering on Databricks.
+Cross-cutting **code** standard for every repo. This is the *how to write
+Python here* layer; pair it with your repo's **resource** standard
+(`API_STANDARDS.md` / `PIPELINE_STANDARDS.md` / `JOB_STANDARDS.md` / `AGENT_STANDARDS.md` /
+`GENIE_STANDARDS.md`), which covers *how to build this resource type*. The two layers do not
+overlap — style and structure live here, domain patterns live there.
 
-## Tech stack
+> Adopted from the enterprise Python rules so every coding assistant applies the **same**
+> rules. Keep this in sync with the enterprise copy rather than forking it.
 
-- Python 3.12 with type hints on every function signature (mypy strict)
-- FastAPI + Pydantic v2 for REST services
-- LangChain / LangGraph for LLM orchestration
-- AWS: Bedrock (Claude, Titan Embeddings), S3, SQS, Lambda
-- Azure: Azure OpenAI, Blob Storage, Service Bus
-- Databricks: MLflow, Delta Lake, Databricks Workflows, Foundation Model APIs
-- Vector stores: pgvector (psycopg3), OpenSearch, Pinecone, Chroma
-- Testing: pytest + pytest-asyncio + moto (AWS mocks) + respx (HTTP mocks)
+## Applies to
 
-## LLM integration standards
+All Python in the repo. The **Databricks compute** section (logging, Unity Catalog) applies
+to notebook / job / pipeline / agent code that runs on Databricks compute. An `api` repo
+follows the logging and error rules through its framework and the API guidelines — not the
+notebook idioms.
 
-- Never hardcode prompts — load from YAML/JSON config or prompt registry
-- Every LLM call: retry with exponential backoff, timeout, fallback model
-- Log per call: model, tokens_in, tokens_out, latency_ms, cost_estimate
-- Structured output: Pydantic models + instructor or LangChain output parsers
-- Streaming: yield tokens via FastAPI StreamingResponse + SSE
-- Rate limiting: implement token bucket per client
-- Hallucination guard: validate response only references injected context
+---
 
-## RAG pipeline standards
+## Style
 
-- Chunking: configurable strategy (recursive character, semantic, by section)
-- Embedding: async batch embedding with progress tracking
-- Retrieval: hybrid search (vector + BM25) preferred over pure vector
-- Reranking: cross-encoder reranking before passing to LLM context
-- Guardrails: validate retrieved chunks are relevant before including in context
+- Follow **PEP 8**. Target **Python 3.12+**.
+- **Type hints** on every function signature.
+- **Docstrings** on public functions and classes (parameters + return).
+- **Max line length: 100.**
+- Use **Ruff** for both linting and formatting (Ruff's formatter is Black-compatible). Config
+  ships in `pyproject.toml` (`line-length = 100`, `target-version = "py312"`). Run
+  `ruff check` and `ruff format` before every commit.
 
-## Databricks standards (when applicable)
+## Import organization
 
-- Delta Lake: Bronze append-only, Silver merge idempotent, Gold append-only audit trail
-- MLflow: log params, metrics, and artifacts per run — every run traceable
-- Workflows: Python scripts preferred over notebooks for production tasks
-- Config: all thresholds and parameters in config YAML — never hardcoded
+Group and separate with blank lines: standard library, third-party, then local.
 
-## Code output per task — in this order
+```python
+# Standard library
+import os
+from datetime import datetime
 
-1. Pydantic models (request/response schemas)
-2. Service class with dependency injection (FastAPI Depends pattern)
-3. LangChain chain / pipeline definition (if Gen AI task)
-4. FastAPI router with endpoints (if API task)
-5. Databricks notebook or Python script (if pipeline task)
-6. MLflow logging calls (if model or pipeline task)
-7. Configuration (Pydantic Settings, loaded from env/YAML)
-8. Unit tests (pytest — mock all LLM and external calls)
-9. Integration test notes (what Testcontainers or LocalStack would cover)
-10. requirements.txt additions
+# Third-party
+import yaml
+from pyspark.sql import functions as F
 
-## Quality rules
+# Local
+from utils import helper_functions
+```
 
-- Type hints on every function signature — no bare `any`
-- No bare `except` — catch specific exceptions
-- All I/O (DB, S3, LLM) behind interface classes for testability
-- Async all the way — no sync blocking in async FastAPI routes
-- Environment variables via pydantic-settings — never os.getenv scattered
-- Test names: test_given_[state]_when_[action]_then_[outcome]
+## Function design
 
-## Gen AI evaluation (mandatory for every LLM feature)
+- Small and single-responsibility; descriptive names.
+- Type hints and a docstring on each.
+- **Return early** for error conditions rather than nesting.
 
-Include an eval fixture covering:
-- Faithfulness: response grounded in injected context only
-- Relevance: retrieved chunks match query intent
-- Latency: P95 within defined threshold
-- Adversarial: prompt injection and PII leakage attempts
+## Error handling
 
-## Acceptance criteria check
+Catch, log with context, and **re-raise** — never silently swallow.
 
-Before finalising, list every criterion from the task definition with ✓ or ✗.
-Fix any ✗ before responding.
+```python
+try:
+    df = spark.read.format("delta").load(table_path)
+except Exception as e:
+    print(f"Error loading table {table_path}: {e}")
+    raise
+```
+
+## Configuration handling
+
+Configuration-driven by default. Load and **validate** YAML; fail loudly on a missing key.
+
+```python
+def load_config(config_path: str) -> dict:
+    """Load and validate a YAML config."""
+    with open(config_path, encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+    assert "environments" in config, "Missing 'environments' in config"
+    assert "tasks" in config, "Missing 'tasks' in config"
+    return config
+```
+
+## Testing
+
+- Tests in `tests/`, using **pytest**.
+- Mock `dbutils` / `spark` for local runs.
+- Cover config loading/validation and transformation logic.
+
+## Code reuse
+
+- Extract shared logic into `src/utils/`.
+- No duplication across notebooks; prefer configuration-driven design.
+
+---
+
+## Databricks compute (notebook / job / pipeline / agent code)
+
+- Access the pre-initialized `spark` session; use `dbutils` for widgets, secrets, filesystem.
+- Prefer the DataFrame API over RDDs, and PySpark functions over UDFs; rely on lazy evaluation.
+- **Logging:** `print()` is acceptable for driver logs in notebooks/jobs (surfaced in run
+  logs) — include context (env, catalog, counts, progress). **API code uses the `logging`
+  module / structured logs** per the API guidelines, not `print`.
+- **Unity Catalog access:** use the three-level namespace `catalog.schema.table`; rely on
+  managed identities for access; use `spark.sql()` for DDL; query `information_schema` for
+  metadata. (Table **naming** conventions live in `PIPELINE_STANDARDS.md`.)
