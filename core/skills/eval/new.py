@@ -33,6 +33,21 @@ import shutil
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
+
+def _kit_data_dir():
+    """The kit's shared data directory: one per install, shared by every skill, and never
+    replaced by an install (unlike the skill dir, which is). __KIT_DATA_DIR__ is rewritten
+    at install time; the fallbacks keep this working from a repo checkout."""
+    d = os.environ.get("AGENT_KIT_DATA_DIR") or "__KIT_DATA_DIR__"
+    if not d.startswith("__"):
+        return d
+    p = _HERE
+    while p != os.path.dirname(p):
+        if os.path.exists(os.path.join(p, "STANDARD.md")):
+            return p
+        p = os.path.dirname(p)
+    return os.path.dirname(os.path.dirname(_HERE))
+
 TEMPLATES = os.path.join(_HERE, "templates")
 
 ENGINE_TODO = "TODO_SET_EVAL_ENGINE_PATH"
@@ -75,10 +90,9 @@ _DEFAULT_ENDPOINT = {
 }
 
 
-# Shared install profile saved by /scaffold:profile, in the .claude/ root (two levels up
-# from this skill dir). Returns only non-empty string values; {} when there is no profile.
+# Shared install profile saved by /scaffold:profile, in the kit data dir. Returns only non-empty string values; {} when there is no profile.
 def _load_profile():
-    root = os.path.dirname(os.path.dirname(_HERE))
+    root = _kit_data_dir()
     path = os.path.join(root, "scaffold-profile.json")
     try:
         with open(path, encoding="utf-8") as f:

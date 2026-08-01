@@ -10,7 +10,7 @@ Two subcommands:
          anything requiring judgement belongs in the command markdown, not here.
 
 Specs root resolution (first hit wins):
-  --specs-root  >  $SPEC_ROOT  >  ~/.claude/spec-profile.json "specs_root"  >  ./specs
+  --specs-root  >  $SPEC_ROOT  >  <kit data dir>/spec-profile.json "specs_root"  >  ./specs
 
 Columns are always looked up by header name. Users reorder columns for readability and
 position-based access silently reads the wrong one and returns plausible garbage.
@@ -24,8 +24,23 @@ import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+def _kit_data_dir():
+    """The kit's shared data directory: one per install, shared by every skill, and never
+    replaced by an install (unlike the skill dir, which is). __KIT_DATA_DIR__ is rewritten
+    at install time; the fallbacks keep this working from a repo checkout."""
+    d = os.environ.get("AGENT_KIT_DATA_DIR") or "__KIT_DATA_DIR__"
+    if not d.startswith("__"):
+        return d
+    p = HERE
+    while p != os.path.dirname(p):
+        if os.path.exists(os.path.join(p, "STANDARD.md")):
+            return p
+        p = os.path.dirname(p)
+    return os.path.dirname(os.path.dirname(HERE))
+
 TEMPLATES = os.path.join(HERE, "templates")
-PROFILE = os.path.join(os.path.expanduser("~"), ".claude", "spec-profile.json")
+PROFILE = os.path.join(_kit_data_dir(), "spec-profile.json")
 
 PRIORITIES = {"P0", "P1", "P2", "P3"}
 STATUSES = {"TODO", "WIP", "DONE", "BLOCKED"}

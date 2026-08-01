@@ -8,7 +8,7 @@ profile and bakes these into every new repo, so they never appear in a repo's `C
 This mirrors `/scaffold:configure`, but there is **one sheet for the whole install** and
 **every field is optional** — anything left blank stays a `TODO_SET_*` placeholder that
 `/scaffold:configure` fills per repo. The sheet (`scaffold-profile.md`) and the saved
-profile (`scaffold-profile.json`) live in the **`.claude/` root**, not in the command dir.
+profile (`scaffold-profile.json`) live in the **kit data dir**, not in the skill dir.
 
 The heavy lifting is a deterministic script — do **not** hand-edit the saved profile.
 Run the script.
@@ -26,7 +26,7 @@ python3 __SKILL_DIR__/profile.py \
 `--generate` to create it (install does this for you). Existing saved values prefill the
 sheet, so regenerating never loses anything.
 
-**Step 2 — Fill it in.** Open `scaffold-profile.md` (in the `.claude/` root) and set the
+**Step 2 — Fill it in.** Open `scaffold-profile.md` (in the kit data dir) and set the
 values shared across your repos (output dir, org name, workspace project, team, developers
 group, prod admin, CI controller URL + runner + project id + image, cluster policies). Leave
 any line blank to keep that value per-repo. Keep the keys as-is.

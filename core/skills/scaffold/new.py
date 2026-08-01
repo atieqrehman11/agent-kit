@@ -48,6 +48,21 @@ import sys
 import uuid
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
+
+def _kit_data_dir():
+    """The kit's shared data directory: one per install, shared by every skill, and never
+    replaced by an install (unlike the skill dir, which is). __KIT_DATA_DIR__ is rewritten
+    at install time; the fallbacks keep this working from a repo checkout."""
+    d = os.environ.get("AGENT_KIT_DATA_DIR") or "__KIT_DATA_DIR__"
+    if not d.startswith("__"):
+        return d
+    p = _HERE
+    while p != os.path.dirname(p):
+        if os.path.exists(os.path.join(p, "STANDARD.md")):
+            return p
+        p = os.path.dirname(p)
+    return os.path.dirname(os.path.dirname(_HERE))
+
 sys.path.insert(0, _HERE)
 
 # The composable slices of a repo (CI/CD, standards docs, per-env config, ...).
@@ -80,8 +95,8 @@ def _resolve_output_dir(cli_value, profile=None):
 def _load_profile():
     import json
 
-    # Saved by /scaffold:profile in the .claude/ root (two levels up from here).
-    root = os.path.dirname(os.path.dirname(_HERE))
+    # Saved by /scaffold:profile in the kit data dir.
+    root = _kit_data_dir()
     path = os.path.join(root, "scaffold-profile.json")
     try:
         with open(path, encoding="utf-8") as f:

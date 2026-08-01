@@ -21,6 +21,21 @@ import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
+def _kit_data_dir():
+    """The kit's shared data directory: one per install, shared by every skill, and never
+    replaced by an install (unlike the skill dir, which is). __KIT_DATA_DIR__ is rewritten
+    at install time; the fallbacks keep this working from a repo checkout."""
+    d = os.environ.get("AGENT_KIT_DATA_DIR") or "__KIT_DATA_DIR__"
+    if not d.startswith("__"):
+        return d
+    p = _HERE
+    while p != os.path.dirname(p):
+        if os.path.exists(os.path.join(p, "STANDARD.md")):
+            return p
+        p = os.path.dirname(p)
+    return os.path.dirname(os.path.dirname(_HERE))
+
+
 # Where each OS puts a desktop draw.io install. Checked only after the explicit
 # sources (flag, env, profile, PATH) come up empty.
 _KNOWN_LOCATIONS = {
@@ -42,8 +57,8 @@ _KNOWN_LOCATIONS = {
 
 
 def _load_profile():
-    """Shared install profile saved by /scaffold:profile, in the .claude/ root."""
-    root = os.path.dirname(os.path.dirname(_HERE))
+    """Shared install profile saved by /scaffold:profile, in the kit data dir."""
+    root = _kit_data_dir()
     try:
         with open(os.path.join(root, "scaffold-profile.json"), encoding="utf-8") as f:
             data = json.load(f)

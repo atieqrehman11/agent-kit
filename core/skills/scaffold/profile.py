@@ -17,10 +17,9 @@ Two modes (just like /scaffold:configure):
                  values into every scaffolded repo; anything left blank stays a
                  ``TODO_SET_*`` placeholder for the per-repo /scaffold:configure step.
 
-Sheet + saved profile live in the ``.claude/`` root (two levels up from this
-script), NOT in the command dir — a stray ``*.md`` there would be picked up as a
-slash command, and on case-insensitive filesystems ``PROFILE.md`` would collide with
-this command's ``profile.md``. One profile serves every repo you scaffold.
+Sheet + saved profile live in the kit data dir, NOT in the skill dir: the skill dir is
+replaced wholesale on every install, and a filled-in profile must survive that. One
+profile serves every repo you scaffold.
 
     python3 profile.py --generate     # write the fill-in sheet
     python3 profile.py                # apply sheet -> scaffold-profile.json
@@ -33,8 +32,22 @@ import os
 import re
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-# .claude/ root = two levels up from .claude/commands/scaffold/ (dev: repo root).
-_ROOT = os.path.dirname(os.path.dirname(_HERE))
+
+def _kit_data_dir():
+    """The kit's shared data directory: one per install, shared by every skill, and never
+    replaced by an install (unlike the skill dir, which is). __KIT_DATA_DIR__ is rewritten
+    at install time; the fallbacks keep this working from a repo checkout."""
+    d = os.environ.get("AGENT_KIT_DATA_DIR") or "__KIT_DATA_DIR__"
+    if not d.startswith("__"):
+        return d
+    p = _HERE
+    while p != os.path.dirname(p):
+        if os.path.exists(os.path.join(p, "STANDARD.md")):
+            return p
+        p = os.path.dirname(p)
+    return os.path.dirname(os.path.dirname(_HERE))
+
+_ROOT = _kit_data_dir()
 SHEET_NAME = "scaffold-profile.md"
 JSON_NAME = "scaffold-profile.json"
 DEFAULT_SHEET = os.path.join(_ROOT, SHEET_NAME)
