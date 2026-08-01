@@ -95,7 +95,8 @@ def parse(path):
             continue
         if re.match(r"^\s*-\s", line) and key:
             fm.setdefault(key + "__list", []).append(
-                line.split("-", 1)[1].strip().strip("\"'"))
+                line.split("-", 1)[1].strip().strip("\"'")
+            )
             continue
         kv = re.match(r"^(\w[\w-]*):\s*(.*)$", line)
         if kv:
@@ -171,7 +172,7 @@ def check_refs(entries):
     return bad
 
 
-# ── Obligations 3–5: render ─────────────────────────────────────────────────────
+# ── Obligation 3: render by kind · Obligation 5: resolve tokens ─────────────────
 
 
 def substitute(text, skill_dir, data_dir, guide_dir):
@@ -271,7 +272,8 @@ def install(target, dry_run):
             write(os.path.join(skill_dir, "SKILL.md"), render_fm(fm, kind) + sub(body))
             written["skills"].append(name)
             src = os.path.dirname(path)
-            # Payload travels with the skill; only entry points get registered (1.3).
+            # Obligation 4: payload travels with the skill but is never registered. Only
+            # SKILL.md and commands/*.md at depth 1 become entry points (§1.3).
             for r, dirs, fs in os.walk(src):
                 dirs[:] = [d for d in dirs if d not in PAYLOAD_SKIP]
                 for f in fs:
@@ -305,15 +307,6 @@ def verify(target, written, arts, profile_before, dry_run):
         written["commands"]
     )
     if not dry_run:
-        got = (
-            sum(
-                len(files)
-                for r, _, files in os.walk(os.path.join(target, "skills"))
-                for f in [None]
-                if False
-            )
-            or 0
-        )
         got = len([1 for n in os.listdir(os.path.join(target, "skills"))]) + len(
             [
                 1
@@ -330,17 +323,17 @@ def verify(target, written, arts, profile_before, dry_run):
         left = []
         for sub in ("guidelines", "skills", "commands", "agents"):
             for r, _, fs in os.walk(os.path.join(target, sub)):
-              for f in fs:
-                p = os.path.join(r, f)
-                try:
-                    t = open(p, encoding="utf-8").read()
-                except Exception:
-                    continue
-                if re.search(
-                    r"__SKILL_DIR__|__KIT_DATA_DIR__|__GUIDELINES_DIR__|\{\{cmd:|\{\{args\}\}",
-                    t,
-                ):
-                    left.append(p)
+                for f in fs:
+                    p = os.path.join(r, f)
+                    try:
+                        t = open(p, encoding="utf-8").read()
+                    except Exception:
+                        continue
+                    if re.search(
+                        r"__SKILL_DIR__|__KIT_DATA_DIR__|__GUIDELINES_DIR__|\{\{cmd:|\{\{args\}\}",
+                        t,
+                    ):
+                        left.append(p)
         if left:
             fails.append(f"{len(left)} file(s) still contain an unresolved marker")
         after = _profile_hash(target)
@@ -357,10 +350,66 @@ def _profile_hash(target):
     return out
 
 
+# ── Obligation 10: uninstall ────────────────────────────────────────────────────
+
+RECEIPT = ".agent-kit-install.json"
+
+
+def uninstall(target, dry_run):
+    """Remove exactly what the receipt lists, and nothing else.
+
+    Driven by the receipt rather than by a re-scan of core/, so an artifact deleted from
+    core/ since the install is still removed, and a file the user put in the target by hand
+    is still left alone. The target itself is the kit data dir and is never removed.
+    """
+    rp = os.path.join(target, RECEIPT)
+    if not os.path.exists(rp):
+        die(f"no receipt at {rp} — nothing to uninstall")
+    r = json.load(open(rp))
+
+    paths = [os.path.join(target, "guidelines", f"{n}.md") for n in r["guidelines"]]
+    paths += [os.path.join(target, "skills", n) for n in r["skills"]]
+    paths += [os.path.join(target, "agents", f"{n}.md") for n in r["agents"]]
+    paths += [
+        os.path.join(
+            target, "commands", *c.split(":", 1)[:1], c.split(":", 1)[1] + ".md"
+        )
+        for c in r["commands"]
+    ]
+
+    gone = 0
+    for p in paths:
+        if not os.path.lexists(p):
+            continue
+        gone += 1
+        if dry_run:
+            continue
+        shutil.rmtree(p) if os.path.isdir(p) and not os.path.islink(p) else os.remove(p)
+
+    if not dry_run:
+        # Directories the install created are removed only once empty — anything the user
+        # added alongside the kit survives.
+        for sub in ("guidelines", "skills", "commands", "agents"):
+            d = os.path.join(target, sub)
+            for r_, dirs, _ in os.walk(d, topdown=False):
+                if os.path.isdir(r_) and not os.listdir(r_):
+                    os.rmdir(r_)
+        os.remove(rp)
+
+    ok(f"{gone} artifact(s) removed" + (" (dry run)" if dry_run else ""))
+    note(f"kit data dir kept: {target}")
+    return gone
+
+
 def main():
     ap = argparse.ArgumentParser(add_help=True)
     ap.add_argument("target", nargs="?", default=os.path.expanduser("~/.claude"))
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument(
+        "--uninstall",
+        action="store_true",
+        help="remove exactly what the receipt lists; never the kit data dir",
+    )
     ap.add_argument(
         "--no-profile",
         action="store_true",
@@ -379,6 +428,12 @@ def main():
         f"  {'target':10} {B}{target}{R}"
         + (f"  {YLW}(dry run){R}" if a.dry_run else "")
     )
+
+    if a.uninstall:
+        step("Uninstalling", 1)
+        uninstall(target, a.dry_run)
+        print(f"\n  {DIM}{LINE}{R}\n  {GRN}✓  Uninstalled{R}\n")
+        return
 
     step("Checking prerequisites", total)
     if not os.path.isdir(CORE):
@@ -418,6 +473,8 @@ def main():
         ok("profile sheet untouched")
 
     if not a.dry_run:
+        # Obligation 9: the receipt is what --uninstall is driven by, so it must list every
+        # artifact by name — a summary count would leave nothing to remove precisely.
         receipt = {
             "source": ROOT,
             "installed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),

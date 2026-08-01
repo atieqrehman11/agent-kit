@@ -30,8 +30,8 @@ so the split is a soft default, not a hard boundary.
 ## Typical flow
 
 ```
-# once per install (install.sh seeds the sheet for you)
-edit .claude/scaffold-profile.md      # fill shared values
+# once per install (the installer seeds the sheet for you)
+edit <kit data dir>/scaffold-profile.md       # fill shared values
 {{cmd:scaffold:profile}}                      # apply → scaffold-profile.json
 
 # per use case

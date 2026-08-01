@@ -52,7 +52,7 @@ and every one is optional:
 | What | Resolution |
 |---|---|
 | Output folder | `$DIAGRAMS_DIR` > profile `diagrams_dir` > the folder named in the request > the project's existing diagrams folder |
-| Brand guide | named in the request > profile `brand_guidelines` > the guide the active `CLAUDE.md` points at > reference defaults |
+| Brand guide | named in the request > profile `brand_guidelines` > the guide the active project instructions point at > reference defaults |
 | draw.io binary | `--bin` > `$DRAWIO_BIN` > profile `drawio_bin` > `PATH` > the usual install locations for the OS |
 
 Set the profile values once in the shared profile sheet and apply them with
