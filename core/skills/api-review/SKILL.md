@@ -24,10 +24,10 @@ Load these now and treat them as the contract:
 
 If the target exposes chat / conversational / SSE-streaming endpoints, also load and
 apply the Chat API Standards referenced in the active project's instruction file
-(e.g. `.claude/guidelines/chat-api-guidelines.md`). If no chat endpoints are in
+(the chat API standards it names). If no chat endpoints are in
 scope, skip the chat checklist entirely — do not flag its absence.
 
-If the active CLAUDE.md names other governing docs (style, ERD, etc.) that apply to a
+If the project's instruction file names other governing docs (style, ERD, etc.) that apply to a
 changed file, honor them too.
 
 ## Phase 0 — Scope

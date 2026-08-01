@@ -110,17 +110,42 @@ which is why nothing could sensibly choose between `architect` and `decomposer`.
 
 `name` matching the directory is what lets an adapter replace one artifact without a manifest.
 
-## 1.5 The `__SKILL_DIR__` contract
+## 1.5 Path tokens
 
-A skill's scripts and payload move to an install location the skill cannot know in advance.
+An artifact's files move to an install location it cannot know in advance. Two tokens are
+resolved at install time. They exist separately because they have **opposite lifecycles**.
 
-- Any text file in an artifact MAY contain the literal token `__SKILL_DIR__`.
-- At install time the adapter replaces every occurrence with the **absolute path of that
-  artifact's installed directory**.
-- An install with any surviving `__SKILL_DIR__` is a **failed install**, not a warning.
+| Token | Resolves to | Lifecycle |
+|---|---|---|
+| `__SKILL_DIR__` | the absolute path of *this artifact's* installed directory | **replaced wholesale on every install** (obligation 6) |
+| `__KIT_DATA_DIR__` | one directory per install, shared by every artifact | **never created over, never deleted** by an install |
+
+- Any text file in an artifact MAY contain either token.
+- An install with any surviving token is a **failed install**, not a warning.
 
 Artifacts MUST NOT hardcode absolute paths, `~`, or paths relative to the current working
-directory. `__SKILL_DIR__` is the only supported way to find your own files.
+directory, and MUST NOT infer either location from their own position on disk.
+
+### Why `__KIT_DATA_DIR__` is not just "somewhere near the skill dir"
+
+User state must outlive an install. A filled-in profile sheet, a saved configuration — these
+are written by the user and read by *several* skills, and obligation 6 would destroy them if
+they lived inside a skill directory.
+
+The predecessor code understood the requirement and expressed it as
+`os.path.dirname(os.path.dirname(__file__))` — "two levels up from wherever I was installed."
+That is a script inferring the installer's directory layout. It held only while one adapter
+used one layout, it broke silently for any other, and a second script gave up entirely and
+hardcoded `~/.claude/spec-profile.json`. A shared resource with no sanctioned home is a
+resource every script will invent a different guess for.
+
+Resolution order for a script that needs it:
+
+```
+$AGENT_KIT_DATA_DIR          escape hatch, and how a repo checkout runs uninstalled
+__KIT_DATA_DIR__             baked in at install time
+repo root                    dev fallback: walk up to the directory holding STANDARD.md
+```
 
 ## 1.6 What may not appear in `core/`
 
@@ -152,12 +177,13 @@ An adapter MUST:
 | 2 | **Validate before writing** | Reject missing or malformed frontmatter, a `name` that disagrees with its path, or a `description` that is not prose. Fail before the first byte is written, so a bad artifact cannot half-install. |
 | 3 | **Render by kind** | Map each kind onto the tool's native form (§2.2). |
 | 4 | **Register only entry points** | `SKILL.md` and `commands/*.md` at depth 1. Payload is copied, never registered. |
-| 5 | **Resolve `__SKILL_DIR__`** | Rewrite every occurrence; verify zero remain. |
+| 5 | **Resolve both path tokens** | Rewrite every `__SKILL_DIR__` and `__KIT_DATA_DIR__`; verify zero remain. |
 | 6 | **Replace, do not merge** | Per artifact: remove the installed copy, then write. A file deleted from `core/` must not linger as a stale command. |
 | 7 | **Preserve user data** | Never overwrite anything the user filled in — the profile sheet above all. Offer a flag to skip regeneration and default to preserving. |
 | 8 | **Verify** | §2.4. Report failures; do not exit 0 on a broken install. |
 | 9 | **Write a receipt** | Source path, source version, timestamp, and every artifact installed. |
-| 10 | **Uninstall** | Remove exactly what the receipt lists, and nothing else. |
+| 10 | **Uninstall** | Remove exactly what the receipt lists, and nothing else. Never the kit data dir. |
+| 11 | **Provide a kit data dir** | Choose one directory per install for shared user state, create it if absent, and resolve `__KIT_DATA_DIR__` to it. It is **exempt from obligation 6** — an install never replaces, clears or reinitialises it. Where it goes is the adapter's choice; that it exists is not. |
 
 An adapter MUST NOT write outside its declared install root, and MUST NOT modify `core/`.
 
@@ -199,7 +225,8 @@ wrong trade.
 - [ ] Every artifact has valid frontmatter; every `name` matches its path
 - [ ] Every `description` is prose, not a path or a filename
 - [ ] **Registered entry-point count equals declared entry-point count** — zero payload registered
-- [ ] Zero surviving `__SKILL_DIR__` tokens
+- [ ] Zero surviving `__SKILL_DIR__` or `__KIT_DATA_DIR__` tokens
+- [ ] The kit data dir exists, and its contents are byte-identical to before the install
 - [ ] Every installed script parses
 - [ ] Every skipped artifact was logged by name
 - [ ] User-filled data is byte-identical to before the install
@@ -228,5 +255,7 @@ wrong trade.
    guideline — put it in `core/guidelines/` instead.
 3. Put user-invocable entry points in `commands/<verb>.md`. Put everything else in `reference/`,
    `templates/`, or scripts. **If you are unsure whether a file is an entry point, it is not.**
-4. Address your own files with `__SKILL_DIR__`. Never a hardcoded or `~`-relative path.
+4. Address your own files with `__SKILL_DIR__`, and anything the user fills in or that another
+   skill also reads with `__KIT_DATA_DIR__`. Never a hardcoded path, a `~`-relative path, or a
+   guess derived from your own position on disk.
 5. Run the adapter install. §2.4 will tell you what you got wrong.
