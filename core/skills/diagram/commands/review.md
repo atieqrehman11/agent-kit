@@ -6,7 +6,7 @@ into a document, or whenever someone asks "does this look right?".
 
 ## 1. Locate the file
 
-If `$ARGUMENTS` names a file, review that. Otherwise list the candidates
+If `{{args}}` names a file, review that. Otherwise list the candidates
 (`ls **/*.drawio`, or the folder from `$DIAGRAMS_DIR` / the profile's `diagrams_dir`) and
 ask which one. A multi-page file is reviewed one page at a time — `--page <n>`.
 

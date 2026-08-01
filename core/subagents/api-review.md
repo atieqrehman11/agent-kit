@@ -1,11 +1,11 @@
 ---
 name: api-review
-kind: skill
+kind: subagent
 description: >
   One-pass review of a Python/FastAPI use-case or chat API — correctness bugs, a
   security and performance gate, and conformance to the API standards — ending in a
   single verdict. Use when reviewing, or before merging, any API change.
-argument-hint: "[path or PR/branch to review; default = current diff]"
+arguments: "[path or PR/branch to review; default = current diff]"
 ---
 
 # API Review — do-it-all gate for Python APIs
@@ -33,10 +33,10 @@ changed file, honor them too.
 
 ## Phase 0 — Scope
 
-If `$ARGUMENTS` names a path, PR, or branch, review that. Otherwise get the diff:
+If `{{args}}` names a path, PR, or branch, review that. Otherwise get the diff:
 `git diff @{upstream}...HEAD`, falling back to `git diff main...HEAD` / `git diff HEAD~1`,
 and also include uncommitted changes (`git diff HEAD`) — reviews often run pre-commit.
-If there is no git repo, review the files named in `$ARGUMENTS` (or ask which files).
+If there is no git repo, review the files named in `{{args}}` (or ask which files).
 Read the enclosing function/router/module for each hunk — bugs in unchanged lines of a
 touched file are in scope. State the scope you settled on in one line.
 

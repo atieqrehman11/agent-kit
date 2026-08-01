@@ -90,7 +90,7 @@ React:
 
 ## Output format
 
-### Verdict (mandatory first line — for orchestrator parsing)
+### Verdict (mandatory first line)
 VERDICT: PASS | PASS_WITH_CONDITIONS | FAIL
 
 ### Summary

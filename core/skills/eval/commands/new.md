@@ -12,7 +12,7 @@ the CSVs beside it — the engine builds each `Dataset`.
 
 ## Inputs
 
-Collect these before generating. If `$ARGUMENTS` supplies the slug, use it; always confirm
+Collect these before generating. If `{{args}}` supplies the slug, use it; always confirm
 the **repo** and **target** interactively.
 
 | # | Name | Format | Resolution |
@@ -54,7 +54,7 @@ ls -d "${SCAFFOLD_OUTPUT_DIR:-.}"/*/ 2>/dev/null
    **Tab 2 — Slug** (`header: "Slug"`): kebab-case, matches the use case. Pre-fill the
    first option with the slug derived from the chosen repo name (strip a leading `ai-`
    prefix and any `-backend` / `-api` / `-etl` / `-job` suffix); the user confirms or types
-   another via Other. If `$ARGUMENTS` supplies a slug, pre-fill that.
+   another via Other. If `{{args}}` supplies a slug, pre-fill that.
 
    **Tab 3 — Target** (`header: "Target"`): the spec's core decision — do not assume a
    default. Four options (map the answer to the `<target>` keyword in parentheses):

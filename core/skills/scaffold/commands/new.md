@@ -76,7 +76,7 @@ options** (the tool rejects fewer); the **"Other"** free-text choice is added au
 so for a pure free-text field give two example/suggestion options and let the user pick "Other"
 to type their own. Batch related questions into a single
 `AskUserQuestion` screen (up to four questions per screen) so the user answers a compact form,
-not a chain of one-at-a-time prompts. If `$ARGUMENTS` already supplies a value, skip that
+not a chain of one-at-a-time prompts. If `{{args}}` already supplies a value, skip that
 question. At the end, echo the full resolved config and get a confirm before running anything.
 
 **Keep startup minimal.** Collect exactly four fields on one screen — `type`, `slug`,
