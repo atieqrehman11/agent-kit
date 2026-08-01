@@ -5,7 +5,7 @@ shown** — task backlog, priorities, man-day estimates, dependencies, Gantt, mi
 
 | Command | What it does | Direction |
 |---|---|---|
-| [`/plan:release`](release.md) | Read the code, ask one batched round of questions, then author, schedule, validate and report a full release plan. | codebase → `.xlsx` plan |
+| [`{{cmd:plan:release}}`](commands/release.md) | Read the code, ask one batched round of questions, then author, schedule, validate and report a full release plan. | codebase → `.xlsx` plan |
 
 ## Why it exists
 
@@ -121,7 +121,7 @@ once the schedule exists so the dates are computed rather than chosen.
 
 ```
 plan/
-  release.md              /plan:release — the operating procedure
+  release.md              {{cmd:plan:release}} — the operating procedure
   schedule.py             resource-constrained scheduler, Gantt writer, lever tester
   triage.py               essential-vs-enhancement shortlist, pull-earlier gates
   validate.py             Gate 9 validator
