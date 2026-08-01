@@ -111,7 +111,7 @@ applies_to:                   # guidelines only — file patterns that should tr
 **Every guideline must state when it applies** — as `applies_to` globs, or in the description,
 or both. Prefer globs where a file pattern genuinely signals the context. Leave them off where
 one does not: a wrong glob is worse than none, because it fires constantly and gets tuned out.
-`design` has no file signal (it is triggered by an activity), and `python-genai` deliberately
+`design` has no file signal (it is triggered by an activity), and `python-llm` deliberately
 avoids `**/*.py` because it would fire on every Python file alongside `python`.
 
 **How an adapter uses it: append it to the rendered description — do not build a hook.** The

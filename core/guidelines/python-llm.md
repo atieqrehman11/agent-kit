@@ -1,5 +1,5 @@
 ---
-name: python-genai
+name: python-llm
 kind: guideline
 description: >
   Gen AI stack standards layered on top of the Python baseline: which LLM, vector store and
