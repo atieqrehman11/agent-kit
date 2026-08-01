@@ -6,6 +6,8 @@ description: >
   is produced in, and quality rules. Applies whenever Java is written, changed or reviewed.
 applies_to:
   - "**/*.java"
+  - "**/pom.xml"
+  - "**/build.gradle"
 ---
 
 # Java Developer — standards

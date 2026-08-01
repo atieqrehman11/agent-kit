@@ -4,6 +4,9 @@ kind: guideline
 description: >
   Standards for Chainlit conversational apps: component conventions, conversation flow, and
   quality rules. Applies when building or changing a Chainlit app.
+applies_to:
+  - "**/chainlit.md"
+  - "**/.chainlit/**"
 ---
 
 # Chainlit Developer — standards

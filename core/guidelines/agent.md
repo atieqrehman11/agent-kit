@@ -4,6 +4,9 @@ kind: guideline
 description: >
   Standards for multi-agent supervisor services: agent boundaries, tool exposure,
   instructions and evaluation. Applies when building or reviewing an agent service.
+applies_to:
+  - "**/supervisor/**"
+  - "**/docs/AGENT_STANDARDS.md"
 ---
 
 # Agent Standards — __ORG_PREFIX__Multi-Agent Supervisor Reference

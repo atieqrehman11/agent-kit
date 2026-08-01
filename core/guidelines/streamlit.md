@@ -4,6 +4,10 @@ kind: guideline
 description: >
   Standards for Streamlit apps: component conventions, layout, and streaming / Gen AI
   patterns. Applies when building or changing a Streamlit app.
+applies_to:
+  - "**/streamlit_app.py"
+  - "**/.streamlit/**"
+  - "**/pages/*.py"
 ---
 
 # Streamlit Developer — standards

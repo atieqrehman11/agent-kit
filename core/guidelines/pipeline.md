@@ -4,6 +4,10 @@ kind: guideline
 description: >
   Standards for Lakeflow / ETL pipelines: medallion layering, table and checkpoint
   conventions, and quality expectations. Applies when writing or reviewing a pipeline.
+applies_to:
+  - "**/pipeline/**/*.py"
+  - "**/resources/*.pipeline.yml"
+  - "**/docs/PIPELINE_STANDARDS.md"
 ---
 
 # Pipeline Standards — __ORG_PREFIX__Lakeflow Reference

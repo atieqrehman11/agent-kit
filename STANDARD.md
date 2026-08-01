@@ -104,9 +104,20 @@ arguments: "[path or branch; default = current diff]"   # hint for entry points 
 requires:
   bin: [drawio]               # adapter warns, never blocks, when missing
   python: [openpyxl]
-applies_to:                   # guidelines only — the context that should trigger loading
+applies_to:                   # guidelines only — file patterns that should trigger loading
   - "**/*.py"
 ```
+
+**Every guideline must state when it applies** — as `applies_to` globs, or in the description,
+or both. Prefer globs where a file pattern genuinely signals the context. Leave them off where
+one does not: a wrong glob is worse than none, because it fires constantly and gets tuned out.
+`design` has no file signal (it is triggered by an activity), and `python-genai` deliberately
+avoids `**/*.py` because it would fire on every Python file alongside `python`.
+
+**How an adapter uses it: append it to the rendered description — do not build a hook.** The
+model then reads the trigger at the moment it is choosing what to load. A hook that injects a
+guideline on every matching edit fires whether you are fixing a typo or designing a pipeline,
+and a rule that repeats on every keystroke stops being read.
 
 `arguments` is a **description**, not a schema. Each adapter maps it onto whatever its tool
 uses to advertise arguments; an adapter with no such concept ignores it.

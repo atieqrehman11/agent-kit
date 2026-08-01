@@ -4,6 +4,10 @@ kind: guideline
 description: >
   Standards for Genie spaces: views, functions, instructions and benchmark coverage. Applies
   when building or reviewing a Genie space.
+applies_to:
+  - "**/genie-space/**"
+  - "**/deploy_genie.py"
+  - "**/docs/GENIE_STANDARDS.md"
 ---
 
 # Genie Standards — __ORG_PREFIX__Genie Space Reference

@@ -6,6 +6,10 @@ description: >
   naming rules, JSON and timestamp conventions, the error response shape, pagination, async
   jobs, security and observability, and the OpenAPI contract. Applies whenever a use-case
   API is designed, built or reviewed.
+applies_to:
+  - "**/routers/**/*.py"
+  - "**/app.yml"
+  - "**/docs/API_STANDARDS.md"
 ---
 
 # Gen AI Platform API Standards
