@@ -186,29 +186,92 @@ with a check · `1` = a subsystem. No task over 5 days. Effort excludes review l
 | M-11 | 3 Merge | ✅ **DONE** *(unplanned)* `architect` → guideline (rules, not a procedure); cut `spec` (671 lines, never invocable, 2 unique checks) | 0.5 | P0 | M-10 |
 | M-12 | 3 Merge | ✅ **DONE** *(unplanned)* Make `core/` genuinely tool-independent — the first leak test was a grep too narrow to catch it. Adds `__KIT_DATA_DIR__`, `__GUIDELINES_DIR__`, `{{cmd:…}}`, `{{args}}`, `arguments:` frontmatter | 1.5 | P0 | M-08 |
 | M-13 | 3 Merge | ✅ **DONE** *(unplanned)* Skill READMEs back beside their skills (`docs/skills/` had drifted in 20 commits); `README.md` classified as documentation in the standard; `applies_to` on all 12 guidelines; `python-genai` → `python-llm` | 0.5 | P0 | M-12 |
-| A-02 | 4 Claude adapter | Write `adapters/claude/install.sh`. **The current `install.sh` is broken** — it reads `REPO_ROOT/commands/`, which M-01 renamed to `core/skills/`. Must: render all three kinds (guideline → skills/ only; skill → skills/ + commands/; subagent → agents/); **register only declared entry points, never payload**; resolve all five markers and fail on an unresolvable `{{cmd:…}}`; honour obligation 11 (kit data dir, never overwritten); append `applies_to` to rendered descriptions; verify, receipt, replace-not-merge | 1.5 | P0 | S-02, M-13 |
-| A-04 | 4 Claude adapter | Thin top-level `install.sh --target claude` dispatcher — defaults to claude, errors clearly on an unknown target. Establishes the seam now so adding one later is additive | 0.25 | P1 | A-02 |
-| A-05 | 4 Claude adapter | Repair the two mis-shaped skills into S-01 form: dead `~/.claude/skills/release-plan.md`, misfiled UA `skills/brand-guidelines.md` | 0.5 | P2 | S-01 |
-| A-06 | 4 Claude adapter | Run the S-02 conformance checklist against the Claude adapter; fix whatever fails. This is the control that stops Claude assumptions leaking into `core/` | 0.5 | P0 | A-02 |
-| C-01 | 5 Re-tier | `~/.claude/CLAUDE.md`: strip client content; replace the ~930-line always-on import block with on-demand pointers | 0.5 | P0 | M-06 |
-| C-02 | 5 Re-tier | Activate `confiz/.claude`: shared guideline imports, both guard hooks, shared `additionalDirectories`, shared permissions | 0.5 | P0 | C-01 |
-| C-03 | 5 Re-tier | `~/.claude/settings.json`: strip the ~40 accreted one-off allow rules; relocate UA-specific ones; resolve the plugin-tier split (ponytail in confiz vs the rest global) | 0.5 | P1 | C-02 |
-| C-04 | 5 Re-tier | Echostar `.claude`: drop empty `"allow": []`, inherit the guard hook from the confiz tier, keep only Echostar-owned guidelines; `package` skill conforms to S-01 | 0.25 | P1 | C-02 |
-| C-05 | 5 Re-tier | UA `.claude`: same treatment; drop the redundant `additionalDirectories`; brand guide becomes a real skill | 0.25 | P1 | C-02, A-05 |
-| C-06 | 5 Re-tier | Delete cruft: the `~/.claude/{guidelines,agents}` symlinks, `settings.json.bak-20260714-precleanup`, stray `.DS_Store` | 0.25 | P2 | C-01 |
-| V-01 | 6 Verify | Fresh session in each of the three project roots: skill list correct, no cross-client content loaded, guard hook fires on a `gitlab/` write | 0.5 | P0 | C-04, C-05 |
-| V-03 | 6 Verify | `README.md`: what lives where, how to add a skill, **how to add an adapter**. Load-bearing now that Codex is deferred — this document is what keeps the second adapter cheap | 0.5 | P0 | A-04, S-02 |
-| V-04 | 6 Verify | Orphan sweep — grep every CLAUDE.md, settings file and skill for stale `ai-clone/` and `confiz/echostar/claude-skills/` paths | 0.5 | P0 | C-06, V-03 |
+| A-02 | 4 Claude adapter | ✅ **DONE** Write `adapters/claude/install.sh`. **The current `install.sh` is broken** — it reads `REPO_ROOT/commands/`, which M-01 renamed to `core/skills/`. Must: render all three kinds (guideline → skills/ only; skill → skills/ + commands/; subagent → agents/); **register only declared entry points, never payload**; resolve all five markers and fail on an unresolvable `{{cmd:…}}`; honour obligation 11 (kit data dir, never overwritten); append `applies_to` to rendered descriptions; verify, receipt, replace-not-merge | 1.5 | P0 | S-02, M-13 |
+| A-04 | 4 Claude adapter | ✅ **DONE** Thin top-level `install.sh --target claude` dispatcher — defaults to claude, errors clearly on an unknown target. Establishes the seam now so adding one later is additive | 0.25 | P1 | A-02 |
+| A-05 | 4 Claude adapter | ✅ **DONE** Repair the two mis-shaped skills into S-01 form: dead `~/.claude/skills/release-plan.md`, misfiled UA `skills/brand-guidelines.md` | 0.5 | P2 | S-01 |
+| A-06 | 4 Claude adapter | ✅ **DONE** (13/13, `adapters/claude/conformance.sh`) Run the S-02 conformance checklist against the Claude adapter; fix whatever fails. This is the control that stops Claude assumptions leaking into `core/` | 0.5 | P0 | A-02 |
+| A-07 | 4 Claude adapter | ✅ **DONE** *(unplanned, found by A-06)* Close the three conformance gaps the checklist found: **obligation 10 was never implemented** (`--uninstall`), the adapter had no README stating which kinds it supports, and two `core/` READMEs still named `.claude` paths | 0.5 | P0 | A-06 |
+| C-01 | 5 Re-tier | ✅ **DONE** `~/.claude/CLAUDE.md`: strip client content; replace the ~930-line always-on import block with on-demand pointers | 0.5 | P0 | M-06 |
+| C-02 | 5 Re-tier | ✅ **DONE** Activate `confiz/.claude`: shared guideline imports, both guard hooks, shared `additionalDirectories`, shared permissions | 0.5 | P0 | C-01 |
+| C-03 | 5 Re-tier | ✅ **DONE** `~/.claude/settings.json`: strip the ~40 accreted one-off allow rules; relocate UA-specific ones; resolve the plugin-tier split (ponytail in confiz vs the rest global) | 0.5 | P1 | C-02 |
+| C-04 | 5 Re-tier | ✅ **DONE** Echostar `.claude`: drop empty `"allow": []`, inherit the guard hook from the confiz tier, keep only Echostar-owned guidelines; `package` skill conforms to S-01 | 0.25 | P1 | C-02 |
+| C-05 | 5 Re-tier | ✅ **DONE** UA `.claude`: same treatment; drop the redundant `additionalDirectories`; brand guide becomes a real skill | 0.25 | P1 | C-02, A-05 |
+| C-06 | 5 Re-tier | ✅ **DONE** Delete cruft: the `~/.claude/{guidelines,agents}` symlinks, `settings.json.bak-20260714-precleanup`, stray `.DS_Store` | 0.25 | P2 | C-01 |
+| V-01 | 6 Verify | ✅ **DONE** (14/14, `confiz/.claude/verify-tiers.sh`) Fresh session in each of the three project roots: skill list correct, no cross-client content loaded, guard hook fires on a `gitlab/` write | 0.5 | P0 | C-04, C-05 |
+| C-07 | 5 Re-tier | ✅ **DONE** *(unplanned, found by V-01)* The Echostar tier still `@`-imported all three of its guidelines on every session — **1,010 always-on lines**, the same defect C-01 fixed one tier up, and asymmetric with UA whose brand guide was already a skill. Two new project skills (`echostar-style`, `chat-api`); Echostar now loads 159 lines | 0.5 | P0 | C-04, V-01 |
+| V-03 | 6 Verify | ✅ **DONE** `README.md`: what lives where, how to add a skill, **how to add an adapter**. Load-bearing now that Codex is deferred — this document is what keeps the second adapter cheap | 0.5 | P0 | A-04, S-02 |
+| V-04 | 6 Verify | ✅ **DONE** Orphan sweep — grep every CLAUDE.md, settings file and skill for stale `ai-clone/` and `confiz/echostar/claude-skills/` paths | 0.5 | P0 | C-06, V-03 |
 | X-01 | 6 Verify | **Decommission ai-clone** — confirm all 17 inbound reference sites are repointed, then remove the directory. Ordering is not optional: `format-on-write.sh` fires on every Write/Edit globally, so a dead hook path breaks all editing | 0.25 | P0 | V-04 |
 
-**Totals — 33 tasks · 18.75 days · 25 P0 · 19 tasks / 12.00 days complete (64%)**
+**Totals — 35 tasks · 19.75 days · 27 P0 · 34 tasks / 19.50 days complete (97%)**
 
 | Phase | Tasks | Days | P0 | Status |
 |---|---|---|---|---|
 | 0 Insurance | 2 | 0.50 | 2 | ✅ complete |
 | 1 Prereq | 2 | 0.75 | 0 | ✅ complete |
 | 2 Standard | 2 | 1.50 | 2 | ✅ complete |
-| 3 Merge | 13 | 9.25 | 13 | ✅ complete — 5 tasks / 4.0 d were unplanned |
-| 4 Claude adapter | 4 | 2.75 | 2 | ⬜ next |
-| 5 Re-tier | 6 | 2.25 | 2 | ⬜ |
-| 6 Verify | 4 | 1.75 | 4 | ⬜ |
+| 3 Merge | 13 | 9.25 | 13 | ✅ complete — 5 unplanned |
+| 4 Claude adapter | 5 | 3.25 | 3 | ✅ complete — 1 unplanned |
+| 5 Re-tier | 7 | 2.75 | 3 | ✅ complete — 1 unplanned |
+| 6 Verify | 4 | 1.75 | 4 | ⬜ 3/4 done |
+
+---
+
+## Verification record
+
+Two scripts, both rerunnable, both checking properties rather than strings already known to
+be present. The distinction matters: every check in this project that passed by matching a
+string I had just written found nothing, and every check that asked *does this resolve, does
+this count match, does this survive a round trip* found a real defect.
+
+### A-06 — adapter conformance · `adapters/claude/conformance.sh` · **13/13**
+
+Runs `STANDARD.md` §2.4 (per-install verification) and §2.5 (the adapter itself) against a
+throwaway target, so nothing it does can touch `~/.claude`.
+
+| | Check |
+|---|---|
+| §2.4 | install exits 0 on a clean target · declared entry points == registered · zero surviving markers · every rendered `/skill:verb` resolves to an installed command · kit data dir byte-identical after install · every installed `.py` parses · receipt lists all four kinds |
+| §2.5 | installing twice produces an identical tree · an artifact deleted from `core/` disappears from the install · uninstall removes exactly the receipt contents and keeps the data dir · leak test over `core/` · adapter README states which kinds it supports · obligations 1–10 implemented and annotated |
+
+**First run: 11/13.** The two failures became A-07:
+
+1. **Obligation 10 was never implemented.** There was no uninstall at all. It had gone
+   unnoticed because nothing had ever tried to uninstall — the obligation was written in the
+   standard and simply not carried out.
+2. **The leak test found two `core/` files naming `.claude`** — `diagram/README.md` and
+   `scaffold/README.md`. Earlier leak greps had covered `SKILL.md` and scripts but not
+   maintainer READMEs, which are still files under `core/`.
+
+Also surfaced: obligations 3, 4 and 9 were implemented but unannotated, so nothing tied the
+code to the contract. A header reading `Obligations 3–5` is not an annotation of obligation 3
+if the check — or a reader — looks for it by number.
+
+### V-01 — what a fresh session resolves · `~/confiz/.claude/verify-tiers.sh` · **14/14**
+
+Resolves the `CLAUDE.md` chain per project root including transitive `@`-imports, then checks
+isolation, the registered skill set, and the guard hook by actually firing it with six
+payloads (artifact into a protected repo, artifact into the design workspace, source code
+inside a protected repo — each per client).
+
+Lives in the cross-client tier because that is the only tier that legitimately knows both
+clients; putting it in `agent-kit` would be a client leak, putting it in `~/.claude` would
+put client names back in the machine tier.
+
+**Finding → C-07.** The always-on line count per root was:
+
+| Root | Before | After |
+|---|---|---|
+| Echostar | 1,010 | 159 |
+| Under Armour | 88 | 88 |
+
+The Echostar tier still `@`-imported all three of its guidelines unconditionally — the same
+defect C-01 fixed at the machine tier, one tier down, and invisible until the chain was
+resolved transitively. It was also asymmetric: UA's brand guide had already become a skill in
+C-05, so one client paid for its guidelines only when it used them and the other paid always.
+Fixed by two new project-tier skills, `echostar-style` and `chat-api`; the `package` skill
+already carried the third.
+
+Note the first version of this script undercounted, missing `chat-api-guidelines.md` because
+its `@` reference sits mid-bullet rather than at the start of a line. A verifier with the
+wrong idea of what counts is worse than none — it reports a pass over the thing it cannot see.
