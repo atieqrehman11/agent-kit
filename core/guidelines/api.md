@@ -1,3 +1,13 @@
+---
+name: api
+kind: guideline
+description: >
+  Standards every use-case API must meet: the required health and info endpoints, URL and
+  naming rules, JSON and timestamp conventions, the error response shape, pagination, async
+  jobs, security and observability, and the OpenAPI contract. Applies whenever a use-case
+  API is designed, built or reviewed.
+---
+
 # Gen AI Platform API Standards
 ## Version 1.0
 
