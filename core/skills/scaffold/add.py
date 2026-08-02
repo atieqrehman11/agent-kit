@@ -383,9 +383,14 @@ def _print_list():
         print(f"  {' ' * width}  {a['summary']}")
         print(f"  {' ' * width}  types: {', '.join(a['applies_to'])}\n")
     print("Always included with any add, wherever missing — never asked about:")
+    print(
+        "  docs/         the standards for this repo type, each with its conformance sheet"
+    )
     print("  .gitignore    the shared Python / Databricks ignore file")
     print("  CONFIG.md     regenerated, keeping any value already filled in\n")
-    print("Standards docs (docs/*_STANDARDS.md) ship with {{cmd:scaffold:new}} per repo type.")
+    print(
+        "An existing file is never overwritten — it is reported as SKIPPED (--force replaces)."
+    )
 
 
 def _an(word):

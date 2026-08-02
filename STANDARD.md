@@ -89,10 +89,22 @@ core/skills/<name>/
   README.md              optional   DOCUMENTATION — for whoever maintains the skill.
                                     Never registered, never installed. Lives here so it
                                     cannot drift away from what it documents.
+  docs/**                optional   DOCUMENTATION — diagrams and long-form notes ABOUT
+                                    the skill. Same rule as README.md, same reason.
   reference/**           optional   PAYLOAD — long-form material the skill reads
   templates/**           optional   PAYLOAD — files the skill copies or renders
   *.py                   optional   PAYLOAD — scripts the skill runs
 ```
+
+**`docs/` and `reference/` look alike and are opposites.** The test is *who reads it*:
+`reference/` is read **by the skill, at run time** — it is payload, and it installs.
+`docs/` is read **by a human, deciding whether to change the skill** — it never installs,
+so a workflow diagram does not ship a PNG into every user's install.
+
+Anything documenting **the kit as a whole** rather than one skill belongs in the repo's
+top-level `docs/`, not here. The split is by subject: a diagram of the scaffold workflow
+sits with the scaffold skill and cannot drift from it; a diagram of how artifacts reach an
+installed tree belongs to no single skill.
 
 ## 1.4 The entry-point rule
 
@@ -104,8 +116,8 @@ core/skills/<name>/commands/*.md     → one user-invoked entry each  (depth 1 o
 ```
 
 **Everything else is payload or documentation.** Payload is read, copied, executed or rendered
-*by* a skill; `README.md` documents the skill for its maintainers. Neither is ever invocable, at
-any depth, and an adapter installs payload but not documentation.
+*by* a skill; `README.md` and `docs/**` document the skill for its maintainers. Neither is ever
+invocable, at any depth, and an adapter installs payload but not documentation.
 
 `core/guidelines/<name>.conformance.md` (§1.2) is payload too, and the same sentence covers it:
 installed, never registered. A guideline is registered from `<name>.md` alone, so a sibling can
@@ -370,6 +382,23 @@ wrong trade.
       by special-casing `core/`.
 - [ ] Installing twice in a row produces an identical tree
 - [ ] Installing after deleting an artifact from `core/` removes it from the install
+
+### Build the verification in the same pass as the installer
+
+**An adapter and its conformance run ship together, or neither ships.** Not a process
+preference — the reference adapter shipped 11 of its 13 checks green while missing
+obligation 10 (uninstall) *entirely*, because nothing had ever tried to uninstall. An
+unverified adapter looks finished and is not.
+
+A second adapter is also the first place a tool-specific assumption can quietly re-enter
+`core/`, since nothing but a conformance run exercises the §2.2 subset clause. Write the
+checks against **this document**, not against the tool — that is what lets most of them run
+unchanged against the next adapter, and `adapters/claude/conformance.sh` is written that way
+deliberately.
+
+**Defer the whole thing rather than half of it.** Writing an installer against a contract
+nobody has exercised produces a guess. It is cheaper to have no adapter than one that reports
+success it has not earned.
 
 ---
 

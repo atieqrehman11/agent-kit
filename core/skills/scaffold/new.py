@@ -49,6 +49,7 @@ import uuid
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
+
 def _kit_data_dir():
     """The kit's shared data directory: one per install, shared by every skill, and never
     replaced by an install (unlike the skill dir, which is). __KIT_DATA_DIR__ is rewritten
@@ -62,6 +63,7 @@ def _kit_data_dir():
             return p
         p = os.path.dirname(p)
     return os.path.dirname(os.path.dirname(_HERE))
+
 
 sys.path.insert(0, _HERE)
 
@@ -139,6 +141,33 @@ _PROFILE_TODO_TOKENS = {
     "prod_policy_id": "TODO_SET_PROD_POLICY_ID",
 }
 
+
+def _repo_name(slug: str, rtype: str, prefix: str = "ai") -> str:
+    """``<prefix>-<slug>-<type>``, adding each part only where the slug does not already say it.
+
+    The convention puts the type in the folder name, but people slug a repo the way they say
+    it out loud — "sales-api", "api-gateway", "support-agent" — and appending unconditionally
+    produced ``ai-sales-api-api`` and ``ai-api-gateway-api``.
+
+    Matched on whole hyphen-delimited **tokens**, not on substrings, and so independent of
+    where in the slug the word appears. A substring test would mangle a slug like "rapid",
+    whose "api" is three letters of a word and not the type at all; the token test leaves it
+    alone and returns ``ai-rapid-api``. Slugs are validated as strict kebab-case below, so
+    splitting on "-" is total.
+
+    The prefix is the ``repo_prefix`` profile value, defaulting to "ai". Set it blank in the
+    profile for no prefix at all, or override the whole folder name per repo with
+    ``--repo-name``.
+    """
+    pre = [p for p in (prefix or "").split("-") if p]
+    parts = [p for p in slug.split("-") if p]
+    if pre and parts[: len(pre)] == pre:  # they already typed the prefix
+        parts = parts[len(pre) :]
+    if rtype not in parts:
+        parts.append(rtype)
+    return "-".join([*pre, *parts])
+
+
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 
@@ -198,13 +227,17 @@ def main(argv=None):
         sys.exit(1)
 
     resource_key = slug.replace("-", "_")
-    # Repo name carries the type as a suffix (e.g. ai-payments-api).
-    repo_name = args.repo_name or f"ai-{slug}-{args.type}"
 
     # Org/project profile (set up once via {{cmd:scaffold:profile}}; see profile.py). It
     # fills the values constant across every repo a team scaffolds. Precedence:
     #   CLI arg  >  install profile  >  TODO_SET_ placeholder (left for {{cmd:scaffold:configure}}).
     profile = _load_profile()
+
+    # Loaded before the folder name because repo_prefix comes from it. "ai" only when the
+    # profile is silent; an explicit blank in the sheet means no prefix, so the lookup
+    # cannot collapse "" into the default.
+    prefix = profile.get("repo_prefix", "ai")
+    repo_name = args.repo_name or _repo_name(slug, args.type, prefix)
 
     def _pick(arg_val, key, todo):
         return arg_val or profile.get(key) or todo

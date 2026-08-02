@@ -172,6 +172,32 @@ PY
 [ $marker_rc -ne 0 ] && grep -q "__A_TOKEN_NO_ONE_DECLARED__" "$W/marker.log"
 r $? "an undeclared __TOKEN__ fails the install (general scan, not a denylist)"
 
+# 12b §1.4: a skill's docs/ is documentation, not payload — it must not install. Written as
+# a property over whatever docs/ trees core/ happens to have, so a new one is covered too.
+python3 - "$KIT" "$T" <<'PY'
+import os, sys
+kit, t = sys.argv[1], sys.argv[2]
+skills = os.path.join(kit, "core", "skills")
+have = [s for s in sorted(os.listdir(skills)) if os.path.isdir(os.path.join(skills, s, "docs"))]
+if not have:
+    print("no skill ships a docs/ dir — this check proves nothing"); sys.exit(1)
+bad = []
+for s in have:
+    src = os.path.join(skills, s, "docs")
+    if os.path.exists(os.path.join(t, "skills", s, "docs")):
+        bad.append(f"{s}: docs/ was installed")
+    # and the README beside it still must not install either
+    if os.path.exists(os.path.join(t, "skills", s, "README.md")):
+        bad.append(f"{s}: README.md was installed")
+    # but the skill's real payload must still be there
+    if not os.path.isfile(os.path.join(t, "skills", s, "SKILL.md")):
+        bad.append(f"{s}: SKILL.md missing — payload was over-skipped")
+for b in bad:
+    print(b)
+sys.exit(1 if bad else 0)
+PY
+r $? "a skill's docs/ is documentation and does not install (§1.4)"
+
 # 13 and nothing in the installed tree carries a marker the scan would have caught
 grep -rlE '__[A-Z][A-Z0-9_]*__' "$T/guidelines" "$T/skills" "$T/commands" "$T/agents" 2>/dev/null | head -3
 [ -z "$(grep -rlE '__[A-Z][A-Z0-9_]*__' "$T/guidelines" "$T/skills" "$T/commands" "$T/agents" 2>/dev/null)" ]

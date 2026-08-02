@@ -293,11 +293,16 @@ def render_fm(fm, kind):
     return out + "---\n\n"
 
 
+# Copied with the skill, or deliberately left behind. §1.4: an adapter installs payload but
+# not documentation — "docs" is a directory name here, so a skill's whole docs/ tree
+# (workflow diagrams and the like) stays in the repo rather than shipping a PNG into every
+# install. Contrast reference/, which the skill itself reads at run time and so must ship.
 PAYLOAD_SKIP = {
     "__pycache__",
     ".ruff_cache",
     ".DS_Store",
     "README.md",
+    "docs",
     "commands",
     "SKILL.md",
 }

@@ -1,9 +1,16 @@
 # scaffold
 
-A four-command Claude Code skill for standing up **Databricks repos** — and
+A four-command skill for standing up **Databricks repos** — and
 keeping their config out of your way. You scaffold a repo of one type, and every
 machine- and repo-specific value is either baked in from a shared profile or left as a
 `TODO_SET_*` placeholder you fill in one pass later.
+
+![scaffold workflow](docs/scaffold-flow.png)
+
+Source: [`docs/scaffold-flow.drawio`](docs/scaffold-flow.drawio). It lives here rather than
+in the repo's top-level `docs/` so it cannot drift from the skill it describes — and, being
+documentation rather than payload, it is never installed (STANDARD.md §1.3). Edit the
+`.drawio` and re-render the PNG; a stale diagram is worse than none.
 
 | Command | What it does | Direction |
 |---|---|---|
@@ -72,12 +79,17 @@ five-year-old one. Two are choosable:
 | Aspect | Adds | Types |
 |---|---|---|
 | `cicd` | `.gitlab-ci.yml` + `team_config.yaml` + `run_resources.yml` + `.bundleignore` (genie: its space-validating pipeline); on a `job` repo also `config/{DEV,STG,PROD}/task_config.yaml` | `api` `etl` `job` `genie` |
-| `api` | `routers/platform.py` + `config.py` — `GET /v1/health` + `GET /v1/info` | `api` |
+| `api` | `routers/platform.py` (`GET /v1/health` + `GET /v1/info`) plus the service spine those endpoints need: `core/` (validated settings, one logging setup, one exception hierarchy behind one handler layer, request-id middleware), `schema/`, `services/`, `repositories/` | `api` |
 
-The rest are **not decisions**, so they are never offered: `.gitignore` and a regenerated
-`CONFIG.md` come with any add wherever they are missing, and the standards docs
-(`docs/*_STANDARDS.md`) ship with `{{cmd:scaffold:new}}` per repo type. They still live in the same
-registry — one definition each — just flagged `selectable: False`.
+The rest are **not decisions**, so they are never offered: the standards docs for the repo's
+type (each with its `*_CONFORMANCE.md` sheet), `.gitignore`, and a regenerated `CONFIG.md`
+come with **any** add wherever they are missing. They live in the same registry — one
+definition each — just flagged `selectable: False`.
+
+The standards ship with `add`, not only with `new`, because the code an aspect delivers
+*cites* them: the `api` aspect alone writes ten references to `docs/API_STANDARDS.md` and
+`docs/SERVICE_STRUCTURE_STANDARDS.md`. Without them you get a repo with no `docs/` and ten
+pointers into nothing.
 
 Per-environment config is deliberately *inside* `cicd` rather than beside it: the DEV/STG/PROD
 split exists because the controller deploys per target, so it is part of the deploy story, not
@@ -106,17 +118,22 @@ than left implied.
 
 ```
 scaffold/
-  profile.md      profile.py         shared-profile command + its script
-  new.md          new.py             scaffold-a-repo command + its script
-  add.md          add.py             add-one-aspect-to-an-existing-repo command + its script
-  configure.md    configure.py       fill-placeholders command + its script
+  SKILL.md                           model-invoked entry point
+  commands/                          user-invoked entry points, one per verb
+    profile.md  new.md  add.md  configure.md
+  profile.py  new.py  add.py  configure.py    the script behind each verb
   aspects.py                         aspect registry (files / types / wiring) + repo-type detection
   config_tokens.py                   TODO_SET_* token registry (group / label / example)
-  templates/                         one dir per type + shared standards docs
+  templates/                         PAYLOAD — one dir per type
     api-skeleton/  etl-bundle/  job-bundle/  agent/  genie/
     cicd/  common/                   shared CI/CD + gitignore fragments
-    *_STANDARDS.md                   per-type + cross-cutting standards, copied into docs/
+  README.md                          DOCUMENTATION — this file. Never installed
+  docs/                              DOCUMENTATION — the workflow diagram. Never installed
 ```
+
+The standards a scaffolded repo receives are **not** copied into `templates/`: they are read
+straight from `core/guidelines/` at scaffold time, so there is one source of truth rather
+than a second copy drifting from the first.
 
 Every file a scaffolded repo ships with lives under `templates/` as a **real file** with
 `TPLVAR_*` / `TODO_SET_*` tokens — the Python is pure orchestration. `new.py` scaffolds
@@ -159,5 +176,5 @@ The repo is created at `<output-dir>/<repo-name>/` (default `ai-<slug>-<type>`).
 
 ---
 
-See the top-level [README](../../README.md) for install instructions, and each command's own
+See the top-level [README](../../../README.md) for install instructions, and each command's own
 `.md` for the detailed flow.
