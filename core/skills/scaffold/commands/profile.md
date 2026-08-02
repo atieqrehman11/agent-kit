@@ -8,28 +8,28 @@ description: >
   it. Run before the first scaffold, or when those org-wide values change.
 ---
 
-# Set up the shared org/project profile (sheet → profile)
+# Set up the shared org/project profile
 
 Sets up the values that are the **same across every repo** in one scope — doc branding,
 workspace project folder, team/ownership, app permissions, CI/CD, and cluster policies.
-`{{cmd:scaffold:new}}` reads the saved profile and bakes these into every new repo, so they
-never appear in a repo's `CONFIG.md`.
+`{{cmd:scaffold:new}}` reads the profile and bakes these into every new repo, so they never
+appear in a repo's `CONFIG.md`. Every field is optional; anything left blank stays a
+`TODO_SET_*` placeholder that `{{cmd:scaffold:configure}}` fills per repo.
 
-This mirrors `{{cmd:scaffold:configure}}`, but there is **one sheet per scope** and **every
-field is optional** — anything left blank stays a `TODO_SET_*` placeholder that
-`{{cmd:scaffold:configure}}` fills per repo.
-
-The heavy lifting is a deterministic script — do **not** hand-edit the saved profile.
-Run the script.
+**One file per scope: `scaffold-profile.md`.** You edit it, every command reads it. There
+is no apply step and no second copy — save the file and the values are live.
 
 ```bash
 python3 __SKILL_DIR__/profile.py \
-  [--generate] \                    # (re)write the fill-in sheet, then exit
-  [--show] \                        # print the resolved profile + its scope, then exit
+  [--generate] \                    # (re)write the file, keeping every value in it
+  [--show] \                        # report only; never creates the file
   [--scope auto|project|global] \   # which profile to act on (default: auto)
   [--project-dir <dir>]             # with --scope project: the project root
-# no flag = apply: parse the sheet and save to scaffold-profile.json
+# no flag = report the profile in force, creating it if it does not exist yet
 ```
+
+Unlike `{{cmd:scaffold:configure}}`, this command does not transform anything: applying a
+`CONFIG.md` writes values across a whole repo tree, whereas a profile is just the file.
 
 ## Scope — global or per client
 
@@ -44,9 +44,9 @@ exactly the values that differ between them.
 Resolution, used identically by every command that reads a profile:
 
 ```
-$AGENT_KIT_PROFILE                                   an explicit file, one invocation
-<dir>/__PROJECT_SCOPE_DIR__/scaffold-profile.json    nearest project profile, walking up
-<kit data dir>/scaffold-profile.json                 install-wide fallback
+$AGENT_KIT_PROFILE                                 an explicit file, one invocation
+<dir>/__PROJECT_SCOPE_DIR__/scaffold-profile.md    nearest project profile, walking up
+<kit data dir>/scaffold-profile.md                 install-wide fallback
 ```
 
 **Use `--scope project` whenever the machine scaffolds for more than one client.** With
@@ -66,21 +66,20 @@ on this machine? Use `--scope project`. Setting up values that genuinely apply e
 (an output dir, a draw.io binary path)? `--scope global`. `auto` (the default) acts on
 whichever profile already governs the working directory.
 
-**Step 2 — Make sure the sheet exists.** If `scaffold-profile.md` is missing for that
-scope, run with `--generate` to create it. Existing saved values prefill the sheet, so
-regenerating never loses anything.
+**Step 2 — Run it.** With no flag the script reports the profile in force and its scope,
+and creates the file if that scope has none. Report the path it printed.
 
-**Step 3 — Fill it in.** Open the `scaffold-profile.md` the script reported and set the
-values shared across that scope's repos (output dir, org name, workspace project, team,
-developers group, prod admin, CI controller URL + runner + project id + image, cluster
-policies). Leave any line blank to keep that value per-repo. Keep the keys as-is.
+**Step 3 — Fill it in.** Open that `scaffold-profile.md` and set the values shared across
+the scope's repos (output dir, org name, workspace project, team, developers group, prod
+admin, CI controller URL + runner + project id + image, cluster policies). Read the
+**Reference** table at the top of the file for what each field is and where to get it.
+Leave a line blank to keep that value per-repo. Keep the keys as-is.
 
-**Step 4 — Apply.** Run the script with no flag, from the same directory. It parses the
-sheet and saves the filled values beside it. Report the scope, which values were saved,
-and which were left per-repo.
+**Step 4 — Nothing.** Saving the file is the whole of it. Run the script again to confirm
+what is now set and what is still blank.
 
-Re-running is safe: applying only writes `scaffold-profile.json`; the sheet is untouched,
-so you can edit and re-apply any time. Newly scaffolded repos pick up the current profile.
+`--generate` on an existing profile rewrites it while keeping every value — that is how a
+field contributed by a newly installed skill appears in a profile older than it.
 
 ## Notes
 
@@ -88,6 +87,11 @@ so you can edit and re-apply any time. Newly scaffolded repos pick up the curren
   placeholder that `{{cmd:scaffold:configure}}` resolves for each repo.
 - **Precedence at scaffold time:** an explicit `new.py` CLI arg wins over the profile,
   which wins over the `TODO_SET_*` placeholder.
+- **Do not hand-write the file from scratch.** Generate it, then edit the values. The
+  reference table and the per-field hints come from the installed skills' field
+  declarations, and a hand-rolled file silently lacks whatever they added.
+- **Values are plain text after the colon.** No quotes needed; a `#` preceded by a space
+  starts a comment, so a value cannot itself contain " #".
 - **Scopes do not merge.** The nearest profile is used whole; a project profile does not
   inherit the global one's unset fields. Whatever a project leaves blank stays a
   `TODO_SET_*` for `{{cmd:scaffold:configure}}` — which is the safe direction, since
@@ -105,7 +109,11 @@ so you can edit and re-apply any time. Newly scaffolded repos pick up the curren
   `TODO_SET_*` placeholder — it only tells `new.py` where to create the repo folder.
   Resolution: `--output-dir` > `$SCAFFOLD_OUTPUT_DIR` > profile `output_dir` > current dir
   (`~` and `$VARS` are expanded).
-- **One sheet, every skill.** The profile is shared across the install. Other skills
+- **Upgrading from the two-file profile.** Earlier versions applied the sheet into a
+  `scaffold-profile.json` that the commands read. That file is no longer read. The first
+  run after upgrading carries its values into the profile and says so; delete it once the
+  profile looks right.
+- **One file, every skill.** The profile is shared across the install. Other skills
   contribute their own fields (each declares them in its own `profile_fields.py`), so the
   sheet may list groups this skill never uses — e.g. an eval engine path or a diagrams
   output folder. Fill only what you need.

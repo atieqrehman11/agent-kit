@@ -228,20 +228,36 @@ def org_prefix(target):
     docs/; this adapter did not, so every installed guideline carried the literal token in
     its H1. Same file, two consumers, one of which knew about the token.
 
-    Read the JSON only. `scaffold-profile.md` is the fill-in *sheet* — its lines carry
-    example hints (`org: Acme          # e.g. Acme`), and a regex over it happily returns
-    the comment as part of the value. The JSON is the applied, resolved form, which is what
-    the scaffold itself reads. One parser, one source.
+    `scaffold-profile.md` is now the whole profile — the applied JSON this used to read
+    is gone, because two files holding the same 22 keys is one file too many. So the
+    value is parsed out of the sheet, and the parse must survive what a sheet contains
+    that a JSON object could not: `org:` lines carrying an example hint
+    (`org:          # e.g. Acme`), and prose. Hence — matching profile.py's `parse`, which
+    owns this format — a trailing " # …" is stripped, a value that is only a hint counts
+    as blank, and the key must sit at the start of the line.
+
+    A naive regex here returns the hint as the org name and brands every installed
+    guideline "# Python Standards — # e.g. Acme shared standard". That is the failure this
+    docstring used to describe as a reason not to read the sheet at all.
+
+    Only the install-wide profile: guidelines are installed once per machine, so a
+    project-scoped profile cannot reach them (see STANDARD.md §1.6).
     """
-    p = os.path.join(target, "scaffold-profile.json")
-    if not os.path.isfile(p):
-        return ""
+    p = os.path.join(target, "scaffold-profile.md")
+    v = ""
     try:
         with open(p, encoding="utf-8") as f:
-            v = (json.load(f).get("org") or "").strip()
-    except Exception:
-        # A malformed profile must not break the install; the token resolves to nothing,
-        # which is exactly what an unbranded install should look like.
+            for raw in f:
+                m = re.match(r"^org\s*:\s*(.*)$", raw.strip())
+                if not m:
+                    continue
+                val = re.sub(r"\s+#.*$", "", m.group(1)).strip()
+                if val and not val.startswith("#"):
+                    v = val
+                break
+    except (FileNotFoundError, IsADirectoryError, UnicodeDecodeError):
+        # A missing or unreadable profile must not break the install; the token resolves
+        # to nothing, which is exactly what an unbranded install should look like.
         return ""
     return f"{v} " if v and not v.startswith("TODO_SET") else ""
 

@@ -27,8 +27,8 @@ Output: <repo>/evaluation/
 """
 
 import argparse
-import json
 import os
+import re
 import shutil
 import sys
 
@@ -105,6 +105,31 @@ def _project_scope_dir():
     return "" if d.startswith("__") else d
 
 
+# The profile format, duplicated from the scaffold skill's profile.py, which owns it —
+# same reason ``_kit_data_dir`` is duplicated: this skill must work when that one is not
+# installed. `key: value` lines; a trailing " # hint" is a comment, a value that is only
+# a hint counts as blank, and the key charset excludes "/" and "." so a value's own colon
+# (https://…) cannot be read as a key.
+_LINE_RE = re.compile(r"^-?\s*([a-z][a-z0-9_]*)\s*:\s*(.*)$")
+_COMMENT_RE = re.compile(r"\s+#.*$")
+
+
+def _parse_profile(path):
+    values = {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            for raw in f:
+                m = _LINE_RE.match(raw.strip())
+                if not m:
+                    continue
+                val = _COMMENT_RE.sub("", m.group(2)).strip()
+                if val and not val.startswith("#"):
+                    values[m.group(1)] = val
+    except (FileNotFoundError, IsADirectoryError, UnicodeDecodeError):
+        return {}
+    return values
+
+
 def _profile_path(start=None):
     """Which profile this run uses, where it came from, and what it may be shadowing.
 
@@ -113,8 +138,8 @@ def _profile_path(start=None):
     directory wins over the install-wide one.
 
         $AGENT_KIT_PROFILE                     an explicit file, for one invocation
-        <dir>/<scope dir>/scaffold-profile.json  nearest project profile, walking up
-        <kit data dir>/scaffold-profile.json     install-wide fallback
+        <dir>/<scope dir>/scaffold-profile.md  nearest project profile, walking up
+        <kit data dir>/scaffold-profile.md     install-wide fallback
 
     Returns ``(path, scope, shadowed)``. ``scope`` is "env" | "project" | "global".
     ``shadowed`` is the nearest project scope directory with NO profile of its own, or
@@ -131,7 +156,7 @@ def _profile_path(start=None):
     while scope_name:
         d = os.path.join(here, scope_name)
         if os.path.abspath(d) != root and os.path.isdir(d):
-            cand = os.path.join(d, "scaffold-profile.json")
+            cand = os.path.join(d, "scaffold-profile.md")
             if os.path.isfile(cand):
                 return cand, "project", None
             shadowed = shadowed or d
@@ -139,20 +164,14 @@ def _profile_path(start=None):
         if parent == here:
             break
         here = parent
-    return os.path.join(root, "scaffold-profile.json"), "global", shadowed
+    return os.path.join(root, "scaffold-profile.md"), "global", shadowed
 
 
 # The profile governing the working directory (see ``_profile_path``). Returns only
 # non-empty string values, plus where they came from so the caller can say so.
 def _load_profile():
     path, scope, shadowed = _profile_path()
-    try:
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-        values = {k: v for k, v in data.items() if isinstance(v, str) and v.strip()}
-    except (FileNotFoundError, ValueError):
-        values = {}
-    return values, (path, scope, shadowed)
+    return _parse_profile(path), (path, scope, shadowed)
 
 
 def _resolve_engine_path(cli_value, profile):

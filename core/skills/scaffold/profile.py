@@ -1,24 +1,28 @@
 #!/usr/bin/env python3
-"""Set up the org/project profile — the values that are the SAME across every repo a
-team scaffolds (doc branding, workspace project, team, permissions, CI/CD, cluster
-policies). Mirrors the CONFIG.md model, but ONE sheet for the whole install.
+"""The org/project profile — the values that are the SAME across every repo a team
+scaffolds (doc branding, workspace project, team, permissions, CI/CD, cluster policies).
 
-The profile is shared by every installed skill, not just this one: any sibling skill
-may contribute its own fields via a ``profile_fields.py`` (see ``_sibling_fields``),
-so one sheet covers the whole install and each skill still owns its own settings.
+ONE file. ``scaffold-profile.md`` is what you edit and what every consumer reads: a
+grouped, annotated ``key: value`` sheet with a reference table above it. There is no
+second, applied copy.
 
-Two modes (just like {{cmd:scaffold:configure}}):
+    There was one. The profile used to work like {{cmd:scaffold:configure}} — fill a sheet, run
+    an apply step, get a JSON the consumers read. That split earns its keep for CONFIG.md,
+    where applying writes values across a whole repo tree. Here applying copied 22 keys
+    into a file with the same 22 keys, so the second file bought nothing and cost two
+    real things: a user maintaining two files that could disagree, and a hand-edit of the
+    generated one being silently erased by the next apply.
 
-  --generate     (Re)write ``scaffold-profile.md`` — a one-page fill-in sheet of
-                 the org fields, grouped and annotated. Every field is OPTIONAL.
+The reference table is the reason the file is markdown rather than JSON: `developers_group`
+is a workspace group you get from a Databricks admin, and a bare key in a JSON object
+cannot say so. Comments survive because nothing rewrites the file behind you.
 
-  (default) apply  Parse the sheet and save the filled values to
-                 ``scaffold-profile.json``. ``new.py`` reads that file and bakes the
-                 values into every scaffolded repo; anything left blank stays a
-                 ``TODO_SET_*`` placeholder for the per-repo {{cmd:scaffold:configure}} step.
+The profile is shared by every installed skill, not just this one: any sibling skill may
+contribute its own fields via a ``profile_fields.py`` (see ``_sibling_fields``), so one
+file covers the whole install and each skill still owns its own settings.
 
-Sheet + saved profile live outside the skill dir, which is replaced wholesale on every
-install; a filled-in profile must survive that. They live in one of two SCOPES:
+It lives outside the skill dir, which is replaced wholesale on every install, in one of
+two SCOPES:
 
   global    the kit data dir — one profile for the whole machine
   project   <project>/__PROJECT_SCOPE_DIR__/ — one profile for one client or codebase,
@@ -29,9 +33,8 @@ profile, scaffolding inside client B's tree silently bakes client A's org, team 
 controller into B's repo — the values are shared *across repos*, not across clients.
 See ``_profile_path`` for the resolution order.
 
-    python3 profile.py --generate                   # write the fill-in sheet
-    python3 profile.py                              # apply sheet -> scaffold-profile.json
-    python3 profile.py --show                       # print the resolved profile + scope
+    python3 profile.py                              # show the profile in force (creates it if absent)
+    python3 profile.py --generate                   # (re)write the file, keeping every value
     python3 profile.py --generate --scope project   # give this project its own profile
 """
 
@@ -43,7 +46,9 @@ import re
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
 SHEET_NAME = "scaffold-profile.md"
-JSON_NAME = "scaffold-profile.json"
+# The applied copy this file used to also write. Read once, to carry an older install's
+# values into the single file; never written.
+LEGACY_JSON_NAME = "scaffold-profile.json"
 
 
 def _kit_data_dir():
@@ -108,7 +113,7 @@ def _profile_path(start=None):
         # an install into the scope directory's own name under $HOME would report itself
         # as a project profile for everything in the home tree.
         if os.path.abspath(d) != root and os.path.isdir(d):
-            cand = os.path.join(d, JSON_NAME)
+            cand = os.path.join(d, SHEET_NAME)
             if os.path.isfile(cand):
                 return cand, "project", None
             shadowed = shadowed or d
@@ -116,7 +121,7 @@ def _profile_path(start=None):
         if parent == here:
             break
         here = parent
-    return os.path.join(root, JSON_NAME), "global", shadowed
+    return os.path.join(root, SHEET_NAME), "global", shadowed
 
 
 def report(path, scope, shadowed, profile=None, prefix="  "):
@@ -136,7 +141,6 @@ def report(path, scope, shadowed, profile=None, prefix="  "):
 
 _ROOT = _kit_data_dir()
 DEFAULT_SHEET = os.path.join(_ROOT, SHEET_NAME)
-DEFAULT_JSON = os.path.join(_ROOT, JSON_NAME)
 
 # (key, group, label, example, used_in, source) — all optional. `key` is what new.py
 # maps to tokens. `used_in` = where the value lands in a scaffolded repo; `source` =
@@ -333,14 +337,35 @@ LINE_RE = re.compile(r"^-?\s*([a-z][a-z0-9_]*)\s*:\s*(.*)$")
 TRAILING_COMMENT_RE = re.compile(r"\s+#.*$")
 
 
-def load(path=DEFAULT_JSON):
-    """Return the saved profile dict (only non-empty string values), or {}."""
-    try:
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-        return {k: v for k, v in data.items() if isinstance(v, str) and v.strip()}
-    except (FileNotFoundError, ValueError):
+def load(path=DEFAULT_SHEET):
+    """The profile as ``{key: value}``, filled fields only. ``{}`` if there is no file.
+
+    THE read path — this is what {{cmd:scaffold:new}} and the sibling skills resolve to, so the
+    file the user edits is the file that governs. A blank line is a field that was never
+    set, indistinguishable from an absent one, which is why nothing here reports blanks.
+    """
+    if not os.path.isfile(path):
         return {}
+    return parse(path)
+
+
+def legacy_values(dirpath):
+    """Values from the applied JSON an older install left beside the sheet.
+
+    Read only when (re)generating, to carry a profile filled in before the two files
+    became one. Never written, and never consulted at read time — two live sources is
+    the thing being removed, not preserved.
+    """
+    try:
+        with open(os.path.join(dirpath, LEGACY_JSON_NAME), encoding="utf-8") as f:
+            data = json.load(f)
+    except (FileNotFoundError, ValueError, IsADirectoryError):
+        return {}
+    return {
+        k: v.strip()
+        for k, v in data.items()
+        if k in KEYS and isinstance(v, str) and v.strip()
+    }
 
 
 def scope_dir(scope, project_dir=None):
@@ -390,7 +415,7 @@ def ignore_in_git(dirpath):
         with open(p, encoding="utf-8") as f:
             existing = f.read()
     have = {ln.strip() for ln in existing.splitlines()}
-    missing = [n for n in (SHEET_NAME, JSON_NAME) if n not in have]
+    missing = [n for n in (SHEET_NAME, LEGACY_JSON_NAME) if n not in have]
     if not missing:
         return None
     with open(p, "a", encoding="utf-8") as f:
@@ -407,10 +432,16 @@ def ignore_in_git(dirpath):
 
 
 def generate(sheet_path=DEFAULT_SHEET, current=None):
-    """Write the profile sheet. Existing values (from the saved JSON) prefill the lines.
+    """Write the profile. ``current`` values prefill the lines, so regenerating an
+    existing profile never loses one.
 
     Two parts: a **Reference** table that defines each field (what it is, where it is
-    used, where to get it), and a clean **Values** section with the fill-in lines.
+    used, where to get it), and a **Values** section of ``key: value`` lines. The table
+    is why this file is markdown and not JSON — it is the only place that says
+    `developers_group` comes from a Databricks admin.
+
+    Every prose line here must start with ``#``, ``|``, a digit or a capital letter, so
+    that ``parse`` can never mistake it for a field. See ``parse``.
     """
     current = current or {}
     lines = [
@@ -422,7 +453,8 @@ def generate(sheet_path=DEFAULT_SHEET, current=None):
         "   where to get it.",
         "2. Fill in the ones you want in the **Values** section below (after each colon;",
         "   leave a line blank to skip it and keep that value per-repo).",
-        "3. Apply with `{{cmd:scaffold:profile}}`. Keep the keys as-is.",
+        "3. Save. There is no apply step — this file IS the profile, and every command",
+        "   reads it directly. Keep the keys as-is.",
         "",
         "## Reference",
         "",
@@ -458,7 +490,19 @@ def generate(sheet_path=DEFAULT_SHEET, current=None):
 
 
 def parse(sheet_path):
-    """Return ``{key: value}`` for every filled line whose key is a known field."""
+    """``{key: value}`` for every filled line whose key is a known field.
+
+    The whole read contract, and it has to survive the prose around it. Three rules earn
+    their place: the key charset excludes ``/`` and ``.`` so a value's own colon
+    (``https://…``, ``image:v3``) cannot be mistaken for a key; a trailing ``# hint`` is
+    stripped, but only when preceded by whitespace, so a ``#`` inside a URL survives; and
+    a value that is *only* a hint counts as blank. A line whose value legitimately
+    contains " #" is the one thing this cannot represent.
+
+    The generated prose above the values is kept safe by construction, not by luck —
+    every line of it starts with ``#``, ``|``, a digit or a capital, none of which can
+    begin a key. Keep it that way when editing ``generate``.
+    """
     values = {}
     with open(sheet_path, encoding="utf-8") as f:
         for raw in f:
@@ -474,20 +518,19 @@ def parse(sheet_path):
     return values
 
 
-def save(values, json_path=DEFAULT_JSON):
-    with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(values, f, indent=2, sort_keys=True)
-        f.write("\n")
-    return json_path
-
-
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Set up the org/project scaffold profile.")
     ap.add_argument(
-        "--generate", action="store_true", help="(re)write the fill-in sheet, then exit"
+        "--generate",
+        action="store_true",
+        help="(re)write the profile, keeping every value already in it. Refreshes the "
+        "reference table so fields added by a newly installed skill appear",
     )
     ap.add_argument(
-        "--show", action="store_true", help="print the resolved profile, then exit"
+        "--show",
+        action="store_true",
+        help="report the profile in force without creating one if it is absent "
+        "(a bare run creates it)",
     )
     ap.add_argument(
         "--scope",
@@ -504,51 +547,39 @@ def main(argv=None):
         "__PROJECT_SCOPE_DIR__/ "
         "above the working directory, else the working directory)",
     )
-    ap.add_argument("--file", help="sheet path (overrides --scope)")
-    ap.add_argument("--json", help="saved profile path (overrides --scope)")
+    ap.add_argument("--file", help="profile path (overrides --scope)")
     args = ap.parse_args(argv)
 
     # Resolve which profile we are acting on before doing anything, and say so. An
-    # explicit --file/--json wins; --scope auto follows the same walk every consumer
-    # does, so what you edit here is what {{cmd:scaffold:new}} will read from here.
+    # explicit --file wins; --scope auto follows the same walk every consumer does, so
+    # the file you edit here is the file {{cmd:scaffold:new}} reads from here.
     if args.scope == "auto":
-        json_path, scope, shadowed = _profile_path()
-        # Acting on a profile is not the same as reading one. _profile_path answers the
-        # reader's question — which APPLIED profile governs here — so a project whose
-        # sheet has been generated but not yet applied still resolves to global. Apply
-        # in auto mode on that state and it would parse the machine's sheet and
-        # overwrite the machine's profile while standing inside the project. A sheet
-        # counts as the project claiming the scope, even before its first apply.
-        if scope == "global":
-            d = scope_dir("project")
-            if os.path.isfile(os.path.join(d, SHEET_NAME)):
-                json_path, scope, shadowed = os.path.join(d, JSON_NAME), "project", None
-        sheet_path = os.path.join(os.path.dirname(json_path), SHEET_NAME)
+        path, scope, shadowed = _profile_path()
     else:
         d = scope_dir(args.scope, args.project_dir)
-        json_path, sheet_path, scope, shadowed = (
-            os.path.join(d, JSON_NAME),
-            os.path.join(d, SHEET_NAME),
-            args.scope,
-            None,
-        )
-    sheet_path = args.file or sheet_path
-    json_path = args.json or json_path
+        path, scope, shadowed = os.path.join(d, SHEET_NAME), args.scope, None
+    path = args.file or path
+    target_dir = os.path.dirname(path)
 
-    if args.show:
-        prof = load(json_path)
-        for line in report(json_path, scope, shadowed, prof, prefix=""):
-            print(line)
-        print(
-            json.dumps(prof, indent=2, sort_keys=True) if prof else "(no profile saved)"
-        )
-        return 0
-
-    target_dir = os.path.dirname(json_path)
-    if args.generate:
+    # (Re)generate: the only write. Regenerating never loses a value — the current file
+    # is parsed back in and prefills the new one — and it is how a field added by a newly
+    # installed skill appears in a profile that predates it.
+    if args.generate or (not os.path.isfile(path) and not args.show):
         os.makedirs(target_dir, exist_ok=True)
-        path = generate(sheet_path, current=load(json_path))
-        print(f"Wrote {path}  (scope: {scope})")
+        current = load(path)
+        carried = {
+            k: v for k, v in legacy_values(target_dir).items() if k not in current
+        }
+        current.update(carried)
+        fresh = not args.generate
+        generate(path, current=current)
+        print(f"{'Created' if fresh else 'Wrote'} {path}  (scope: {scope})")
+        if carried:
+            print(
+                f"  Carried {len(carried)} value(s) over from the old "
+                f"{LEGACY_JSON_NAME}: {', '.join(sorted(carried))}"
+            )
+            print("  That file is no longer read — delete it once this looks right.")
         if scope == "project":
             ignored = ignore_in_git(target_dir)
             if ignored:
@@ -557,31 +588,31 @@ def main(argv=None):
                 )
             print("  It wins over the machine-wide profile for anything under")
             print(f"  {os.path.dirname(target_dir)}.")
-        print(
-            "  Fill in the fields you want (all optional), then run {{cmd:scaffold:profile}} to save."
-        )
-        return 0
+        print("  Edit it and the values take effect — there is no apply step.")
+        if fresh:
+            return 0
+        print()
 
-    if not os.path.exists(sheet_path):
-        ap.error(f"sheet not found: {sheet_path}\n  run with --generate first")
-
-    values = parse(sheet_path)
-    if not values:
+    # Show what is in force. This is also what a bare run does on an existing profile:
+    # the file is the write path, so there is nothing for this command to apply.
+    values = load(path)
+    for line in report(path, scope, shadowed, values, prefix=""):
+        print(line)
+    if values:
+        print(f"\n  Set ({len(values)}):")
+        for k, v in sorted(values.items()):
+            shown = v if len(v) <= 52 else v[:49] + "..."
+            print(f"    {k:<24} {shown}")
+    else:
+        print("\n  Nothing set yet — every field stays per-repo.")
+    blank = sorted(KEYS - set(values))
+    if blank:
         print(
-            "No filled values in the sheet — nothing saved (every field is per-repo)."
+            f"\n  Blank ({len(blank)}), left per-repo for "
+            + "{{cmd:scaffold:configure}}:"
         )
-        return 0
-    os.makedirs(target_dir, exist_ok=True)
-    path = save(values, json_path)
-    if scope == "project":
-        ignore_in_git(target_dir)
-    print(f"Saved {len(values)} value(s) to {path}  (scope: {scope}):")
-    for k, v in sorted(values.items()):
-        shown = v if len(v) <= 48 else v[:45] + "..."
-        print(f"  {k:<24} -> {shown}")
-    skipped = sorted(KEYS - set(values))
-    if skipped:
-        print(f"\n  Left per-repo ({len(skipped)}): {', '.join(skipped)}")
+        print("    " + ", ".join(blank))
+    print(f"\n  Edit: {path}")
     return 0
 
 

@@ -56,7 +56,7 @@ and every one is optional:
 | draw.io binary | `--bin` > `$DRAWIO_BIN` > profile `drawio_bin` > `PATH` > the usual install locations for the OS |
 
 "profile" above means the one governing the working directory: a project's own
-`<project>/__PROJECT_SCOPE_DIR__/scaffold-profile.json` beats the install-wide one. `render.py
+`<project>/__PROJECT_SCOPE_DIR__/scaffold-profile.md` beats the install-wide one. `render.py
 --profile` prints the resolved values and the scope. On a machine that draws for more
 than one client, give each client's tree its own profile — `brand_guidelines` is the
 value that decides whose palette a diagram is drawn in, and the wrong one still renders

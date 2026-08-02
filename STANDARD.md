@@ -268,8 +268,8 @@ So user state that can be client-specific is **scoped**, and a scope is a direct
 
 ```
 $AGENT_KIT_PROFILE                       an explicit file, for one invocation
-<dir>/__PROJECT_SCOPE_DIR__/<name>.json  nearest project scope, walking up from the cwd
-<kit data dir>/<name>.json               install-wide fallback
+<dir>/__PROJECT_SCOPE_DIR__/<name>      nearest project scope, walking up from the cwd
+<kit data dir>/<name>                   install-wide fallback
 ```
 
 `__PROJECT_SCOPE_DIR__` is a token for the same reason `__KIT_DATA_DIR__` is: **what a
