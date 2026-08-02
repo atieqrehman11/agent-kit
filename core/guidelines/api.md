@@ -17,7 +17,7 @@ applies_to:
 
 This document defines the minimum standard for building a new use case API.
 
-Keep use case APIs focused on domain data, domain actions, reports, jobs, and files. Conversational/chat endpoints are not part of the default use case API surface. Chat is covered separately in [CHAT_API_STANDARDS.md](./CHAT_API_STANDARDS.md).
+Keep use case APIs focused on domain data, domain actions, reports, jobs, and files. Conversational/chat endpoints are not part of the default use case API surface. Chat is covered separately in the [`chat-api`](./chat-api.md) guideline.
 
 ---
 
@@ -402,7 +402,7 @@ If conversational access is needed:
 
 - [ ] The use case API does not add chat endpoints by default.
 - [ ] The use case API advertises `CONVERSATION_CONTEXT` only if it exposes context/actions for the conversational API.
-- [ ] Chat endpoint and guardrail rules are handled by [CHAT_API_STANDARDS.md](./CHAT_API_STANDARDS.md).
+- [ ] Chat endpoint and guardrail rules are handled by the [`chat-api`](./chat-api.md) guideline.
 
 ---
 
