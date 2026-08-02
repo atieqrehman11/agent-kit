@@ -27,6 +27,7 @@ Adding an aspect is one entry here — both commands pick it up, and `add.py
 """
 
 import os
+import re
 import shutil
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -59,7 +60,8 @@ def _src_path(src_rel):
 
 def _strip_frontmatter(text):
     m = re.match(r"\A---\n.*?\n---\n+", text, re.S)
-    return text[m.end():] if m else text
+    return text[m.end() :] if m else text
+
 
 # Repo types, mirrored from new.py (kept here so add.py needs only this module).
 BUNDLE_TYPES = ("api", "etl", "job")
@@ -74,6 +76,25 @@ STANDARDS = {
     "agent": ("guidelines:agent.md", "AGENT_STANDARDS.md"),
     "genie": ("guidelines:genie.md", "GENIE_STANDARDS.md"),
 }
+
+# Repo types that contain a request boundary and therefore hand-written service
+# code — these get the service-structure standard alongside their own.
+SERVICE_TYPES = ("api", "job")
+
+
+def _conformance_for(src_rel, dest):
+    """The ``<name>.conformance.md`` sibling of a guideline, if it has one (STANDARD.md §1.2).
+
+    Derived from the tree rather than listed: a guideline that gains a sibling starts
+    shipping it with no edit here, which is the same rule obligation 1 puts on adapters.
+    """
+    if not src_rel.startswith("guidelines:"):
+        return []
+    name = src_rel.split(":", 1)[1][:-3]
+    if not os.path.isfile(os.path.join(GUIDELINES, f"{name}.conformance.md")):
+        return []
+    return [(f"guidelines:{name}.conformance.md", f"docs/{dest[:-3]}_CONFORMANCE.md")]
+
 
 # Tool caches a formatter/linter may have dropped in a template dir.
 _IGNORE = {"__pycache__", ".ruff_cache", ".pytest_cache", ".DS_Store"}
@@ -138,11 +159,22 @@ _ENV_CONFIG_WIRING = [
 _API_PLATFORM_WIRING = [
     "Wire the router into your FastAPI app:  from routers import platform  →  "
     "app.include_router(platform.router)",
-    "Check config.py — SERVICE_ID / DISPLAY_NAME / DESCRIPTION feed GET /v1/info. "
-    "If the repo already had its own config module, merge instead of keeping both.",
-    "Normalize error responses to the ErrorResponse envelope "
-    "(error_code / message / detail / request_id / timestamp / errors) — "
-    "docs/API_STANDARDS.md §7.",
+    "Check core/config.py — service_id / display_name / description feed GET /v1/info. "
+    "If the repo already had its own config module, merge into Settings and delete the "
+    "other one; two config modules means two answers to the same question.",
+    "Configure logging once at startup, from settings:  "
+    "configure_logging(settings.log_level, settings.log_format, settings.service_id)  — "
+    "then remove any basicConfig / setLevel elsewhere, or LOG_LEVEL stops working.",
+    "Add the request context middleware:  "
+    "app.add_middleware(RequestContextMiddleware, service_id=settings.service_id)  — "
+    "it generates and echoes X-Request-ID and emits the one access-log line "
+    "(docs/API_STANDARDS.md §10).",
+    "Register the exception handlers:  register_exception_handlers(app)  — this is what "
+    "normalizes FastAPI's {'detail': ...} onto the ErrorResponse envelope and installs the "
+    "catch-all (docs/API_STANDARDS.md §7). Then delete any per-route error bodies.",
+    "Raise from core/exceptions.py in services and repositories — never HTTPException "
+    "below the router (docs/SERVICE_STRUCTURE_STANDARDS.md §3).",
+    "Set CORS from settings.cors_origins — an allowlist, never ['*'].",
 ]
 
 ASPECTS = {
@@ -189,15 +221,30 @@ ASPECTS = {
     "api": {
         "label": "Use case API surface",
         "summary": (
-            "routers/platform.py + config.py — GET /v1/health and GET /v1/info, the "
-            "two endpoints every use case API must expose (API_STANDARDS §3–4)"
+            "GET /v1/health and GET /v1/info (API_STANDARDS §3–4), plus the service "
+            "spine they need: validated settings, one logging setup, one exception "
+            "hierarchy behind one handler layer, and request-id middleware "
+            "(SERVICE_STRUCTURE_STANDARDS §2–4)"
         ),
         "applies_to": ("api",),
         "selectable": True,
+        # The platform endpoints alone are not installable — they read Settings, and
+        # their error path is the handler layer. Shipping the routers without the
+        # spine would produce a repo that fails its own conformance checklist on
+        # day one, which is how the previous version of this aspect behaved.
         "files": [
             ("api-skeleton/routers/__init__.py", "routers/__init__.py"),
             ("api-skeleton/routers/platform.py", "routers/platform.py"),
-            ("api-skeleton/config.py", "config.py"),
+            ("api-skeleton/core/__init__.py", "core/__init__.py"),
+            ("api-skeleton/core/config.py", "core/config.py"),
+            ("api-skeleton/core/logging_setup.py", "core/logging_setup.py"),
+            ("api-skeleton/core/exceptions.py", "core/exceptions.py"),
+            ("api-skeleton/core/handlers.py", "core/handlers.py"),
+            ("api-skeleton/core/middleware.py", "core/middleware.py"),
+            ("api-skeleton/schema/__init__.py", "schema/__init__.py"),
+            ("api-skeleton/schema/models.py", "schema/models.py"),
+            ("api-skeleton/services/__init__.py", "services/__init__.py"),
+            ("api-skeleton/repositories/__init__.py", "repositories/__init__.py"),
         ],
         "wiring": _API_PLATFORM_WIRING,
     },
@@ -208,7 +255,10 @@ ASPECTS = {
     # appear in a picker — nobody should have to decide about them.
     "standards": {
         "label": "Standards docs",
-        "summary": "docs/PYTHON_STANDARDS.md + the per-type <TYPE>_STANDARDS.md",
+        "summary": (
+            "docs/PYTHON_STANDARDS.md + the per-type <TYPE>_STANDARDS.md, "
+            "plus docs/SERVICE_STRUCTURE_STANDARDS.md wherever service code is written"
+        ),
         "applies_to": ALL_TYPES,
         "selectable": False,
         "files": {
@@ -216,6 +266,26 @@ ASPECTS = {
                 (src, f"docs/{dest}"),
                 ("guidelines:python.md", "docs/PYTHON_STANDARDS.md"),
             ]
+            # A guideline's checklist lives in a sibling now (STANDARD.md §1.2), so the
+            # standards doc alone would land in the repo without its audit list.
+            + _conformance_for(src, dest)
+            # Layering, exception handling, log levels and the no-hardcoded-values
+            # rule only bind a repo that has a request boundary. A genie space is
+            # configuration; shipping it a service standard is noise.
+            + (
+                [
+                    (
+                        "guidelines:service-structure.md",
+                        "docs/SERVICE_STRUCTURE_STANDARDS.md",
+                    )
+                ]
+                + _conformance_for(
+                    "guidelines:service-structure.md",
+                    "SERVICE_STRUCTURE_STANDARDS.md",
+                )
+                if t in SERVICE_TYPES
+                else []
+            )
             for t, (src, dest) in STANDARDS.items()
         },
     },
@@ -249,7 +319,15 @@ SELECTABLE = [k for k in ORDER if ASPECTS[k].get("selectable")]
 
 # Applied automatically by `add` after the chosen aspects, wherever missing — no
 # question asked, no menu entry. Order matters: config-sheet last.
-AUTO = ["gitignore", "config-sheet"]
+# Applied on every add, not just on new. `standards` is here because the aspects that
+# ship code ship code that *cites* the standards: the api aspect alone writes ten
+# references to docs/API_STANDARDS.md and docs/SERVICE_STRUCTURE_STANDARDS.md, in
+# docstrings and in the printed wiring notes. Without this, adding it to a repo the
+# scaffold never created produced a repo with no docs/ and ten dangling pointers — the
+# same broken-link class STANDARD.md §1.6.1 refuses for command references.
+# Safe on a repo that already has them: _emit skips an existing file rather than
+# overwriting it, so a doc someone has edited survives.
+AUTO = ["standards", "gitignore", "config-sheet"]
 
 # Keys that are not choices, mapped to where that work lives now — so anyone who
 # reaches for one gets a pointer instead of "unknown aspect".

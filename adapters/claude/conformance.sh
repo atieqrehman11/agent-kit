@@ -56,7 +56,7 @@ import json,sys; r=json.load(open('$T/.agent-kit-install.json'))
 sys.exit(0 if all(r.get(k) for k in ('guidelines','skills','commands','agents')) and r.get('source') and r.get('installed_at') else 1)"
 r $? "receipt written, lists all four kinds + source + timestamp"
 
-# 7 §1.4: every registered entry point carries a description — a skill's, a subagent's, and
+# 7 §1.5: every registered entry point carries a description — a skill's, a subagent's, and
 # a command's alike. This is what the picker shows the user; blank is not a soft failure.
 python3 - "$T" <<'PY'
 import os, re, sys
@@ -83,7 +83,7 @@ for b in bad[:8]:
     print("no description:", b)
 sys.exit(1 if bad else 0)
 PY
-r $? "every registered entry point carries a description (§1.4)"
+r $? "every registered entry point carries a description (§1.5)"
 
 # 8 the rendered frontmatter is valid YAML AND every value has the type a consumer expects.
 # The regex above passes on `argument-hint: [path; default = x]` — which YAML reads as a
@@ -118,6 +118,64 @@ for b in bad[:8]:
 sys.exit(1 if bad else 0)
 PY
 r $? "rendered frontmatter parses as YAML with string-typed values"
+
+# 10 §1.2: every conformance sibling in core/ was installed beside its guideline, and none
+# of them became an entry point. The failure this guards is a sibling discovered as a
+# guideline in its own right — it would register a phantom skill named
+# "service-structure.conformance" and validate against frontmatter it does not have.
+python3 - "$KIT" "$T" <<'PY'
+import os, sys
+kit, t = sys.argv[1], sys.argv[2]
+src = os.path.join(kit, "core", "guidelines")
+sibs = [f for f in os.listdir(src) if f.endswith(".conformance.md")]
+bad = []
+if not sibs:
+    print("no conformance siblings in core/ — this check proves nothing"); sys.exit(1)
+for f in sibs:
+    name = f[: -len(".conformance.md")]
+    if not os.path.isfile(os.path.join(t, "guidelines", f)):
+        bad.append(f"{f}: not installed beside its guideline")
+    if not os.path.isfile(os.path.join(src, f"{name}.md")):
+        bad.append(f"{f}: orphan — no {name}.md in core/")
+    if os.path.exists(os.path.join(t, "skills", f"{name}.conformance")):
+        bad.append(f"{f}: registered as a skill")
+    if os.path.exists(os.path.join(t, "commands", f"{name}.conformance")):
+        bad.append(f"{f}: registered as a command")
+for b in bad:
+    print(b)
+sys.exit(1 if bad else 0)
+PY
+r $? "conformance siblings installed as payload, none registered (§1.2)"
+
+# 11 an orphan sibling is a failed install, not a warning — same class as a dangling
+# {{cmd:…}}. Written as a property: drop one in, assert the installer refuses.
+cp "$KIT/core/guidelines/api.conformance.md" "$KIT/core/guidelines/zzz-nonexistent.conformance.md"
+python3 "$KIT/adapters/claude/install.py" "$W/t2/.claude" >"$W/orphan.log" 2>&1
+orphan_rc=$?
+rm -f "$KIT/core/guidelines/zzz-nonexistent.conformance.md"
+[ $orphan_rc -ne 0 ] && grep -qi "conformance sibling with no guideline" "$W/orphan.log"
+r $? "a conformance sibling with no guideline fails the install"
+
+# 12 §1.6: marker verification must be a general scan, not a list of remembered names.
+# Property test — invent a token nobody has ever heard of and assert the install refuses.
+# Written this way on purpose: asserting "__ORG_PREFIX__ is resolved" would pass while the
+# next undocumented token shipped exactly as that one did.
+printf '\n__A_TOKEN_NO_ONE_DECLARED__\n' >> "$KIT/core/guidelines/design.md"
+python3 "$KIT/adapters/claude/install.py" "$W/t3/.claude" >"$W/marker.log" 2>&1
+marker_rc=$?
+python3 - "$KIT/core/guidelines/design.md" <<'PY'
+import sys
+p = sys.argv[1]
+t = open(p, encoding="utf-8").read()
+open(p, "w", encoding="utf-8").write(t.replace("\n__A_TOKEN_NO_ONE_DECLARED__\n", ""))
+PY
+[ $marker_rc -ne 0 ] && grep -q "__A_TOKEN_NO_ONE_DECLARED__" "$W/marker.log"
+r $? "an undeclared __TOKEN__ fails the install (general scan, not a denylist)"
+
+# 13 and nothing in the installed tree carries a marker the scan would have caught
+grep -rlE '__[A-Z][A-Z0-9_]*__' "$T/guidelines" "$T/skills" "$T/commands" "$T/agents" 2>/dev/null | head -3
+[ -z "$(grep -rlE '__[A-Z][A-Z0-9_]*__' "$T/guidelines" "$T/skills" "$T/commands" "$T/agents" 2>/dev/null)" ]
+r $? "installed tree contains no unresolved __TOKEN__ of any name"
 
 echo
 echo "== §2.5 conformance (the adapter itself) =="

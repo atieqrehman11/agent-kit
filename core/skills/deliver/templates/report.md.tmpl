@@ -1,0 +1,78 @@
+# Delivery report — {{TITLE}}
+
+| | |
+|---|---|
+| **Verdict** | PASS / PASS_WITH_CONDITIONS / BLOCKED |
+| **Branch** | `deliver/{{SLUG}}` |
+| **Requirement** | one line, as the user stated it |
+| **Repo type** | api / pipeline / job / agent / genie / frontend / mixed |
+
+---
+
+## Assumptions
+
+Only ones not settled by the requirement. If one of these is wrong, say which parts of the
+work it invalidates.
+
+| # | Assumption | What breaks if it is wrong |
+|---|---|---|
+| A1 | | |
+
+## Acceptance criteria
+
+| # | Criterion | Met | Evidence |
+|---|---|---|---|
+| AC1 | | ✓ / ✗ | file:line, or the test that proves it |
+
+**Explicitly not done:** what a broader reading of the requirement would have included, and
+why it was left out.
+
+## Standards applied
+
+Guidelines loaded at gate 1, and any place the existing code diverges from them.
+
+| Guideline | Divergence found in existing code |
+|---|---|
+
+## Design decisions
+
+| Decision | Options considered | Chosen | Why |
+|---|---|---|---|
+
+**Risks not mitigated:** severity, and what would mitigate it.
+
+## Changes
+
+| File | Added / Changed | What |
+|---|---|---|
+
+## Review — verbatim
+
+Reviewer verdict, unedited, including anything unflattering. Fix rounds used: _n_ of 3.
+
+```
+VERDICT: …
+```
+
+**Outstanding findings** (only if BLOCKED): what remains, and what was tried.
+
+**Disagreements** (if any): the finding as written, then why it was not actioned. No edits to
+the finding itself.
+
+## Tests
+
+Real output, pasted. Not a summary.
+
+```
+$ <test command>
+…
+```
+
+| Coverage gap | Acceptable? | Why |
+|---|---|---|
+
+## For the human
+
+- **Look at this first:** the one thing most worth a human eye.
+- **Not verified:** anything the tests do not actually prove.
+- **Next step:** what to do with this branch.

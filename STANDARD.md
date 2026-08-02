@@ -44,13 +44,47 @@ A capability that fails all three is a skill. A skill nobody deliberately invoke
 
 **Do not register one capability as two kinds.** One artifact, one kind, one registration.
 
-## 1.2 Skill layout
+## 1.2 Guideline layout
+
+```
+core/guidelines/<name>.md              REQUIRED   frontmatter + body. The rules, and why.
+core/guidelines/<name>.conformance.md  optional   PAYLOAD — the checklist someone walks to
+                                                  audit a change. Never registered.
+```
+
+**The sibling exists because a guideline has two readers with opposite needs.** Someone
+*writing* code needs the rules and the reasoning; someone *reviewing* it needs a list of
+checks. One file serves both by making each load the other's half.
+
+Measured on this repo before the split: a single edit to an API router loaded `python`,
+`api` and `service-structure` — about 5,650 tokens, of which **884 were conformance
+checkboxes the implementer never reads**. The reviewer paid the mirror of that bill, loading
+4,000 tokens of teaching prose to reach 23 checkboxes. Neither reader was served by the
+coupling; both paid for it.
+
+Rules:
+
+- The sibling is **payload**: installed alongside the guideline, never registered, never
+  invocable. It has **no frontmatter** — it is not an entry point, and §1.5 does not apply.
+- `<name>` must match a guideline that exists. A sibling with no guideline is a failed
+  install, the same class of error as a dangling `{{cmd:…}}`.
+- **The checklist lives in the sibling and nowhere else.** A guideline that both ships a
+  sibling and keeps its own checklist has two sources of truth, which is the condition this
+  split exists to remove.
+- Add one only where a reviewer genuinely walks a checklist independently of the prose. An
+  "acceptance criteria check" that tells the *implementer* to tick their own criteria is part
+  of the guideline body — it has one reader, so splitting it buys nothing and costs a file.
+
+Anything that needs to audit a change reads the sibling directly, by path, via
+`__GUIDELINES_DIR__` (§1.6) — it does not load the guideline to get at it.
+
+## 1.3 Skill layout
 
 ```
 core/skills/<name>/
   SKILL.md               REQUIRED   frontmatter + body. The model-invoked entry point.
   commands/<verb>.md     optional   user-invoked entry points → /<name>:<verb>. Frontmatter
-                                    too — an entry point without a description is §1.4's
+                                    too — an entry point without a description is §1.5's
                                     failure, whoever invokes it.
   README.md              optional   DOCUMENTATION — for whoever maintains the skill.
                                     Never registered, never installed. Lives here so it
@@ -60,7 +94,7 @@ core/skills/<name>/
   *.py                   optional   PAYLOAD — scripts the skill runs
 ```
 
-## 1.3 The entry-point rule
+## 1.4 The entry-point rule
 
 **An adapter registers exactly two things and nothing else:**
 
@@ -73,6 +107,10 @@ core/skills/<name>/commands/*.md     → one user-invoked entry each  (depth 1 o
 *by* a skill; `README.md` documents the skill for its maintainers. Neither is ever invocable, at
 any depth, and an adapter installs payload but not documentation.
 
+`core/guidelines/<name>.conformance.md` (§1.2) is payload too, and the same sentence covers it:
+installed, never registered. A guideline is registered from `<name>.md` alone, so a sibling can
+never become a phantom entry point named `service-structure.conformance`.
+
 This is an **allowlist, and that is the point.** The predecessor to this standard used a
 denylist — "register every `.md`, except the `README.md` at the skill root" — and a denylist
 fails open. Every file the rule failed to anticipate became a command. At the time this standard
@@ -84,7 +122,7 @@ A phantom entry point is not cosmetic. Every registered command spends context i
 selection list, and a model that can invoke `scaffold:templates:genie:genie-space:CHANGELOG`
 will eventually try to.
 
-## 1.4 Frontmatter
+## 1.5 Frontmatter
 
 Required on **every entry point**, of every kind — including each `commands/<verb>.md`.
 
@@ -100,7 +138,7 @@ description: >                # prose, 1–2 sentences, stating WHEN to reach fo
 
 `kind: command` is the one kind that is not a top-level artifact — it belongs to the skill whose
 `commands/` directory holds it, and its `name` is the verb, matching the filename. It is listed
-here because §1.3 registers it as an entry point, and **the rules for an entry point do not
+here because §1.4 registers it as an entry point, and **the rules for an entry point do not
 depend on whether a model or a user is the one selecting it.** A command's description is what a
 user reads in a command picker, at exactly the moment they are choosing between commands — the
 same job the description does for a model. Omitting it does not degrade selection quietly; it
@@ -108,7 +146,7 @@ leaves the line blank.
 
 > Measured, after Part 1 was first written: all eight commands in `core/` carried no frontmatter
 > at all. The adapter validated `description` for three kinds and copied command files through
-> byte-for-byte, because §1.4 said "every artifact" and a command had not been named as one. The
+> byte-for-byte, because §1.5 said "every artifact" and a command had not been named as one. The
 > `/` picker listed eight commands with nothing beside them.
 
 Optional:
@@ -144,7 +182,7 @@ which is why nothing could sensibly choose between `architect` and `decomposer`.
 
 `name` matching the directory is what lets an adapter replace one artifact without a manifest.
 
-## 1.5 Path tokens
+## 1.6 Path tokens
 
 An artifact's files move to an install location it cannot know in advance. Two tokens are
 resolved at install time. They exist separately because they have **opposite lifecycles**.
@@ -154,6 +192,20 @@ resolved at install time. They exist separately because they have **opposite lif
 | `__SKILL_DIR__` | the absolute path of *this artifact's* installed directory | **replaced wholesale on every install** (obligation 6) |
 | `__KIT_DATA_DIR__` | one directory per install, shared by every artifact | **never created over, never deleted** by an install |
 | `__GUIDELINES_DIR__` | where `core/guidelines/` was installed | replaced with the rest of `core/` |
+| `__ORG_PREFIX__` | `"<Org> "`, or the empty string when no org is configured | read from user data at install time |
+
+`__ORG_PREFIX__` is not a path — it is a **value** token, and it is listed here because
+leaving it undocumented is what let it ship. Six guidelines open with
+`# Python Standards — __ORG_PREFIX__shared standard`. The scaffold resolved it when copying a
+guideline into a generated repo; the adapter that installs the same file did not, because it
+had never been told the token existed. Every installed guideline carried the literal
+`__ORG_PREFIX__` in its H1 while verification reported "no unresolved markers".
+
+**This is why the verify in §2.4 must be a general scan and not a list.** The check enumerated
+three token names, so a fourth was invisible to it — the same way a denylist of entry points
+made 22 payload files invocable (§1.4). An adapter MUST verify by searching for *any*
+surviving `__[A-Z][A-Z0-9_]*__`, not by checking off the tokens in this table. The table tells
+you what to resolve; it must not be the thing you validate against.
 
 `__GUIDELINES_DIR__` exists because a skill sometimes needs a guideline as a *file*, not as
 context — `scaffold` writes the relevant standards into every repo it generates. Without it
@@ -187,7 +239,7 @@ __KIT_DATA_DIR__             baked in at install time
 repo root                    dev fallback: walk up to the directory holding STANDARD.md
 ```
 
-## 1.5.1 Command references
+## 1.6.1 Command references
 
 Artifacts constantly need to name each other — in help text, in error messages, in prose
 ("run the review command on it first"). Writing that as one tool's invocation syntax couples
@@ -214,16 +266,16 @@ Write this                     Claude renders          another adapter renders
 > skill has never had, and three referred to `spec` verbs that were never implemented. All
 > eight had been shipping as instructions to the user.
 
-## 1.6 What may not appear in `core/`
+## 1.7 What may not appear in `core/`
 
 `core/` is tool-agnostic and client-agnostic. It must not contain:
 
 - **Tool-specific paths, filenames or syntax** — `~/.claude`, `CLAUDE.md`, `AGENTS.md`, any
-  adapter's directory layout, or a literal `/skill:verb` invocation. Use `{{cmd:…}}` (§1.5.1).
+  adapter's directory layout, or a literal `/skill:verb` invocation. Use `{{cmd:…}}` (§1.6.1).
 - **The name of any agent tool** — in prose, in comments, in generated templates. Naming an
   LLM *provider* or model is fine: that is what the code integrates with, not what runs it.
-- **A tool's frontmatter keys or argument variables** — use `arguments:` (§1.4) and `{{args}}`
-  (§1.5.1), which adapters map onto their own.
+- **A tool's frontmatter keys or argument variables** — use `arguments:` (§1.5) and `{{args}}`
+  (§1.6.1), which adapters map onto their own.
 - **Client names.** No client, engagement or customer appears in `core/`. Client-specific
   material belongs in that client's own project configuration, not here.
 - **Secrets, tokens, hostnames, internal URLs, policy IDs, or personal paths.** Installed-time
@@ -244,10 +296,10 @@ An adapter MUST:
 
 | # | Obligation | Detail |
 |---|---|---|
-| 1 | **Discover** | Enumerate `core/guidelines`, `core/skills`, `core/subagents`. Read frontmatter. Derive everything from the tree — never from a hardcoded list of names. |
+| 1 | **Discover** | Enumerate `core/guidelines`, `core/skills`, `core/subagents`. Read frontmatter. Derive everything from the tree — never from a hardcoded list of names. A `<name>.conformance.md` is payload of its guideline, not an artifact of its own (§1.2). |
 | 2 | **Validate before writing** | Reject missing or malformed frontmatter, a `name` that disagrees with its path, or a `description` that is not prose. Fail before the first byte is written, so a bad artifact cannot half-install. |
 | 3 | **Render by kind** | Map each kind onto the tool's native form (§2.2). |
-| 4 | **Register only entry points** | `SKILL.md` and `commands/*.md` at depth 1. Payload is copied, never registered. |
+| 4 | **Register only entry points** | `SKILL.md` and `commands/*.md` at depth 1. Payload is copied, never registered — including every `<name>.conformance.md`. |
 | 5 | **Resolve tokens and command references** | Rewrite every `__SKILL_DIR__`, `__KIT_DATA_DIR__` and `{{cmd:…}}`; verify zero remain. A `{{cmd:…}}` naming a skill or verb that does not exist is a **failed install**, not a warning. |
 | 6 | **Replace, do not merge** | Per artifact: remove the installed copy, then write. A file deleted from `core/` must not linger as a stale command. |
 | 7 | **Preserve user data** | Never overwrite anything the user filled in — the profile sheet above all. Offer a flag to skip regeneration and default to preserving. |
@@ -296,7 +348,9 @@ wrong trade.
 - [ ] Every artifact has valid frontmatter; every `name` matches its path
 - [ ] Every `description` is prose, not a path or a filename
 - [ ] **Registered entry-point count equals declared entry-point count** — zero payload registered
-- [ ] Zero surviving `__SKILL_DIR__`, `__KIT_DATA_DIR__`, `__GUIDELINES_DIR__`, `{{cmd:…}}` or `{{args}}` markers
+- [ ] Every `<name>.conformance.md` was installed, and none was registered as an entry point
+- [ ] Every `<name>.conformance.md` has a `<name>.md` beside it — a sibling with no guideline fails the install
+- [ ] Zero surviving markers — scanned as **any** `__[A-Z][A-Z0-9_]*__`, `{{cmd:…}}` or `{{args}}`, never as a list of known names (§1.6)
 - [ ] Every `{{cmd:…}}` resolved to a skill and verb that exist
 - [ ] The kit data dir exists, and its contents are byte-identical to before the install
 - [ ] Every installed script parses

@@ -23,21 +23,40 @@ GitLab → Settings → CI/CD → Variables before the first cloud deploy.
 ## Layout
 
 ```
+app.py                  entry point — wiring only, no logic
+core/                   config (validated Settings), logging setup, exceptions,
+                        handlers, request-id + access-log middleware
+routers/                boundary — platform.py (health/info) + domain.py
+services/               business logic; knows nothing about HTTP
+repositories/           all I/O — warehouse, object store, external HTTP, LLM
+schema/                 every model: request, response, domain
+app.yml                 runtime env for the App (LOG_LEVEL, CORS_ORIGINS, …)
+
 databricks.yml          bundle name + generated uuid + dev/stg/prod targets
 resources/              the one resource (apps | pipelines | jobs)
 .gitlab-ci.yml          controller trigger (validate -> stg -> prod)
 team_config.yaml        controller registration (bundle_name, uuid, url)
 run_resources.yml       resource keys to run after deploy
-docs/                   all repo docs (standards, guides)
+docs/                   all repo docs (standards, conformance sheets)
 CONFIG.md               one-page fill-in sheet for every TODO_SET_* placeholder
 ```
 
+Calls go one way: `routers/` → `services/` → `repositories/`. A router never queries
+anything directly, a service never sees an HTTP type, and no route builds an error body —
+`core/handlers.py` owns every error response.
+
 ## Standards
 
-Docs live in [`docs/`](docs/). Two non-overlapping layers, both applied when writing code here:
+Docs live in [`docs/`](docs/). Three non-overlapping layers, all applied when writing code here:
 
 - [`docs/PYTHON_STANDARDS.md`](docs/PYTHON_STANDARDS.md) — code style (PEP 8, type hints, Ruff, testing).
-- [`docs/API_STANDARDS.md`](docs/API_STANDARDS.md) — how to build this resource type.
+- [`docs/SERVICE_STRUCTURE_STANDARDS.md`](docs/SERVICE_STRUCTURE_STANDARDS.md) — how the service is
+  arranged: layering, where models live, one exception hierarchy, log levels from config, and no
+  hardcoded prompts or thresholds.
+- [`docs/API_STANDARDS.md`](docs/API_STANDARDS.md) — the contract on the wire for this resource type.
+
+Each ships its audit list beside it as `*_CONFORMANCE.md` — that is what a reviewer walks, and
+what to check yourself before opening a merge request.
 
 Run `ruff check` and `ruff format` before committing.
 

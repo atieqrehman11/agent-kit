@@ -117,6 +117,26 @@ SELECT ai_prep_search(ai_parse_document(content, map('version', '2.0')))
 
 ---
 
+## Data quality and reliability
+
+- **Declare expectations on every table**, not just the last one. A silver table with no
+  constraint is a table that will pass bad rows downstream silently. Drop or quarantine on
+  violation — deciding per table, and recording which you chose and why.
+- **Bronze is append-only and immutable.** Never rewrite or clean in bronze; a bad parse must
+  stay reproducible from the raw bytes.
+- **Silver merges idempotently** on a natural key, so a replayed batch converges instead of
+  duplicating. Gold is derived and rebuildable.
+- Every table carries lineage columns — source path, ingest timestamp, pipeline run id — so a
+  suspect row can be traced back to the file that produced it.
+- **Schema evolution is explicit.** Additive columns are fine; a type change or a dropped
+  column is a breaking change to every consumer and needs a new table version.
+- Classify and handle PII at the point it enters silver — mask, tokenise, or restrict by grant.
+  Never let an AI Function send an unclassified column to a model.
+- AI Function output is non-deterministic: **persist it**, do not recompute it per read, and
+  version the prompt or schema string that produced it so a re-extraction is explainable.
+- Reprocessing must be possible without a full rebuild — key on `document_id` and support
+  reprocessing a single document.
+
 ## Unity Catalog naming convention
 
 | Object | Pattern |

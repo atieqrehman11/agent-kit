@@ -1,35 +1,51 @@
+"""Domain endpoints — the boundary layer.
+
+A router parses, validates, delegates and serialises. It holds no business logic, no
+data access and no LLM calls, and it never builds an error body — see
+docs/SERVICE_STRUCTURE_STANDARDS.md §1 and §3.
+
+The commented example below is the shape to copy: router → service → repository, with
+the service raising a domain exception the handler layer already knows how to render.
+
+Rules (docs/API_STANDARDS.md):
+  - Paths:     /v1/{plural-resource}  (lowercase, hyphenated)
+  - Params:    snake_case query and path parameter names; never a bare {id}
+  - Responses: objects, not bare arrays
+  - Lists:     Page[...] from schema/models.py, and limit is capped at max_page_size
+  - Errors:    raise from core/exceptions.py — never return an error body from here
+  - No POST /v1/chat/message — chat belongs in the conversational API service
+"""
+
 from fastapi import APIRouter
 
 router = APIRouter(prefix="/v1", tags=["Domain"])
 
-# TODO: implement domain endpoints following docs/API_STANDARDS.md
+# TODO: implement this service's domain endpoints. Delete the example once you have one.
 #
-# Rules (from docs/API_STANDARDS.md):
-#   - Paths:   /v1/{plural-resource}  (lowercase, hyphenated)
-#   - Params:  snake_case query/path parameter names
-#   - Responses: objects, not bare arrays; include X-Request-ID
-#   - Lists:   use the pagination envelope (items, limit, offset, total, has_more)
-#   - Errors:  return ErrorResponse from schema/models.py — never FastAPI's {"detail": ...}
-#   - No POST /v1/chat/message — chat belongs in the conversational API service
+# from typing import Annotated
 #
-# Example — list endpoint:
+# from fastapi import Depends, Query
 #
-# from schema.models import ErrorResponse
+# from schema.models import Page
+# from services.record_service import RecordService, get_record_service
 #
-# @router.get("/records")
-# async def list_records(limit: int = 100, offset: int = 0):
-#     # TODO: query Unity Catalog via SQL warehouse
-#     return {
-#         "items": [],
-#         "limit": limit,
-#         "offset": offset,
-#         "total": 0,
-#         "has_more": False,
-#     }
 #
-# Example — detail endpoint:
+# @router.get("/records", response_model=Page[Record])
+# async def list_records(
+#     service: Annotated[RecordService, Depends(get_record_service)],
+#     limit: int = Query(100, ge=1, le=500),   # le must match settings.max_page_size
+#     offset: int = Query(0, ge=0),
+# ) -> Page[Record]:
+#     """List records. Business logic lives in the service; this only shapes the call."""
+#     return await service.list_records(limit=limit, offset=offset)
 #
-# @router.get("/records/{record_id}")
-# async def get_record(record_id: str):
-#     # TODO: fetch by ID
-#     ...
+#
+# @router.get("/records/{record_id}", response_model=Record)
+# async def get_record(
+#     record_id: str,
+#     service: Annotated[RecordService, Depends(get_record_service)],
+# ) -> Record:
+#     """Fetch one record. A missing record raises ResourceNotFoundError in the
+#     service and becomes a 404 ErrorResponse in core/handlers.py — there is no
+#     `if not record: return JSONResponse(...)` to write here."""
+#     return await service.get_record(record_id)

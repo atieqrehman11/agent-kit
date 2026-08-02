@@ -1,55 +1,61 @@
+"""Service entry point. Wiring only — no business logic, no data access.
+
+Startup order matters: configuration is validated first, then logging is configured
+from it, then everything else. A failure in either must stop the service rather than
+let it serve traffic in an unknown state.
+"""
+
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
-from config import DISPLAY_NAME, SERVICE_VERSION
+from core.config import get_settings
+from core.handlers import register_exception_handlers
+from core.logging_setup import configure_logging
+from core.middleware import RequestContextMiddleware
 from routers import domain, platform
 
-logging.basicConfig(level=logging.INFO)
+settings = get_settings()
+configure_logging(settings.log_level, settings.log_format, settings.service_id)
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("%s starting up", DISPLAY_NAME)
+    # TODO: list the settings this service genuinely cannot run without, so a
+    # misconfigured deploy fails here instead of on the first request. e.g.
+    #   settings.require("databricks_http_path", "databricks_catalog")
+    settings.require()
+
+    if not settings.cors_origins:
+        # Loud, because an empty allowlist is right locally and wrong in production.
+        logger.warning("CORS_ORIGINS is empty — cross-origin requests will be refused")
+
+    logger.info("startup", extra={"service_version": settings.service_version})
     yield
-    logger.info("%s shutting down", DISPLAY_NAME)
+    logger.info("shutdown")
 
 
 app = FastAPI(
-    title=f"{DISPLAY_NAME} API",
-    version=SERVICE_VERSION,
+    title=f"{settings.display_name} API",
+    version=settings.service_version,
     lifespan=lifespan,
 )
 
+# An allowlist from configuration. Never ["*"] — API_STANDARDS §10.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    expose_headers=["X-Request-ID"],
 )
+app.add_middleware(RequestContextMiddleware, service_id=settings.service_id)
 
-
-@app.exception_handler(Exception)
-async def unhandled_exception_handler(request: Request, exc: Exception):
-    logger.exception("Unhandled error on %s %s: %s", request.method, request.url.path, exc)
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error_code": "INTERNAL_ERROR",
-            "message": "An unexpected error occurred.",
-            "detail": None,
-            "request_id": request.headers.get("X-Request-ID"),
-            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            "errors": None,
-        },
-    )
-
+register_exception_handlers(app)
 
 app.include_router(platform.router)
 app.include_router(domain.router)

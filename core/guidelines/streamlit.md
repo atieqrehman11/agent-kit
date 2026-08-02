@@ -19,9 +19,9 @@ for data-heavy, analytics, and Gen AI use cases on Databricks.
 
 - Python 3.11 + Streamlit (latest stable)
 - Plotly for interactive charts (not matplotlib — better Streamlit integration)
-- Requests or httpx for FastAPI calls
+- Requests or httpx for API calls
 - Streamlit session_state for UI state management
-- Streamlit components for iframe embedding (Chainlit panel)
+- `st.components.v1.iframe` where another app is embedded as a panel
 
 ## Component standards
 
@@ -35,10 +35,13 @@ for data-heavy, analytics, and Gen AI use cases on Databricks.
 ## Layout standards
 
 - st.set_page_config called once at the top of the entry file
-- Sidebar for filters (line selector, date range, severity filter)
-- Main area: tabs for Dashboard / SHAP / Compliance
-- Chainlit panel: st.components.v1.iframe embedded on the right side
+- **Sidebar holds the filters that scope the page; the main area holds the content they scope.**
+  A control that changes what the whole page shows belongs in the sidebar
+- **Group the main area with tabs, one per question the page answers** — not one per data
+  source. A tab the user has no reason to open is a tab that should not exist
 - Use st.columns for side-by-side layout — avoid nested expanders
+- Every filter's default is a working default: the page renders something useful on first load,
+  never an empty frame waiting for input
 
 ## Gen AI / streaming patterns
 
@@ -61,6 +64,12 @@ for data-heavy, analytics, and Gen AI use cases on Databricks.
 - All API calls wrapped in try/except with st.error() display
 - No hardcoded URLs or ports — all from config
 - Session state keys defined as constants, not magic strings
+- **No secrets in the app.** Streamlit runs the whole script server-side, but anything in a
+  chart, a caption or an error message is on screen — surface the failure, not the stack trace
+- Remember the script re-runs top to bottom on **every** interaction: no unguarded write, no
+  API call outside a cached function or an explicit button, no counter incremented at module level
+- Cache keys must cover every input a cached function reads, or it will serve another user's
+  filter results
 
 ## Acceptance criteria check
 

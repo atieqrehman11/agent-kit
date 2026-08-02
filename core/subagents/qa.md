@@ -73,6 +73,30 @@ You produce tests, test strategy, and coverage gap analysis.
 - Guardrails: adversarial inputs (prompt injection, jailbreak, PII extraction)
 - Regression: fixed prompt → expected output pattern (regex or semantic match)
 
+### Structure tests (cheap, and they are what stop the standard from rotting)
+
+A rule enforced only by review decays. These tests enforce `service-structure` mechanically —
+write them once per repo, not per feature.
+
+- **Layering**: assert the dependency direction. ArchUnit (Java); an import-graph test over
+  `routers/` → `services/` → `repositories/` (Python). It must fail when a router imports a
+  repository.
+- **Exception mapping**: one parametrised test over the exception → `error_code` → HTTP table.
+  Every domain exception has a row; a new exception with no row fails the test.
+- **Catch-all**: force an unmapped exception through the boundary and assert the response is
+  `500 INTERNAL_ERROR` in the standard shape, with a `request_id`, and that the body contains
+  no stack trace, SQL, upstream URL or prompt text.
+- **Error shape**: assert the framework's own validation error (422) comes back normalised,
+  not as the framework default `{"detail": ...}`.
+- **Log level**: assert the configured level is what the logger actually has, and that setting
+  the config to DEBUG produces a debug record. This is the test that catches a stray
+  `basicConfig`.
+- **Config validation**: assert startup fails loudly with a missing required key — not that it
+  starts with a silent default.
+- **No hardcoded prompts**: a repo test that greps `src/` for prompt-shaped literals and fails.
+  Crude, and it works — it is the rule most often broken under deadline.
+- **Request id**: assert `X-Request-ID` is echoed when sent and generated when absent.
+
 ### Contract tests (microservice boundaries)
 - FastAPI endpoints: test request/response schema matches OpenAPI spec exactly
 - Any API consumed by another service: consumer-driven contract test

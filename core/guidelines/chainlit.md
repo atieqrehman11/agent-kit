@@ -26,17 +26,23 @@ UI applications for LLM-powered chat interfaces.
 - One app.py entry point with @cl.on_chat_start and @cl.on_message handlers
 - All API calls in api_client.py — never inline in handlers
 - Conversation history stored in cl.user_session per session
-- URL parameter reading on chat start (flag_id, line_id, kpi_type from iframe URL)
+- **Read the launch context on chat start** — URL parameters when embedded as a panel — and
+  treat every one of them as untrusted input: validate, and degrade gracefully when absent
 - Streaming: use cl.Message.stream_token() for token-by-token display
-- Context injection: pre-seed the conversation on mount if URL params present
+- Context injection: pre-seed the conversation on mount when launch context is present, so the
+  user arrives at an answer rather than an empty box
 
 ## Conversation flow standards
 
-- On start: read URL params → call POST /explain → pre-seed first message
-- On message: detect intent (follow-up vs new question) → select prompt template
-- Multi-turn: pass last N turns as conversation history to FastAPI
-- Fallback: if API call fails, show a friendly error and offer to retry
-- Never leave the user with a blank or spinner without explanation
+- On start: read and validate launch context → call the context endpoint → pre-seed the first
+  message
+- On message: classify intent (follow-up vs new question) → select the prompt template **by
+  key** from the prompt files; never build the prompt inline
+- Multi-turn: pass the last N turns as conversation history, N from config
+- Fallback: if an API call fails, show a friendly error and offer to retry
+- Never leave the user with a blank area or a spinner without explanation
+- Every streamed response is cancellable, and a cancelled turn leaves the history consistent
+- Attribute the answer: show which sources or tools produced it, and say so when there were none
 
 ## Code output per task — in this order
 
@@ -52,9 +58,13 @@ UI applications for LLM-powered chat interfaces.
 
 - All API calls async with httpx — no blocking requests in handlers
 - All API calls wrapped in try/except with cl.Message error display
-- URL params validated on start — missing params handled gracefully
-- Conversation history capped at last 10 turns to control token usage
+- Launch context validated on start — missing values handled gracefully
+- Conversation history capped (default: last 10 turns) to control token usage — cap from config
 - No hardcoded API URLs — from environment variables
+- **No prompt text in `app.py`.** System prompts and templates load from prompt files by key
+- The guardrail layer is the conversational API's, not the UI's — this app must not be the only
+  thing standing between user input and a model
+- Never render model output as raw HTML; never echo an upstream stack trace to the user
 
 ## Acceptance criteria check
 

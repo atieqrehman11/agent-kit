@@ -33,6 +33,7 @@ wholesale on every install, so neither can drift from `core/`.
 | `__SKILL_DIR__` | `<target>/skills/<name>` |
 | `__GUIDELINES_DIR__` | `<target>/guidelines` |
 | `__KIT_DATA_DIR__` | `<target>` — see below |
+| `__ORG_PREFIX__` | `"<org> "` from `scaffold-profile.json`, or nothing when unset |
 | `{{cmd:<skill>:<verb>}}` | `/<skill>:<verb>` |
 | `{{args}}` | `$ARGUMENTS` |
 
@@ -66,3 +67,27 @@ tier to own, so they are referenced from a `settings.json` by absolute path:
 |---|---|---|
 | `format-on-write.sh` | `PostToolUse` Write/Edit | formats the written file for its language |
 | `guard-repo-artifacts.sh <segment>` | `PreToolUse` Write/Edit | blocks writes into a real deployed repo directory (`gitlab/`, `github/`) |
+
+## Workflows
+
+`workflows/` holds orchestration scripts. Like `hooks/`, the installer does **not** touch
+them — they are invoked by path, not registered.
+
+| Workflow | Does |
+|---|---|
+| `deliver.js` | Runs several requirements through the `deliver` gates at once, one isolated git worktree each, and returns a roll-up that puts the blocked ones first |
+
+```
+Workflow({ scriptPath: "<kit>/adapters/claude/workflows/deliver.js",
+           args: ["add rate limiting to the reports endpoint",
+                  "externalise the summariser prompt"] })
+```
+
+**Why this is here and not in `core/`.** Worktree isolation, background execution and
+parallel fan-out are properties of this tool, not of the standard —
+[`STANDARD.md` §1.7](../../STANDARD.md#117-what-may-not-appear-in-core) keeps them out of
+`core/`. The gate logic they orchestrate lives in `core/skills/deliver/`, so an adapter
+without a workflow engine still gets the gates through `/deliver:feature`, one requirement at
+a time. A gate that needed to know it was being run in parallel would mean the split is wrong.
+
+One requirement does not need this. Use `/deliver:feature` and skip the worktree overhead.

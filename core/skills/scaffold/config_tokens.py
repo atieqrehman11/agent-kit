@@ -150,6 +150,12 @@ TOKENS = [
         "",
     ),
     (
+        "TODO_SET_FRONTEND_ORIGIN",
+        "API Runtime",
+        "Allowed CORS origin — the frontend that calls this API. Never *",
+        "https://app.example.com",
+    ),
+    (
         "TODO_SET_CHAT_GATEWAY_URL",
         "API Runtime",
         "Shared chat gateway base URL (the conversational API service)",
