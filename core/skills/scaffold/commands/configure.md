@@ -1,3 +1,12 @@
+---
+name: configure
+kind: command
+description: >
+  Resolve the TODO_SET_* placeholders a scaffolded repo ships with, driven by its CONFIG.md
+  sheet — regenerate the sheet, then apply the filled values across the repo tree. Use after
+  scaffolding a repo, or whenever placeholders remain.
+---
+
 # Fill a repo's config placeholders (CONFIG.md → repo)
 
 Resolves the `TODO_SET_*` placeholders a scaffolded repo ships with. Every repo created

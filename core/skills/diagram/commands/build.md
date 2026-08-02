@@ -1,3 +1,12 @@
+---
+name: build
+kind: command
+description: >
+  Build a new draw.io diagram — architecture, network, data-flow, auth topology or ERD —
+  and check, render and read it before it is shown to anyone. Use when a diagram is asked
+  for, or a new .drawio file is created.
+---
+
 # Build a draw.io diagram with mandatory self-verification
 
 Build a `.drawio` diagram — architecture, network, data-flow, auth, or ERD — that follows

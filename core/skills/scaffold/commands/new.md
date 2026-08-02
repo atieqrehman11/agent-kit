@@ -1,3 +1,13 @@
+---
+name: new
+kind: command
+description: >
+  Create a new Databricks repo of a single type — ETL bundle, job bundle, API skeleton,
+  agent or Genie space — with CI/CD wired for that type. Use when starting a repo from
+  nothing.
+arguments: "[repo type and name; prompted if omitted]"
+---
+
 # Scaffold a new Databricks repo (type-driven wizard)
 
 Creates one repo of a **single type**. The type selects the primary resource; CI/CD is

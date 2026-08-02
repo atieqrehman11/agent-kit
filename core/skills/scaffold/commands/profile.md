@@ -1,3 +1,12 @@
+---
+name: profile
+kind: command
+description: >
+  Set up the values that are identical across every repo a team scaffolds — doc branding,
+  workspace folder, ownership, permissions, CI/CD and cluster policies. Collected once per
+  install; run before the first scaffold, or when those org-wide values change.
+---
+
 # Set up the shared org/project profile (sheet → profile)
 
 Sets up the values that are the **same across every repo** a team scaffolds — doc

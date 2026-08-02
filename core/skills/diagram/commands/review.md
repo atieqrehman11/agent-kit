@@ -1,3 +1,13 @@
+---
+name: review
+kind: command
+description: >
+  Audit an existing draw.io diagram — geometry checked deterministically, then rendered
+  and looked at. Use before editing an inherited diagram, before shipping one into a
+  document, or whenever someone asks whether a diagram looks right.
+arguments: "[path to a .drawio file; default = choose from the repo]"
+---
+
 # Review an existing draw.io diagram
 
 Audit a `.drawio` file the way it will be read: check the geometry deterministically, then

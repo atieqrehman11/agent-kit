@@ -17,7 +17,9 @@ How each kind renders (STANDARD.md 2.2):
                                                      the description. No slash command:
                                                      a constraint is not something you run.
     skill       <target>/skills/<name>/              SKILL.md + all payload; __SKILL_DIR__
-                <target>/commands/<name>/<verb>.md   one user-invoked entry per command
+                <target>/commands/<name>/<verb>.md   one user-invoked entry per command,
+                                                     carrying its own description — that is
+                                                     the line the slash-command picker shows
     subagent    <target>/agents/<name>.md            name + description frontmatter
 
 A guideline is written twice on purpose: once in its canonical form for skills that read it
@@ -125,31 +127,49 @@ def discover():
 # ── Obligation 2: validate before writing a single byte ─────────────────────────
 
 
+def check_fm(path, fm, name, kind, errs):
+    """The frontmatter contract (§1.4), applied identically to every entry point.
+
+    A command is an entry point too, and until this checked them the eight commands shipped
+    with no description at all — so the one line a user reads in the picker was blank.
+    """
+    if fm is None:
+        errs.append(f"{path}: no frontmatter")
+        return
+    if fm.get("name") != name:
+        errs.append(
+            f"{path}: name '{fm.get('name')}' does not match its path ('{name}')"
+        )
+    if fm.get("kind") != kind:
+        errs.append(
+            f"{path}: kind '{fm.get('kind')}' does not match its location ('{kind}')"
+        )
+    d = fm.get("description", "")
+    if not d:
+        errs.append(f"{path}: no description")
+    elif d.endswith(".md") or d.startswith("@") or "/" in d.split()[0]:
+        errs.append(f"{path}: description is a path, not prose")
+
+
 def validate(arts):
     errs, entries = [], {}
     for kind, name, path in arts:
         fm, _ = parse(path)
-        if fm is None:
-            errs.append(f"{path}: no frontmatter")
-            continue
-        if fm.get("name") != name:
-            errs.append(
-                f"{path}: name '{fm.get('name')}' does not match its path ('{name}')"
-            )
-        if fm.get("kind") != kind:
-            errs.append(
-                f"{path}: kind '{fm.get('kind')}' does not match its location ('{kind}')"
-            )
-        d = fm.get("description", "")
-        if not d:
-            errs.append(f"{path}: no description")
-        elif d.endswith(".md") or d.startswith("@") or "/" in d.split()[0]:
-            errs.append(f"{path}: description is a path, not prose")
+        check_fm(path, fm, name, kind, errs)
         if kind == "skill":
             cdir = f"{CORE}/skills/{name}/commands"
-            entries[name] = (
-                {f[:-3] for f in os.listdir(cdir)} if os.path.isdir(cdir) else set()
+            # §1.3: commands/*.md at depth 1, and nothing else — a stray file in here would
+            # otherwise register as a verb named after its extension.
+            verbs = (
+                {f[:-3] for f in os.listdir(cdir) if f.endswith(".md")}
+                if os.path.isdir(cdir)
+                else set()
             )
+            entries[name] = verbs
+            for verb in sorted(verbs):
+                cpath = os.path.join(cdir, f"{verb}.md")
+                cfm, _ = parse(cpath)
+                check_fm(cpath, cfm, verb, "command", errs)
     return errs, entries
 
 
@@ -185,16 +205,39 @@ def substitute(text, skill_dir, data_dir, guide_dir):
     return text
 
 
+def scalar(v):
+    """A YAML plain scalar, quoted only when leaving it bare would change its type.
+
+    `arguments` is prose written for a human — "[path to a .drawio file; default = …]".
+    Emitted bare, YAML reads the leading `[` as a flow sequence and the value arrives as a
+    *list*, and a consumer that type-checks its frontmatter can reject the whole block —
+    taking `description` down with it. Prose is not required to dodge another format's
+    metacharacters; the adapter that chose the format quotes it.
+    """
+    v = " ".join(str(v).split())
+    risky = v[:1] in "[]{}>|&*!%@`\"'#," or ": " in v or " #" in v or v[:2] == "- "
+    return '"' + v.replace("\\", "\\\\").replace('"', '\\"') + '"' if risky else v
+
+
 def render_fm(fm, kind):
     """Claude's frontmatter. applies_to is folded into the description (D-08) — the trigger
-    belongs where the model reads it, and a hook firing on every edit becomes noise."""
+    belongs where the model reads it, and a hook firing on every edit becomes noise.
+
+    A command gets no `name`: Claude derives the command name from the file's path, so
+    writing `name: build` next to a command invoked as `/diagram:build` states a second,
+    wrong name. It gets `description` — which is the line the slash-command picker shows —
+    and `argument-hint`.
+    """
     desc = " ".join(fm.get("description", "").split())
     globs = fm.get("applies_to__list")
     if globs:
         desc += " Applies to " + ", ".join(f"`{g}`" for g in globs) + "."
-    out = f"---\nname: {fm['name']}\ndescription: {desc}\n"
-    if kind == "skill" and fm.get("arguments"):
-        out += f"argument-hint: {fm['arguments']}\n"
+    out = "---\n"
+    if kind != "command":
+        out += f"name: {scalar(fm['name'])}\n"
+    out += f"description: {scalar(desc)}\n"
+    if kind in ("skill", "command") and fm.get("arguments"):
+        out += f"argument-hint: {scalar(fm['arguments'])}\n"
     return out + "---\n\n"
 
 
@@ -258,18 +301,18 @@ def install(target, dry_run):
                 sub(open(path, encoding="utf-8").read()),
             )
             written["guidelines"].append(name)
-            write(os.path.join(skill_dir, "SKILL.md"), render_fm(fm, kind) + sub(body))
+            write(os.path.join(skill_dir, "SKILL.md"), render_fm(fm, kind) + sub(body).lstrip("\n"))
             written["skills"].append(name)
 
         elif kind == "subagent":
             write(
                 os.path.join(target, "agents", f"{name}.md"),
-                render_fm(fm, kind) + sub(body),
+                render_fm(fm, kind) + sub(body).lstrip("\n"),
             )
             written["agents"].append(name)
 
         else:  # skill
-            write(os.path.join(skill_dir, "SKILL.md"), render_fm(fm, kind) + sub(body))
+            write(os.path.join(skill_dir, "SKILL.md"), render_fm(fm, kind) + sub(body).lstrip("\n"))
             written["skills"].append(name)
             src = os.path.dirname(path)
             # Obligation 4: payload travels with the skill but is never registered. Only
@@ -291,8 +334,10 @@ def install(target, dry_run):
             cdir = os.path.join(src, "commands")
             for verb in sorted(entries.get(name, [])):
                 cfm, cbody = parse(os.path.join(cdir, f"{verb}.md"))
-                text = open(os.path.join(cdir, f"{verb}.md"), encoding="utf-8").read()
-                write(os.path.join(target, "commands", name, f"{verb}.md"), sub(text))
+                write(
+                    os.path.join(target, "commands", name, f"{verb}.md"),
+                    render_fm(cfm, "command") + sub(cbody).lstrip("\n"),
+                )
                 written["commands"].append(f"{name}:{verb}")
 
     return written, arts
