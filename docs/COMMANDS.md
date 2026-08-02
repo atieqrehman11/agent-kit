@@ -99,7 +99,7 @@ you point `--output-dir`.
 ~/.claude/                        install target — and the kit data dir
   guidelines/                     14 canonical copies + 3 conformance sheets
   skills/       commands/         registered entry points
-  agents/                         reviewer, qa
+  agents/                         critic, reviewer, qa
   scaffold-profile.md             yours — the fill-in sheet
   scaffold-profile.json           yours — applied values, read by new.py
   .agent-kit-install.json         receipt; drives uninstall
@@ -158,14 +158,14 @@ $ python3 adapters/claude/install.py ~/.claude
          ✓  python 3.9.6 · target writable
 
   [2/4]  Validating core/ (nothing is written until this passes)
-         ✓  21 artifacts, frontmatter valid
+         ✓  22 artifacts, frontmatter valid
          ✓  every command reference resolves
 
   [3/4]  Rendering
          ✓  14 guideline(s)
          ✓  19 skill artifact(s)
          ✓  10 command(s)
-         ✓   2 subagent(s)
+         ✓   3 subagent(s)
          ·  guidelines render twice: canonical for the guidelines dir, plus a model-invocable copy
 
   [4/4]  Verifying
@@ -175,7 +175,7 @@ $ python3 adapters/claude/install.py ~/.claude
          ·  receipt: .agent-kit-install.json
 
   ──────────────────────────────────────────────────────────────────────
-  ✓  Installed  14 guidelines (3 with a conformance sheet) · 5 skills · 10 commands · 2 subagents
+  ✓  Installed  14 guidelines (3 with a conformance sheet) · 5 skills · 10 commands · 3 subagents
   ──────────────────────────────────────────────────────────────────────
 
     /deliver:feature

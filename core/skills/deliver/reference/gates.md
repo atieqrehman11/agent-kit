@@ -99,32 +99,38 @@ Turn the requirement into **numbered acceptance criteria**, each one binary.
 - List what you are **explicitly not** doing, where the requirement could reasonably be read
   more broadly.
 
-Then run the coverage pass below. Then write `docs/specs/<slug>/requirements.md` from
+Then run the critic below. Then write `docs/specs/<slug>/requirements.md` from
 [`templates/requirements.md.tmpl`](__SKILL_DIR__/templates/requirements.md.tmpl).
 
-### The coverage pass
+### The critic
 
-Before the criteria are final, dispatch **one fresh-context pass** whose only job is to find
-what is missing. Give it the requirement and the criteria — **not** your reasoning, which is
-the whole point: whoever wrote the criteria is the worst available judge of what they forgot.
+Before the criteria are final, dispatch the **`critic` subagent**, in its own context. Give it:
 
-It answers exactly these, and nothing else:
+- the requirement as the user stated it,
+- the numbered criteria,
+- the *explicitly not doing* list,
+- the repo it lands in.
 
-1. Which failure mode of this feature has no criterion?
-2. Which non-functional requirement does this obviously imply and never state — latency,
-   volume, retention, authorisation, cost, concurrency?
-3. Which existing part of the system does this touch that no criterion mentions?
-4. What does the *user's phrasing* assume is already true, that may not be?
+Give it **not** your reasoning. That is the whole point: whoever wrote the criteria is the
+worst available judge of what they forgot, for the same reason gate 5's review is not yours.
+It works seven dimensions — failure modes, non-functional, integration points, unstated
+premises, lifecycle, boundaries, observability — and reads the code, which is the half of the
+job you cannot do from the requirement text.
 
-Each finding lands in one of two places: a new criterion, or the **explicitly not doing**
-list with a reason. Neither list may quietly drop it.
+It returns gaps, **not criteria**. Each finding lands in one of two places: a new criterion,
+or the *explicitly not doing* list with a reason. Neither list may quietly drop it.
+
+A `BLOCKING` finding means the answer would change the design. **Do not proceed to gate 2 with
+an unresolved `BLOCKING` gap** — under {{cmd:deliver:spec}} it goes to the user at the gate 0
+stop; under {{cmd:deliver:feature}} resolve it by assumption, label it, and put the assumption
+where the report will surface it.
 
 **Exit:** every criterion is numbered, binary, and traceable to something the user said or to
-a stated assumption; the coverage pass has run and each of its findings is either a criterion
-or a stated exclusion; `requirements.md` exists.
+a stated assumption; the critic has run and each of its findings is either a criterion or a
+stated exclusion; no `BLOCKING` finding is unresolved; `requirements.md` exists.
 
 **Failure mode this prevents:** delivering something defensible that is not what was wanted,
-and the narrower one the coverage pass targets — a complete-looking spec with a hole in it.
+and the narrower one the critic targets — a complete-looking spec with a hole in it.
 Unsupervised work drifts at gate 0 or not at all; by gate 4 the drift is already code.
 
 **Ask the user only if** two readings of the requirement would produce materially different

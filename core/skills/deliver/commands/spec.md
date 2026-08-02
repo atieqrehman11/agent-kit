@@ -2,10 +2,11 @@
 name: spec
 kind: command
 description: >
-  Turn an idea into an approved spec before any code exists — acceptance criteria, a coverage
-  pass for what is missing, a design, and a task list, each written to a file and each
-  stopping for your approval. Use when you want to be sure the plan is right before it is
-  built; run the feature command afterwards to implement it. Writes documents, never code.
+  Turn an idea into an approved spec before any code exists — acceptance criteria, an
+  independent critic pass for what is missing, a design, and a task list, each written to a
+  file and each stopping for your approval. Use when you want to be sure the plan is right
+  before it is built; run the feature command afterwards to implement it. Writes documents,
+  never code.
 arguments: "[the idea, in your own words — or the slug of a spec already started]"
 ---
 
@@ -56,14 +57,18 @@ Exit condition
 Deliberately excluded
   <what a broader reading would have included, and why it is out>
 
+Critic
+  <at gate 0 only: n gaps found, n blocking; how each was resolved>
+
 Least certain
   <the single item here most likely to be wrong, and what it would cost>
 
 Approve, or tell me what to change.
 ```
 
-The **deliberately excluded** and **least certain** lines are the load-bearing ones. Without
-them a checkpoint reviews only what you thought of, which is never where the gap is.
+The **deliberately excluded**, **critic** and **least certain** lines are the load-bearing
+ones. Without them a checkpoint reviews only what you thought of, which is never where the
+gap is.
 
 On approval, set `status: approved` in the document's front matter and move to the next gate.
 On a change request, edit the document, re-present, and ask again — do not carry the change
@@ -74,10 +79,11 @@ forward as an unwritten understanding.
 1. **Do not run ahead.** Do not draft the design while waiting for approval on the
    requirements. The point of the stop is that the next gate's input can still change; work
    done in advance becomes an argument for the version you already wrote.
-2. **The coverage pass at gate 0 is not optional**, and it must not see your reasoning — only
-   the requirement and the criteria. It exists because whoever wrote the criteria is the worst
-   available judge of what they forgot. Its findings become criteria or stated exclusions;
-   they may not be dismissed silently.
+2. **The `critic` subagent at gate 0 is not optional**, and it must not see your reasoning —
+   only the requirement, the criteria, the exclusions and the repo. It exists because whoever
+   wrote the criteria is the worst available judge of what they forgot. Its findings become
+   criteria or stated exclusions; they may not be dismissed silently, and a `BLOCKING` finding
+   goes to the user at this gate's stop rather than being assumed away.
 3. **Stamp every derived document** with `derived-from: <upstream>@<hash>`
    (`git hash-object`, first 12 chars). Before loading a document on a resume, recompute its
    upstream's hash — on a mismatch, stop and say which two files disagree.

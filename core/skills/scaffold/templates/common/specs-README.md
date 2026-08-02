@@ -35,8 +35,11 @@ The sections most worth your attention are the ones that are easy to skim past:
 
 - **Explicitly not doing** in `requirements.md` — the difference between a scope decision and
   an oversight.
-- **The coverage pass table** — findings from a fresh-context pass looking only for what is
-  missing. Each one must resolve into a criterion or a stated exclusion.
+- **The critic table** — findings from an independent pass that read the code looking only for
+  what is missing: failure modes, non-functional constraints, integration points, unstated
+  premises, lifecycle, boundaries, observability. Each must resolve into a criterion or a
+  stated exclusion, and `VERDICT: COMPLETE` is only meaningful next to the *checked and clean*
+  line that says which dimensions were actually examined.
 - **Unglamorous work** in `tasks.md` — migrations, config, fixtures, error paths, docs. "None"
   there is a claim, not a default.
 

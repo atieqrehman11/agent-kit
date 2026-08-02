@@ -65,20 +65,30 @@ independence, or fan-out. Implementation earns none:
 - **Fan-out** — one feature is one chain. Fan-out only appears across several independent
   features, which is what the adapter-level wrapper handles.
 
-`reviewer` and `qa` do earn it, on independence and context economy respectively. They already
-exist. This skill is the sequencing that was missing, not new workers.
+`reviewer`, `qa` and `critic` do earn it. This skill is mostly the sequencing that was missing,
+not new workers.
 
-### The coverage pass is an open promotion question
+### Why `critic` is a subagent and the first draft of it was not
 
-Gate 0's coverage pass earns **independence** by the same argument gate 5 does — whoever wrote
-the criteria is the worst judge of what they forgot. By the promotion test it should be a
-third subagent, not a fresh-context pass described in prose.
+Gate 0's coverage pass shipped first as prose — "dispatch a fresh-context pass" — on the
+argument that it earns **independence** but not **context economy**, since a requirement and a
+criteria list are only ~40 lines of input.
 
-It is not one yet, deliberately: it reads very little (a requirement and a criteria list), so
-context economy does not apply, and a subagent that exists only for independence on ~40 lines
-of input is a round trip for a small return. If it proves its worth, promote it to
-`core/subagents/critic.md` and have gate 0 dispatch it by name. Leaving it as prose is the
-weaker form and should not be mistaken for the settled answer.
+That argument was wrong, and the fix is the interesting part. The weakest dimension of a
+text-only pass is *integration points*: **what in the existing code does this touch that no
+criterion mentions?** Answering it properly means reading callers, config, error paths and
+schemas — a lot of input for a short list of gaps out. That is context economy, exactly. So
+`critic` earns two of the three promotion criteria, not one, and the version that could not
+read the repo was missing the half of the job that pays for it.
+
+Worth keeping as a lesson about the promotion test: the input size of the *first sketch* is not
+the input size of the capability. Ask what the thing needs to read to do its job well, not
+what the current draft happens to be handed.
+
+The boundary against the other two subagents: `critic` reads a requirement and reports what is
+missing from it. `reviewer` reads a diff and reports what is wrong with it. `qa` reads a diff
+and writes tests. None of the three should grow into another's job — a critic that starts
+proposing designs has become the author it exists to check.
 
 ## Why the gates are in a reference file
 

@@ -65,9 +65,16 @@ whoever is *auditing* loads the checklist. See [`STANDARD.md`](STANDARD.md) §1.
 | `/scaffold:new` `:add` `:configure` `:profile` | Databricks repos by type, and their config |
 | `/eval:new` | an evaluation spec in the repo that owns it |
 
-**2 subagents** — independent workers with their own context.
+**3 subagents** — independent workers with their own context.
 
-`reviewer` · `qa`
+| | |
+|---|---|
+| `critic` | reads a *requirement* and reports what is missing from it |
+| `reviewer` | reads a *diff* and reports what is wrong with it |
+| `qa` | reads a *diff* and writes the tests for it |
+
+Each earns its round trip on independence, context economy, or both — see
+[`STANDARD.md`](STANDARD.md) §1.1. None should grow into another's job.
 
 ---
 

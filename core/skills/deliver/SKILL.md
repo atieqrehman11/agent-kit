@@ -3,8 +3,8 @@ name: deliver
 kind: skill
 description: >
   Take a stated requirement through spec and into reviewed, tested code: acceptance criteria,
-  a coverage pass for what is missing, design, a task list, implementation against the repo's
-  standards, an independent review, a bounded fix loop, tests, and a written report. Run it
+  an independent critic pass for what is missing, design, a task list, implementation against
+  the repo's standards, an independent review, a bounded fix loop, tests, and a report. Run it
   supervised, stopping for approval on each document before any code exists, or unsupervised
   end to end. Use when you know what you want built. For planning, estimating or scheduling a
   release rather than building one feature, use the plan skill.
@@ -66,7 +66,7 @@ that one feature does not need.
 ## The gates
 
 ```
-0  Frame     requirement → numbered binary criteria + coverage pass  → requirements.md   DOC
+0  Frame     numbered binary criteria, then the critic subagent      → requirements.md   DOC
 1  Ground    repo type, standards, test and lint commands            → context           CTX
 2  Design    assumptions, options, recommendation, risks             → design.md         DOC
 3  Tasks     dependency-ordered, files named, every AC covered       → tasks.md          DOC
@@ -92,9 +92,10 @@ its output is guidelines in your context, and context does not persist.
    findings. An unsupervised loop that cannot converge must halt, not keep spending. Report
    the block as the outcome — a stopped run that says why is a success of this skill, not a
    failure.
-3. **You do not review your own work.** Gate 5 is the `reviewer` subagent, in a fresh context.
-   Its verdict goes in the report **verbatim**, including anything unflattering. The same
-   logic puts a fresh-context coverage pass inside gate 0.
+3. **You do not check your own work.** Gate 5 is the `reviewer` subagent and gate 0 is the
+   `critic` subagent, each in a fresh context, neither given your reasoning. The reviewer's
+   verdict goes in the report **verbatim**, including anything unflattering; the critic's
+   findings each become a criterion or a stated exclusion, and none may be dropped.
 4. **Never weaken a test or a criterion to reach green.** If a criterion turns out to be
    wrong, say so in the report and leave it failing.
 5. **Report honestly.** If tests fail, paste the failure. If you skipped something, name it.
