@@ -7,7 +7,7 @@ and only adapter**; re-tier the four `.claude` directories so nothing is duplica
 Codex is deliberately out of scope for this pass — see **Deferred**. The adapter *contract*
 is written now so adding Codex later is an adapter, not a refactor.
 
-**Status:** Gates 1–6 complete. Gates 7–8 (resource-constrained schedule, Gantt) are
+**Status:** Complete — every task closed. Gates 7–8 (resource-constrained schedule, Gantt) are
 deliberately **not** run — one person, ~13 days; a levelling model over a single seat adds
 nothing a dependency-ordered list does not already carry. Phase exit gates are kept.
 
@@ -37,7 +37,7 @@ now.
 
 ---
 
-## Decisions (open)
+## Decisions (all resolved)
 
 | ID | Decision | Options | Recommendation | Owner |
 |---|---|---|---|---|
@@ -197,13 +197,16 @@ with a check · `1` = a subsystem. No task over 5 days. Effort excludes review l
 | C-04 | 5 Re-tier | ✅ **DONE** Echostar `.claude`: drop empty `"allow": []`, inherit the guard hook from the confiz tier, keep only Echostar-owned guidelines; `package` skill conforms to S-01 | 0.25 | P1 | C-02 |
 | C-05 | 5 Re-tier | ✅ **DONE** UA `.claude`: same treatment; drop the redundant `additionalDirectories`; brand guide becomes a real skill | 0.25 | P1 | C-02, A-05 |
 | C-06 | 5 Re-tier | ✅ **DONE** Delete cruft: the `~/.claude/{guidelines,agents}` symlinks, `settings.json.bak-20260714-precleanup`, stray `.DS_Store` | 0.25 | P2 | C-01 |
+| C-08 | 5 Re-tier | ✅ **DONE** *(unplanned)* Hoist the chat API standard out of `echostar/.claude` into `core/guidelines/chat-api.md` — 224 of its 228 lines were generic and it had zero heading overlap with `api.md`, so it was a **gap in the kit, not a duplicate**. Repairs two dangling `CHAT_API_STANDARDS.md` links in `api.md`, a file that never existed here | 0.5 | P0 | C-07 |
+| C-09 | 5 Re-tier | ✅ **DONE** *(unplanned)* Put project rules in the project tier: the guard hook was declared **twice**, both times in `settings.local.json` — the personal tier — instead of once in `confiz/.claude` as C-02 intended. UA had 13 project allow rules stranded in `.local` while `settings.json` held one. Both `settings.local.json` files are now `autoMemoryDirectory` only | 0.5 | P1 | C-02, V-01 |
+| X-02 | 6 Verify | ✅ **DONE** *(unplanned)* Post-decommission sweep: 3 stale memories repointed at agent-kit (one in a memory directory the first audit missed), 3 dead UA allow rules dropped, 1 moved-script path repaired | 0.25 | P2 | X-01 |
 | V-01 | 6 Verify | ✅ **DONE** (14/14, `confiz/.claude/verify-tiers.sh`) Fresh session in each of the three project roots: skill list correct, no cross-client content loaded, guard hook fires on a `gitlab/` write | 0.5 | P0 | C-04, C-05 |
 | C-07 | 5 Re-tier | ✅ **DONE** *(unplanned, found by V-01)* The Echostar tier still `@`-imported all three of its guidelines on every session — **1,010 always-on lines**, the same defect C-01 fixed one tier up, and asymmetric with UA whose brand guide was already a skill. Two new project skills (`echostar-style`, `chat-api`); Echostar now loads 159 lines | 0.5 | P0 | C-04, V-01 |
 | V-03 | 6 Verify | ✅ **DONE** `README.md`: what lives where, how to add a skill, **how to add an adapter**. Load-bearing now that Codex is deferred — this document is what keeps the second adapter cheap | 0.5 | P0 | A-04, S-02 |
 | V-04 | 6 Verify | ✅ **DONE** Orphan sweep — grep every CLAUDE.md, settings file and skill for stale `ai-clone/` and `confiz/echostar/claude-skills/` paths | 0.5 | P0 | C-06, V-03 |
-| X-01 | 6 Verify | **Decommission ai-clone** — confirm all 17 inbound reference sites are repointed, then remove the directory. Ordering is not optional: `format-on-write.sh` fires on every Write/Edit globally, so a dead hook path breaks all editing | 0.25 | P0 | V-04 |
+| X-01 | 6 Verify | ✅ **DONE** (removed by the user; 0 inbound refs, `format-on-write.sh` repointed and executable, 3 archives) **Decommission ai-clone** — confirm all 17 inbound reference sites are repointed, then remove the directory. Ordering is not optional: `format-on-write.sh` fires on every Write/Edit globally, so a dead hook path breaks all editing | 0.25 | P0 | V-04 |
 
-**Totals — 35 tasks · 19.75 days · 27 P0 · 34 tasks / 19.50 days complete (97%)**
+**Totals — 38 tasks · 21.00 days · 28 P0 · 38 tasks / 21.00 days complete (100%)** · 10 of the 38 were unplanned, found by the work itself
 
 | Phase | Tasks | Days | P0 | Status |
 |---|---|---|---|---|
@@ -212,8 +215,32 @@ with a check · `1` = a subsystem. No task over 5 days. Effort excludes review l
 | 2 Standard | 2 | 1.50 | 2 | ✅ complete |
 | 3 Merge | 13 | 9.25 | 13 | ✅ complete — 5 unplanned |
 | 4 Claude adapter | 5 | 3.25 | 3 | ✅ complete — 1 unplanned |
-| 5 Re-tier | 7 | 2.75 | 3 | ✅ complete — 1 unplanned |
-| 6 Verify | 4 | 1.75 | 4 | ⬜ 3/4 done |
+| 5 Re-tier | 9 | 3.75 | 4 | ✅ complete — 3 unplanned |
+| 6 Verify | 5 | 2.00 | 4 | ✅ complete — 1 unplanned |
+
+---
+
+## Deferred
+
+Referenced from the top of this document. Both items are **out of scope by decision, not by
+oversight** — the adapter contract, the `--target` dispatcher seam and the README's *Adding an
+adapter* section all shipped, so Codex is an addition rather than a refactor.
+
+| | Deferred item | Why |
+|---|---|---|
+| **A-03** | Codex adapter installer | No second tool in use today. Writing an installer against a contract nobody has exercised produces a guess, not an adapter |
+| **V-02** | Verification for that installer | Has no subject until A-03 exists |
+
+**RULE — A-03 may not be reinstated without V-02.** The Claude adapter shipped 11 of its 13
+conformance checks green and was still missing obligation 10 entirely; an unverified adapter
+looks finished and is not. A second adapter with no verification would also be the first place
+a Claude assumption could quietly re-enter `core/`, because nothing else tests the subset
+clause in §2.2.
+
+What a Codex adapter starts from: `adapters/codex/` already holds parked material and a README
+stating it has no installer. `STANDARD.md` Part 2 lists the eleven obligations and the
+conformance checklist. `adapters/claude/conformance.sh` is written against the standard rather
+than against Claude, so most of it should run unchanged against a second adapter.
 
 ---
 
