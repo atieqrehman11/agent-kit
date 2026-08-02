@@ -71,4 +71,4 @@ eval/
 
 ---
 
-See the top-level [README](../../README.md) for install instructions.
+See the top-level [README](../../../README.md) for install instructions.

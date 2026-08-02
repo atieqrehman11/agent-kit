@@ -1,107 +1,140 @@
-<mxfile host="Electron">
-  <diagram name="scaffold-workflow" id="0">
-    <mxGraphModel dx="1607" dy="1172" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1120" pageHeight="760" math="0" shadow="0">
-      <root>
-        <mxCell id="0" />
-        <mxCell id="1" parent="0" />
-        <mxCell id="n11" parent="1" style="text;html=1;align=left;fontSize=22;fontStyle=1;fontColor=#16202A;" value="Claude Skills — scaffold workflow" vertex="1">
-          <mxGeometry height="34" width="380" x="360" y="20" as="geometry" />
-        </mxCell>
-        <mxCell id="n13" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=6;dashed=1;dashPattern=6 4;fillColor=#F4F7F8;strokeColor=#CDD8DD;verticalAlign=top;align=left;spacingLeft=14;spacingTop=8;fontColor=#3B4A55;fontStyle=1;fontSize=13;" value="①  ONCE PER INSTALL" vertex="1">
-          <mxGeometry height="168" width="1040" x="40" y="100" as="geometry" />
-        </mxCell>
-        <mxCell id="n15" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#FFFFFF;strokeColor=#C4CCD4;fontColor=#1B2431;fontSize=12;" value="./install.sh" vertex="1">
-          <mxGeometry height="46" width="130" x="118" y="168" as="geometry" />
-        </mxCell>
-        <mxCell id="n17" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#FFFFFF;strokeColor=#C4CCD4;fontColor=#1B2431;fontSize=12;" value="clone skills + profile.md" vertex="1">
-          <mxGeometry height="42" width="180" x="390" y="170" as="geometry" />
-        </mxCell>
-        <mxCell id="n18" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=18;fillColor=#0F766E;strokeColor=#0B5C55;fontColor=#FFFFFF;fontStyle=1;fontSize=13;" value="/scaffold:profile" vertex="1">
-          <mxGeometry height="50" width="170" x="656" y="166" as="geometry" />
-        </mxCell>
-        <mxCell id="n19" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fillColor=#F6E9DA;strokeColor=#C98A3F;fontColor=#7A4713;fontSize=12;" value="Org/Project level Info" vertex="1">
-          <mxGeometry height="78" width="140" x="908" y="152" as="geometry" />
-        </mxCell>
-        <mxCell id="n22" edge="1" parent="1" source="n15" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#7C8A99;fontColor=#566773;fontSize=11;" target="n17" value="">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="n23" edge="1" parent="1" source="n17" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#7C8A99;fontColor=#566773;fontSize=11;" target="n18" value="">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="n24" edge="1" parent="1" source="n18" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#7C8A99;fontColor=#566773;fontSize=11;" target="n19" value="">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="n25" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=6;dashed=1;dashPattern=6 4;fillColor=#F4F7F8;strokeColor=#CDD8DD;verticalAlign=top;align=left;spacingLeft=14;spacingTop=8;fontColor=#3B4A55;fontStyle=1;fontSize=13;" value="②  PER REPO" vertex="1">
-          <mxGeometry height="152" width="1040" x="40" y="330" as="geometry" />
-        </mxCell>
-        <mxCell id="n26" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=18;fillColor=#0F766E;strokeColor=#0B5C55;fontColor=#FFFFFF;fontStyle=1;fontSize=13;" value="/scaffold:new" vertex="1">
-          <mxGeometry height="52" width="150" x="80" y="390" as="geometry" />
-        </mxCell>
-        <mxCell id="n27" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#FFFFFF;strokeColor=#C4CCD4;fontColor=#1B2431;fontSize=12;" value="Generate&amp;nbsp;&lt;div&gt;Standardized setup + CONFIG.md&lt;/div&gt;" vertex="1">
-          <mxGeometry height="60" width="142" x="350" y="386" as="geometry" />
-        </mxCell>
-        <mxCell id="n29" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=18;fillColor=#0F766E;strokeColor=#0B5C55;fontColor=#FFFFFF;fontStyle=1;fontSize=13;" value="/scaffold:configure" vertex="1">
-          <mxGeometry height="52" width="160" x="630" y="390" as="geometry" />
-        </mxCell>
-        <mxCell id="n30" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#E6F2F0;strokeColor=#8FBFB8;fontColor=#0F463F;fontStyle=1;fontSize=12;" value="Deployable Bundle" vertex="1">
-          <mxGeometry height="52" width="148" x="912" y="390" as="geometry" />
-        </mxCell>
-        <mxCell id="n31" edge="1" parent="1" source="n26" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#7C8A99;fontColor=#566773;fontSize=11;" target="n27" value="">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="n32" edge="1" parent="1" source="n27" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#7C8A99;fontColor=#566773;fontSize=11;" target="n29" value="">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="464" y="416.0000000000002" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="n34" edge="1" parent="1" source="n29" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#7C8A99;fontColor=#566773;fontSize=11;" target="n30" value="">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="n35" edge="1" parent="1" source="n19" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#7C8A99;fontColor=#566773;fontSize=11;dashed=1;dashPattern=6 4;strokeColor=#C98A3F;fontColor=#8A5A22;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="n27" value="fills org-wide tokens">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="978" y="300" />
-              <mxPoint x="421" y="300" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="lkMzuAD1HD2s3cuXCI0B-3" connectable="0" parent="1" style="group" value="" vertex="1">
-          <mxGeometry height="125" width="233" x="467" y="540" as="geometry" />
-        </mxCell>
-        <mxCell id="n47" parent="lkMzuAD1HD2s3cuXCI0B-3" style="rounded=1;whiteSpace=wrap;html=1;arcSize=5;fillColor=#FFFFFF;strokeColor=#C4CCD4;fontColor=#1B2431;fontSize=11;" value="" vertex="1">
-          <mxGeometry height="120" width="228" as="geometry" />
-        </mxCell>
-        <mxCell id="n42" parent="lkMzuAD1HD2s3cuXCI0B-3" style="text;html=1;align=left;fontSize=12;fontStyle=1;fontColor=#3B4A55;" value="Repo types  (--type)" vertex="1">
-          <mxGeometry height="24" width="220" x="13" as="geometry" />
-        </mxCell>
-        <mxCell id="lkMzuAD1HD2s3cuXCI0B-2" parent="lkMzuAD1HD2s3cuXCI0B-3" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="etl - Lakeflow Pipeline&lt;br&gt;job - Scheduled Job&lt;br&gt;api - Fast API&lt;br&gt;genie - GenieAgent&lt;br&gt;agent - Supervisor Agent with tools&amp;nbsp;&lt;div&gt;&lt;br/&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="100" width="205" x="13" y="25" as="geometry" />
-        </mxCell>
-        <mxCell id="lkMzuAD1HD2s3cuXCI0B-6" connectable="0" parent="1" style="group" value="" vertex="1">
-          <mxGeometry height="170" width="340" x="50" y="540" as="geometry" />
-        </mxCell>
-        <mxCell id="lkMzuAD1HD2s3cuXCI0B-4" parent="lkMzuAD1HD2s3cuXCI0B-6" style="rounded=1;whiteSpace=wrap;html=1;align=left;arcSize=5;" value="&lt;div&gt;&lt;span style=&quot;white-space: normal;&quot;&gt;&amp;nbsp; 1 - Health check/info for APIs&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: normal;&quot;&gt;&amp;nbsp; 2 - Standardized setup based on each type&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: normal;&quot;&gt;&amp;nbsp; 3 - Local run/test ready setup&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: normal;&quot;&gt;&amp;nbsp; 4 - IoC based deployment for dev env&amp;nbsp;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: normal;&quot;&gt;&amp;nbsp; 5 - Configured CICD&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: normal;&quot;&gt;&amp;nbsp; 6 - Automatic version controlled prompts&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: normal;&quot;&gt;&amp;nbsp; 7 - Automatic version controlled Genie/Agent Bricks setup&lt;/span&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="170" width="340" as="geometry" />
-        </mxCell>
-        <mxCell id="lkMzuAD1HD2s3cuXCI0B-5" parent="lkMzuAD1HD2s3cuXCI0B-6" style="text;html=1;align=left;fontSize=12;fontStyle=1;fontColor=#3B4A55;" value="Steps managed automatically" vertex="1">
-          <mxGeometry height="24" width="220" x="7" as="geometry" />
-        </mxCell>
-        <mxCell id="n48" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=1;fontColor=#566773;" value="Legend" vertex="1">
-          <mxGeometry height="26" width="60" x="820" y="530" as="geometry" />
-        </mxCell>
-        <mxCell id="n49" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=18;fillColor=#0F766E;strokeColor=#0B5C55;fontColor=#FFFFFF;fontStyle=1;fontSize=13;" value="slash command" vertex="1">
-          <mxGeometry height="26" width="120" x="820" y="560" as="geometry" />
-        </mxCell>
-        <mxCell id="n50" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#F6E9DA;strokeColor=#C98A3F;fontColor=#7A4713;fontSize=11;" value="profile store" vertex="1">
-          <mxGeometry height="26" width="120" x="820" y="586" as="geometry" />
-        </mxCell>
-        <mxCell id="n51" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#FFFFFF;strokeColor=#C4CCD4;fontColor=#1B2431;fontSize=12;" value="process / file" vertex="1">
-          <mxGeometry height="26" width="120" x="820" y="612" as="geometry" />
-        </mxCell>
-        <mxCell id="n52" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#E6F2F0;strokeColor=#8FBFB8;fontColor=#0F463F;fontStyle=1;fontSize=12;" value="Deployable bundle" vertex="1">
-          <mxGeometry height="26" width="120" x="820" y="638" as="geometry" />
-        </mxCell>
-      </root>
-    </mxGraphModel>
-  </diagram>
+<mxfile host="65bd71144e">
+    <diagram name="scaffold-workflow" id="scaffold-workflow">
+        <mxGraphModel dx="1832" dy="732" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1520" pageHeight="900" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="c1" value="scaffold — from nothing to a deployable repo" style="text;html=1;align=left;verticalAlign=middle;fontSize=17;fontStyle=1;fontColor=#16202A;fontFamily=Helvetica;strokeColor=none;fillColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="22" width="1200" height="28" as="geometry"/>
+                </mxCell>
+                <mxCell id="c2" value="Set the profile once. After that every repo is two commands, and the standards for its type come with it." style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#5A6672;fontFamily=Helvetica;strokeColor=none;fillColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="48" width="1200" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="c3" value="①  ONCE PER MACHINE" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;fillColor=#FBEFDD;strokeColor=#C99A4F;verticalAlign=top;align=left;spacingLeft=16;spacingTop=6;fontColor=#7A4713;fontStyle=1;fontSize=13;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="100" width="1440" height="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="c4" value="/scaffold:profile" style="shape=mxgraph.flowchart.manual_input;whiteSpace=wrap;html=1;fillColor=#0F766E;strokeColor=#0B5C55;fontColor=#FFFFFF;fontStyle=1;fontSize=12;fontFamily=Helvetica;verticalAlign=middle;align=center;" parent="c3" vertex="1">
+                    <mxGeometry x="28" y="48" width="200" height="68" as="geometry"/>
+                </mxCell>
+                <mxCell id="c5" value="scaffold-profile.md&lt;br&gt;the fill-in sheet" style="shape=mxgraph.flowchart.document;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c3" vertex="1">
+                    <mxGeometry x="310" y="48" width="210" height="68" as="geometry"/>
+                </mxCell>
+                <mxCell id="c6" value="scaffold-profile.json&lt;br&gt;applied values" style="shape=mxgraph.flowchart.database;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c3" vertex="1">
+                    <mxGeometry x="650" y="48" width="210" height="68" as="geometry"/>
+                </mxCell>
+                <mxCell id="c7" value="&lt;b&gt;Lives in the kit data dir, not in any repo.&lt;/b&gt; Survives every install and uninstall, so you fill it in once. Holds what never varies between your repos — org name, repo prefix, team, workspace hosts, cluster policy ids, CI runner." style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=11;fontColor=#5A6672;fontFamily=Helvetica;" parent="c3" vertex="1">
+                    <mxGeometry x="900" y="44" width="508" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="e8" value="generates" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#7C8A99;fontColor=#5A6672;fontSize=10;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;" parent="1" source="c4" target="c5" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-13" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e9" value="you fill it in, then apply" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#7C8A99;fontColor=#5A6672;fontSize=10;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;" parent="1" source="c5" target="c6" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-13" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c10" value="②  PER REPO" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;fillColor=#E4F1EF;strokeColor=#7FB3AB;verticalAlign=top;align=left;spacingLeft=16;spacingTop=6;fontColor=#12433D;fontStyle=1;fontSize=13;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="310" width="1440" height="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="c11" value="/scaffold:new&lt;br&gt;from nothing" style="shape=mxgraph.flowchart.manual_input;whiteSpace=wrap;html=1;fillColor=#0F766E;strokeColor=#0B5C55;fontColor=#FFFFFF;fontStyle=1;fontSize=12;fontFamily=Helvetica;verticalAlign=middle;align=center;" parent="c10" vertex="1">
+                    <mxGeometry x="28" y="56" width="200" height="66" as="geometry"/>
+                </mxCell>
+                <mxCell id="c12" value="/scaffold:add&lt;br&gt;repo already exists" style="shape=mxgraph.flowchart.manual_input;whiteSpace=wrap;html=1;fillColor=#0F766E;strokeColor=#0B5C55;fontColor=#FFFFFF;fontStyle=1;fontSize=12;fontFamily=Helvetica;verticalAlign=middle;align=center;" parent="c10" vertex="1">
+                    <mxGeometry x="28" y="168" width="200" height="66" as="geometry"/>
+                </mxCell>
+                <mxCell id="c13" value="Aspects applied&lt;br&gt;&lt;br&gt;cicd — pipeline + per-env config&lt;br&gt;api — health/info + service spine&lt;br&gt;standards — docs/ + conformance&lt;br&gt;gitignore · CONFIG.md&lt;br&gt;&lt;br&gt;An existing file is SKIPPED,&lt;br&gt;never overwritten" style="shape=mxgraph.flowchart.multi-document;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c10" vertex="1">
+                    <mxGeometry x="288" y="56" width="250" height="178" as="geometry"/>
+                </mxCell>
+                <mxCell id="c14" value="CONFIG.md&lt;br&gt;what the profile could not&lt;br&gt;answer for THIS repo&lt;br&gt;TODO_SET_* placeholders" style="shape=mxgraph.flowchart.document;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c10" vertex="1">
+                    <mxGeometry x="598" y="90" width="200" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="c15" value="/scaffold:configure&lt;br&gt;applies the sheet" style="shape=mxgraph.flowchart.manual_input;whiteSpace=wrap;html=1;fillColor=#0F766E;strokeColor=#0B5C55;fontColor=#FFFFFF;fontStyle=1;fontSize=12;fontFamily=Helvetica;verticalAlign=middle;align=center;" parent="c10" vertex="1">
+                    <mxGeometry x="850" y="100" width="210" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="c16" value="Deployable repo&lt;br&gt;&lt;br&gt;local: ./bundle.sh → dev&lt;br&gt;CI: merge to stg / prod" style="shape=mxgraph.flowchart.predefined_process;whiteSpace=wrap;html=1;fillColor=#EBF2E6;strokeColor=#86A97A;fontColor=#2C4321;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;fontStyle=1;" parent="c10" vertex="1">
+                    <mxGeometry x="1200" y="88" width="196" height="114" as="geometry"/>
+                </mxCell>
+                <mxCell id="e17" value="type selects the set" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#7C8A99;fontColor=#5A6672;fontSize=10;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;" parent="1" source="c11" target="c13" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-13" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e18" value="type detected from the repo" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#7C8A99;fontColor=#5A6672;fontSize=10;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;" parent="1" source="c12" target="c13" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-13" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e19" value="lists what is still unset" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#7C8A99;fontColor=#5A6672;fontSize=10;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;" parent="1" source="c13" target="c14" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-13" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e20" value="you fill it in" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#7C8A99;fontColor=#5A6672;fontSize=10;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;" parent="1" source="c14" target="c15" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-13" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e21" value="tokens resolved across the tree" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#7C8A99;fontColor=#5A6672;fontSize=10;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;" parent="1" source="c15" target="c16" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint y="-13" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e22" value="fills org-wide values" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C98A3F;fontColor=#5A6672;fontSize=10;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;dashed=1;dashPattern=6 4;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="c6" target="c13" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="663" y="280"/>
+                            <mxPoint x="453" y="280"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c23" value="REPO TYPES  (--type)" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;fillColor=#E9F0F7;strokeColor=#7FA8C9;verticalAlign=top;align=left;spacingLeft=16;spacingTop=6;fontColor=#1F3A52;fontStyle=1;fontSize=13;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="650" width="700" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="c24" value="&lt;b&gt;api&lt;/b&gt; — FastAPI Databricks App. Ships the service spine: core/ · routers/ · services/ · repositories/ · schema/&lt;br&gt;&lt;b&gt;etl&lt;/b&gt; — Lakeflow declarative pipeline, 4 tasks&lt;br&gt;&lt;b&gt;job&lt;/b&gt; — scheduled Databricks Job&lt;br&gt;&lt;b&gt;genie&lt;/b&gt; — Genie space, deployed by script&lt;br&gt;&lt;b&gt;agent&lt;/b&gt; — Multi-Agent Supervisor, instructions + tool list&lt;br&gt;&lt;br&gt;Only api and job receive the service-structure standard — the others have no request boundary." style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#5A6672;fontFamily=Helvetica;" parent="c23" vertex="1">
+                    <mxGeometry x="24" y="40" width="652" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="c25" value="WHERE IT LANDS" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;fillColor=#EEF0F2;strokeColor=#9AA5AF;verticalAlign=top;align=left;spacingLeft=16;spacingTop=6;fontColor=#333333;fontStyle=1;fontSize=13;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
+                    <mxGeometry x="780" y="650" width="420" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="c26" value="&lt;b&gt;--output-dir&lt;/b&gt;, never inside the install target. A generated repo and the installed kit never share a directory.&lt;br&gt;&lt;br&gt;Folder name is &lt;b&gt;&amp;lt;prefix&amp;gt;-&amp;lt;slug&amp;gt;-&amp;lt;type&amp;gt;&lt;/b&gt;, each part added only if the slug does not already say it:&lt;br&gt;payments + api → ai-payments-api&lt;br&gt;api-gateway + api → ai-api-gateway&lt;br&gt;&lt;br&gt;repo_prefix is a profile value; --repo-name overrides the whole name." style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#5A6672;fontFamily=Helvetica;" parent="c25" vertex="1">
+                    <mxGeometry x="24" y="40" width="372" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="c27" value="Legend" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D3DAE0;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;fontColor=#5A6672;fontStyle=1;fontSize=11;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
+                    <mxGeometry x="1240" y="650" width="240" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="c28" value="" style="shape=mxgraph.flowchart.manual_input;html=1;fillColor=#0F766E;strokeColor=#0B5C55;" parent="c27" vertex="1">
+                    <mxGeometry x="12" y="30" width="26" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="c29" value="slash command" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#5A6672;fontFamily=Helvetica;" parent="c27" vertex="1">
+                    <mxGeometry x="46" y="29" width="182" height="17" as="geometry"/>
+                </mxCell>
+                <mxCell id="c30" value="" style="rounded=1;arcSize=20;html=1;fillColor=#FBEFDD;strokeColor=#C99A4F;" parent="c27" vertex="1">
+                    <mxGeometry x="12" y="66" width="26" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="c31" value="once per machine" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#5A6672;fontFamily=Helvetica;" parent="c27" vertex="1">
+                    <mxGeometry x="46" y="65" width="182" height="17" as="geometry"/>
+                </mxCell>
+                <mxCell id="c32" value="" style="rounded=1;arcSize=20;html=1;fillColor=#E4F1EF;strokeColor=#7FB3AB;" parent="c27" vertex="1">
+                    <mxGeometry x="12" y="102" width="26" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="c33" value="per repo" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#5A6672;fontFamily=Helvetica;" parent="c27" vertex="1">
+                    <mxGeometry x="46" y="101" width="182" height="17" as="geometry"/>
+                </mxCell>
+                <mxCell id="c34" value="" style="rounded=1;arcSize=20;html=1;fillColor=#EBF2E6;strokeColor=#86A97A;" parent="c27" vertex="1">
+                    <mxGeometry x="12" y="138" width="26" height="15" as="geometry"/>
+                </mxCell>
+                <mxCell id="c35" value="what you ship" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#5A6672;fontFamily=Helvetica;" parent="c27" vertex="1">
+                    <mxGeometry x="46" y="137" width="182" height="17" as="geometry"/>
+                </mxCell>
+                <mxCell id="c36" value="" style="shape=mxgraph.flowchart.annotation_1;html=1;fillColor=none;strokeColor=#C98A3F;dashed=1;dashPattern=6 4;" parent="c27" vertex="1">
+                    <mxGeometry x="12" y="177" width="26" height="9" as="geometry"/>
+                </mxCell>
+                <mxCell id="c37" value="profile fills tokens" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#5A6672;fontFamily=Helvetica;" parent="c27" vertex="1">
+                    <mxGeometry x="46" y="173" width="182" height="17" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
 </mxfile>

@@ -13,6 +13,32 @@ adapter, never editing `core/`.
 ./install.sh --dry-run       # validate and report; write nothing
 ```
 
+📖 **[docs/COMMANDS.md](docs/COMMANDS.md) — what every command prints.** Real captured output
+for install, scaffold, add, configure and uninstall, with what each line means. Start there if
+you are setting up: it opens with the profile and config sheet, which you want in place before
+you scaffold anything.
+
+Two diagrams, kept apart by **subject** — each sits with the thing it describes, so neither
+can drift from it:
+
+| | |
+|---|---|
+| [**agent-kit-overview**](docs/agent-kit-overview.png) · [`.drawio`](docs/agent-kit-overview.drawio) | What the kit *is* — the three kinds in `core/`, how an adapter renders them, what the installed tree looks like, and what survives an uninstall. Belongs to no single skill, so it lives here. |
+| [**scaffold-flow**](core/skills/scaffold/docs/scaffold-flow.png) · [`.drawio`](core/skills/scaffold/docs/scaffold-flow.drawio) | How you *use* the scaffold skill — profile once, then `new` or `add` per repo, configure, deploy. Lives **with the skill**, in [`core/skills/scaffold/docs/`](core/skills/scaffold/docs/). |
+
+A skill's `docs/` is documentation, not payload: it is never installed, so a workflow diagram
+does not ship a PNG into every user's install (STANDARD.md §1.3).
+
+The `.drawio` is the source; the `.png` is what renders on this page. **Edited a diagram?
+Re-render it** — a stale PNG is worse than none, because nobody thinks to doubt it:
+
+```
+python3 <installed>/skills/diagram/check.py  docs/<name>.drawio   # geometry, then
+python3 <installed>/skills/diagram/render.py docs/<name>.drawio --scale 2
+```
+
+![agent-kit overview](docs/agent-kit-overview.png)
+
 ---
 
 ## What's in it
@@ -105,8 +131,14 @@ hooks and settings — everything tool-shaped.
    `{{args}}`. A surviving marker is a failed install, not a warning.
 5. Provide a kit data dir and **never overwrite it** — user-filled state lives there precisely
    because skill directories are replaced wholesale on every install.
+6. **Write its conformance run in the same pass.** An adapter without one looks finished and
+   is not — the reference adapter passed 11 of 13 checks while missing uninstall entirely.
+   `adapters/claude/conformance.sh` is written against `STANDARD.md` rather than against
+   Claude, so most of it should run unchanged against a second adapter. See §2.5.
 
-`adapters/codex/` is parked: it holds pre-existing material and has no installer yet.
+Claude is the only adapter today. That is a deliberate stopping point, not an omission: the
+contract, the `--target` seam and this section all exist, so a second tool is an addition
+rather than a refactor.
 
 ---
 
@@ -116,8 +148,7 @@ hooks and settings — everything tool-shaped.
 core/            tool-agnostic — the actual content
   guidelines/    skills/    subagents/
 adapters/
-  claude/        install.py · hooks/ — the reference implementation
-  codex/         parked; see its README
+  claude/        install.py · hooks/ · workflows/ — the reference implementation
 STANDARD.md      the artifact format, and the adapter contract
 install.sh       dispatcher: --target <tool>
 ```

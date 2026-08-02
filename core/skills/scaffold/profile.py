@@ -33,6 +33,7 @@ import re
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
+
 def _kit_data_dir():
     """The kit's shared data directory: one per install, shared by every skill, and never
     replaced by an install (unlike the skill dir, which is). __KIT_DATA_DIR__ is rewritten
@@ -46,6 +47,7 @@ def _kit_data_dir():
             return p
         p = os.path.dirname(p)
     return os.path.dirname(os.path.dirname(_HERE))
+
 
 _ROOT = _kit_data_dir()
 SHEET_NAME = "scaffold-profile.md"
@@ -72,6 +74,14 @@ FIELDS = [
         "Acme",
         "doc titles + docs/*_STANDARDS.md branding",
         "you choose (brand name)",
+    ),
+    (
+        "repo_prefix",
+        "Branding",
+        "Repo folder name prefix — <prefix>-<slug>-<type>. Blank for none",
+        "ai",
+        "the scaffolded repo's folder name",
+        "you choose (or leave blank; --repo-name overrides per repo)",
     ),
     (
         "project",
