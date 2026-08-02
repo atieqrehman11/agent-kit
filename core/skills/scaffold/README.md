@@ -14,7 +14,7 @@ documentation rather than payload, it is never installed (STANDARD.md §1.3). Ed
 
 | Command | What it does | Direction |
 |---|---|---|
-| [`{{cmd:scaffold:profile}}`](commands/profile.md) | Set up the org/project values shared by every repo (branding, team, CI/CD, cluster policies) — once per install. | sheet → `scaffold-profile.json` |
+| [`{{cmd:scaffold:profile}}`](commands/profile.md) | Set up the org/project values shared by every repo (branding, team, CI/CD, cluster policies) — once per scope. | `scaffold-profile.md` |
 | [`{{cmd:scaffold:new}}`](commands/new.md) | Scaffold a new repo (type-driven wizard: `api` · `etl` · `job` · `agent` · `genie`). | templates → new repo |
 | [`{{cmd:scaffold:add}}`](commands/add.md) | Add **one aspect** — the `cicd` deploy pipeline or the `api` surface — to a repo that already exists. | templates → existing repo |
 | [`{{cmd:scaffold:configure}}`](commands/configure.md) | Fill the per-repo `TODO_SET_*` placeholders a scaffolded repo ships with. | `CONFIG.md` → repo |
@@ -38,9 +38,8 @@ so the split is a soft default, not a hard boundary.
 
 ```
 # once per scope — the machine, or one client's tree
-{{cmd:scaffold:profile}} --generate           # writes the sheet; add --scope project
-edit <the sheet it reports>                   # fill shared values
-{{cmd:scaffold:profile}}                      # apply → scaffold-profile.json beside it
+{{cmd:scaffold:profile}}                      # creates + reports it; add --scope project
+edit <the file it reports>                    # fill shared values — no apply step
 
 # per use case
 {{cmd:scaffold:new}}                          # interactive wizard → creates the repo
@@ -157,7 +156,7 @@ a small table, so **adding a type is a new `templates/<type>/` dir plus one row 
 At scaffold time each token is resolved in order, and the first match wins:
 
 1. an explicit `new.py` CLI arg,
-2. the **profile** (`scaffold-profile.json`, org-wide values) — the project's own if the
+2. the **profile** (`scaffold-profile.md`, org-wide values) — the project's own if the
    working directory sits under one, else the install-wide one,
 3. otherwise a `TODO_SET_*` placeholder left for `{{cmd:scaffold:configure}}`.
 

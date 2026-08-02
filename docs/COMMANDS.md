@@ -52,29 +52,33 @@ cluster policy ids, CI runner. It lives outside the skill directories precisely 
 installing, re-installing or uninstalling the kit cannot destroy it.
 
 ```
-$ scaffold:profile --generate      # write the fill-in sheet
-$ scaffold:profile                 # apply sheet -> scaffold-profile.json
-$ scaffold:profile --show          # print the resolved profile and its scope
+$ scaffold:profile                 # report the profile in force; create it if absent
+$ scaffold:profile --generate      # rewrite it, keeping every value already in it
+$ scaffold:profile --show          # report only, never create
 ```
 
+**One file.** `scaffold-profile.md` is what you edit and what every command reads — a
+`key: value` sheet with a reference table above it saying what each field is and where to
+get it. There is no apply step and no generated second copy: save the file, and the next
+`/scaffold:new` uses it.
+
 ```
-~/.claude/scaffold-profile.md      you fill this in (has example hints per line)
-~/.claude/scaffold-profile.json    the applied values — this is what new.py reads
+~/.claude/scaffold-profile.md      the profile — you edit this, new.py reads this
 ```
 
 **A profile has a scope.** The values above are exactly the ones that differ between the
 clients one machine serves, so the nearest project profile wins over the install-wide one:
 
 ```
-$AGENT_KIT_PROFILE                       an explicit file, for one invocation
-<project>/.claude/scaffold-profile.json  nearest project profile, walking up from the cwd
-~/.claude/scaffold-profile.json          install-wide fallback
+$AGENT_KIT_PROFILE                     an explicit file, for one invocation
+<project>/.claude/scaffold-profile.md  nearest project profile, walking up from the cwd
+~/.claude/scaffold-profile.md          install-wide fallback
 ```
 
 ```
 $ cd ~/clients/acme
-$ scaffold:profile --generate --scope project    # -> ~/clients/acme/.claude/, gitignored
-$ scaffold:profile                               # apply it, from anywhere under that tree
+$ scaffold:profile --scope project    # -> ~/clients/acme/.claude/, gitignored
+$ $EDITOR ~/clients/acme/.claude/scaffold-profile.md
 ```
 
 Scaffold inside `~/clients/acme` and the repo is branded from Acme's profile; scaffold
@@ -103,8 +107,10 @@ No filled values found in the sheet (every line is blank). Nothing applied.
 ```
 
 > **One footgun worth knowing.** Run these scripts from the *repo checkout* and the kit data
-> dir is unresolved, so it falls back to the repo root — `profile.py --show` reports
-> `(no profile saved)` even when your profile exists. Run the *installed* copy under
+> dir is unresolved, so it falls back to the repo root — and the project-scope walk is
+> skipped entirely, since an uninstalled checkout has no adapter to say what a project
+> directory is called. `profile.py --show` then reports a profile that is not yours. Run
+> the *installed* copy under
 > `~/.claude/skills/scaffold/` and it finds it. Same reason checkout output shows a raw
 > `{{cmd:…}}` token where the installed copy shows `/scaffold:configure`. **Always test
 > scaffold changes against the installed copy.**
@@ -121,8 +127,7 @@ you point `--output-dir`.
   guidelines/                     14 canonical copies + 3 conformance sheets
   skills/       commands/         registered entry points
   agents/                         critic, reviewer, qa
-  scaffold-profile.md             yours — the fill-in sheet
-  scaffold-profile.json           yours — applied values, read by new.py
+  scaffold-profile.md             yours — the profile itself, read by new.py
   .agent-kit-install.json         receipt; drives uninstall
 
 <--output-dir>/ai-<slug>-<type>/  a generated repo. Never inside .claude
@@ -573,7 +578,7 @@ $ python3 adapters/claude/install.py ~/.claude --uninstall --dry-run
 $ ls -A ~/.claude
 
 my-notes.md
-scaffold-profile.json
+scaffold-profile.md
 ```
 
 Both were placed there before the uninstall. Directories the install created are removed only
