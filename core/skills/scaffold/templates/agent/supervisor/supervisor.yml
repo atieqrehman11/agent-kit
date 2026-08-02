@@ -3,9 +3,8 @@
 # only things you edit to spin up (or re-spin) a supervisor: give it instructions and
 # a list of tools to attach, then run ./deploy.sh.
 #
-# supervisor_agent_id is written back by deploy.py on first create; a set value means
-# UPDATE the same supervisor instead of creating a new one. Do not hand-edit it.
-supervisor_agent_id: ""
+# No supervisor id is stored here — deploy.py finds it by name, "<display_name> [ENV]".
+# Renaming display_name therefore points the next deploy at a NEW supervisor.
 
 display_name: "TPLVAR_DISPLAY_NAME"
 description: "TPLVAR_DESCRIPTION"

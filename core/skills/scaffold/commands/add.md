@@ -16,7 +16,7 @@ including repos the scaffold never created. Two aspects are choosable:
 
 | Aspect | What the repo gains | Repo types |
 |---|---|---|
-| `cicd` | The deploy pipeline: `.gitlab-ci.yml` + `team_config.yaml` + `run_resources.yml` + `.bundleignore` — bundle types trigger the shared DAB controller on merge to `stg`/`prod`; `genie` gets its space-validating pipeline instead. A `job` repo also gets the `config/{DEV,STG,PROD}/task_config.yaml` it reads per target. | `api` `etl` `job` `genie` |
+| `cicd` | The deploy pipeline: `.gitlab-ci.yml` + `team_config.yaml` + `run_resources.yml` + `.bundleignore` — bundle types trigger the shared DAB controller on merge to `stg`/`prod`. `genie` and `agent` get a declaration-validating pipeline instead, which runs their own deploy script with `--env <branch>` (no bundle, no controller, no `team_config.yaml`). A `job` repo also gets the `config/{DEV,STG,PROD}/task_config.yaml` it reads per target. | `api` `etl` `job` `genie` `agent` |
 | `api` | The use case API surface: `routers/platform.py` + `config.py` — `GET /v1/health` and `GET /v1/info`, the two endpoints every use case API must expose (API_STANDARDS §3–4). | `api` |
 
 **Not choices** — these come with any add, wherever they are missing, and are never asked

@@ -240,14 +240,15 @@ Every type prints the same shape with its own aspects and next steps. What diffe
 | `api` | Databricks App (FastAPI) | API + PYTHON + SERVICE_STRUCTURE (+2 conformance) | 15 |
 | `etl` | Lakeflow pipeline | PIPELINE + PYTHON | 11 |
 | `job` | Scheduled Job | JOB + PYTHON + SERVICE_STRUCTURE (+1 conformance) | 11 |
-| `genie` | Genie space | GENIE + PYTHON | 2 |
-| `agent` | Multi-Agent Supervisor | AGENT + PYTHON | 0 |
+| `genie` | Genie space (Genie management API) | GENIE + PYTHON | 4 |
+| `agent` | Multi-Agent Supervisor (`supervisor_agents` API) | AGENT + PYTHON | 2 |
 
-> **Only `api` and `job` get the service-structure standard.** A Genie space is configuration
-> and an agent is instructions — neither has a request boundary, so shipping them a layering
-> standard would be noise.
+> **Only `api` and `job` get the service-structure standard.** A Genie space is configuration,
+> and an agent is instructions plus a tool list handed to a managed supervisor service —
+> neither has a request boundary of its own, so shipping them a layering standard would be
+> noise.
 
-An `agent` repo, which has no bundle and no placeholders at all:
+An `agent` repo, which has no bundle — its two placeholders are the CI image and runner:
 
 ```
 $ scaffold:new --type agent --slug support-agent --display-name "Support Agent"
@@ -260,7 +261,7 @@ $ scaffold:new --type agent --slug support-agent --display-name "Support Agent"
   [standards] docs/AGENT_STANDARDS.md, docs/PYTHON_STANDARDS.md
   [gitignore] .gitignore
   [specs] docs/specs/README.md
-  [config] CONFIG.md — no placeholders to fill
+  [config] CONFIG.md — 2 placeholder(s) to fill, then /scaffold:configure
 
   Created: ~/repos/ai-support-agent
 
@@ -268,10 +269,85 @@ $ scaffold:new --type agent --slug support-agent --display-name "Support Agent"
     1. supervisor/instructions.md — write the supervisor's routing instructions
     2. supervisor/supervisor.yml  — set display_name/description + the tools list
                                     (each tool: id, type, description + its id)
-    3. Deploy                     — ./deploy.sh   (creates/updates the supervisor,
+    3. Local dev deploy           — ./deploy.sh   (reconciles '<name> [DEV]',
                                     attaches tools, prints the working URL)
-    4. Scaffold evaluation with /eval:new
+    4. Cloud deploy               — set DATABRICKS_HOST + DATABRICKS_TOKEN in
+                                    GitLab CI/CD vars per branch, then merge to
+                                    the stg / prod branch
+    5. Scaffold evaluation with /eval:new
 ```
+
+> **An agent repo does not just carry instructions — it provisions the supervisor.** `api`,
+> `etl` and `job` deploy through a Databricks Asset Bundle; `agent` and `genie` have no bundle
+> resource, so they call a management API from a deploy script instead. For `agent` that means
+> `deploy.sh` runs `src/deploy.py`, which reads `supervisor/supervisor.yml` + `instructions.md`
+> and reconciles the supervisor through the workspace's `supervisor_agents` SDK service, then
+> `create_tool` for each entry in the `tools:` list. It is the scripted equivalent of building
+> the supervisor in the Agents tab, and it prints the same working query URL the UI would give
+> you. `supervisor_agents` is Preview, so `deploy.py` imports the tool classes lazily and fails
+> with a named error if your `databricks-sdk` predates the service; only `knowledge_assistant`
+> and `genie_space` tool types are wired, and any other `type:` raises with the supported list
+> and a pointer at `_build_tool`.
+
+### Declare, don't record — how the non-bundle types identify what they deployed
+
+`agent` and `genie` deploy real resources without a bundle, so they need their own answer to
+*which* resource a redeploy should update. Both give the same one.
+
+**Neither repo stores an id.** `supervisor.yml` and `space.yml` declare what should exist;
+they do not record what does. Identity is two axes together:
+
+| Axis | Source |
+|---|---|
+| Which workspace | `DATABRICKS_HOST` / the CLI profile the deploy authenticated with |
+| Which resource in it | the name `"<display_name\|title> [ENV]"`, from config + `--env` |
+
+The deploy script lists, matches that name, and: one match → update; none → create;
+**more than one → refuse**. Every environment is suffixed, prod included — one rule, no
+exception, so the name is derivable from `(config, env)` alone in CI as on a laptop.
+
+> **Why not write the id back into the yml?** CI cannot hold it. A runner checks out fresh,
+> reads an empty id, takes the create branch, and throws the write-back away when the job
+> ends — one more supervisor (or Genie space) per deploy. Per-environment id fields do not
+> help: the id is an *output* of a deploy, and CI's only place to put an output is a commit,
+> which is a race. Same trade a DAB target makes — declarative identity plus a per-target
+> workspace, nothing about the deployment in git.
+
+The sharp edge: **the name is the identity.** Renaming `display_name` or `title` does not
+rename the deployed resource — the next deploy creates a new one. Both validate scripts also
+reject a `supervisor_agent_id:` / `space_id:` key outright, so a repo cannot drift back to
+storing deploy state.
+
+Both repos are laid out identically, and **CI holds no logic of its own** — each stage is one
+line that runs a script in the repo:
+
+```
+src/validate.py    check the declaration — no credentials, no network, no SDK
+src/deploy.py      reconcile the resource   (--env dev|stg|prod)
+deploy.sh          local one-shot: pip install + deploy.py (dev)
+.gitlab-ci.yml     validate: python src/validate.py
+                   deploy:   python src/deploy.py --env "$CI_COMMIT_BRANCH"
+```
+
+That split is the point of the rename from `deploy_genie.py` / an inline CI heredoc: every
+check that gates a deploy is runnable on a laptop before you push, and `deploy.py` calls the
+same `validate.check()` before it touches a workspace — so "valid" has one definition instead
+of one per place that asks. `validate.py` reports *every* problem at once rather than the
+first, so one run tells you everything to fix:
+
+```
+$ python src/validate.py
+
+ERROR: supervisor/supervisor.yml: instructions_file 'nope.md' does not resolve to a file
+ERROR: supervisor/supervisor.yml: remove 'supervisor_agent_id'. Deploy state does not belong
+       in the repo — the supervisor is resolved by name (docs/AGENT_STANDARDS.md §3a)
+ERROR: supervisor/supervisor.yml: tools[0] is missing description
+```
+
+The deploy stage is manual-gated on `stg` and `prod`. Neither type uses the DAB controller, so
+neither gets `team_config.yaml` or `run_resources.yml`; what they need instead is
+`DATABRICKS_HOST` + `DATABRICKS_TOKEN` set per branch, which is what actually separates the
+environments.
 
 ---
 
@@ -391,6 +467,32 @@ $ scaffold:add --repo ~/repos/legacy --aspect cicd
     [cicd] Push the `stg` / `prod` branches — the pipeline fires on merge to each.
 ```
 
+On a `genie` or `agent` repo the same aspect installs a different pipeline — and the scripts
+that pipeline calls. Here, a hand-built agent repo that only ever had a `supervisor/` folder:
+
+```
+$ scaffold:add --repo ~/repos/legacy-agent --aspect cicd
+
+==================================================================
+  Repo:    ~/repos/legacy-agent
+  Type:    agent  (detected from supervisor/supervisor.yml)
+  Adding:  cicd
+==================================================================
+  [cicd] added .gitlab-ci.yml
+  [cicd] added src/validate.py
+  [cicd] added src/deploy.py
+  [standards] added docs/AGENT_STANDARDS.md   (always included)
+  [standards] added docs/PYTHON_STANDARDS.md   (always included)
+  [gitignore] added .gitignore   (always included)
+  [specs] added docs/specs/README.md   (always included)
+  [config-sheet] CONFIG.md — 2 placeholder(s) outstanding
+```
+
+> **The pipeline brings the scripts it invokes.** Its two jobs are `python src/validate.py`
+> and `python src/deploy.py`, so shipping the `.gitlab-ci.yml` alone would install a pipeline
+> pointing at files that are not there — the same broken-pointer class the `[standards]` lines
+> exist to prevent. On a scaffolded repo that already has them, both are reported `SKIPPED`.
+
 Everything available:
 
 ```
@@ -400,8 +502,10 @@ Aspects  (--aspect KEY, repeatable; 'all' = the standard set, minus what
           the repo already has)
 
   cicd  CI/CD pipeline
-        GitLab pipeline that deploys this repo to stg/prod + the per-environment config a job reads
-        types: api, etl, job, genie
+        GitLab pipeline that deploys this repo to stg/prod — bundle types via the shared DAB
+        controller (+ the per-environment config a job reads); genie/agent validate their
+        declaration, then run their own deploy script with --env <branch>
+        types: api, etl, job, genie, agent
 
   api   Use case API surface
         GET /v1/health and GET /v1/info, plus the service spine they need: validated settings,
@@ -487,5 +591,5 @@ $ bash adapters/claude/conformance.sh
   PASS  adapter README states which kinds are supported and how each is expressed
   PASS  obligations 1-10 implemented and annotated
 
-  19 passed, 0 failed
+  20 passed, 0 failed
 ```

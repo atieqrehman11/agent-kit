@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # Create/update the multi-agent supervisor from supervisor/ config (scripted, no UI).
+#
+# Local deploys target dev. Pass --env stg / --env prod only if you are pointed at
+# that workspace on purpose; normally stg and prod are deployed by CI on a branch
+# merge (.gitlab-ci.yml), against credentials this laptop does not hold.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -20,4 +24,4 @@ if [[ -z "${DATABRICKS_TOKEN:-}" ]]; then
 fi
 
 python3 -m pip install -q -r requirements.txt
-python3 src/deploy.py --config supervisor/supervisor.yml "$@"
+python3 src/deploy.py "$@"
