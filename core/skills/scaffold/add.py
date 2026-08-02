@@ -383,13 +383,18 @@ def _print_list():
         print(f"  {' ' * width}  {a['summary']}")
         print(f"  {' ' * width}  types: {', '.join(a['applies_to'])}\n")
     print("Always included with any add, wherever missing — never asked about:")
+    # Driven by AUTO rather than written out, so an aspect added to the automatic set
+    # cannot be applied by a run and missing from the list that describes the run.
+    hint = {
+        "standards": "docs/         the standards for this repo type, each with its conformance sheet",
+        "gitignore": ".gitignore    the shared Python / Databricks ignore file",
+        "specs": "docs/specs/   the per-feature spec convention {{cmd:deliver:spec}} reads and writes",
+        "config-sheet": "CONFIG.md     regenerated, keeping any value already filled in",
+    }
+    for key in aspects.AUTO:
+        print("  " + hint.get(key, f"{key} — {aspects.ASPECTS[key]['summary']}"))
     print(
-        "  docs/         the standards for this repo type, each with its conformance sheet"
-    )
-    print("  .gitignore    the shared Python / Databricks ignore file")
-    print("  CONFIG.md     regenerated, keeping any value already filled in\n")
-    print(
-        "An existing file is never overwritten — it is reported as SKIPPED (--force replaces)."
+        "\nAn existing file is never overwritten — it is reported as SKIPPED (--force replaces)."
     )
 
 

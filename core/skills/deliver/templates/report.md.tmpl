@@ -1,3 +1,10 @@
+---
+spec: {{SLUG}}
+gate: 8 Report
+status: final
+derived-from: tasks.md@{{TASKS_HASH}}
+---
+
 # Delivery report — {{TITLE}}
 
 | | |
@@ -6,40 +13,59 @@
 | **Branch** | `deliver/{{SLUG}}` |
 | **Requirement** | one line, as the user stated it |
 | **Repo type** | api / pipeline / job / agent / genie / frontend / mixed |
+| **Spec** | `requirements.md` · `design.md` · `tasks.md`, in this folder |
+
+This report **does not restate the spec**. Criteria, decisions and tasks live in the three
+documents beside it and are referenced by number. What belongs here is only what the build
+learned: what was met, what the review said, what the tests did, and where reality diverged
+from the plan.
 
 ---
 
-## Assumptions
+## Spec provenance
 
-Only ones not settled by the requirement. If one of these is wrong, say which parts of the
-work it invalidates.
+Which documents this run read, and which it wrote. A `re-derived` row means the upstream
+document changed after this one was written and it had to be rebuilt — say what changed.
 
-| # | Assumption | What breaks if it is wrong |
+| Document | Loaded / Derived / Re-derived | Note |
 |---|---|---|
-| A1 | | |
+| `requirements.md` | | |
+| `design.md` | | |
+| `tasks.md` | | |
 
 ## Acceptance criteria
 
-| # | Criterion | Met | Evidence |
-|---|---|---|---|
-| AC1 | | ✓ / ✗ | file:line, or the test that proves it |
+Every `AC` from `requirements.md`, with evidence. Evidence is a location or a test, never a
+claim.
 
-**Explicitly not done:** what a broader reading of the requirement would have included, and
-why it was left out.
+| # | Met | Evidence |
+|---|---|---|
+| AC1 | ✓ / ✗ | file:line, or the test that proves it |
+
+**Not done:** rows from *Explicitly not doing* that a reader might expect to have been built
+anyway, and anything dropped during the build that was not already on that list.
 
 ## Standards applied
 
-Guidelines loaded at gate 1, and any place the existing code diverges from them.
+Guidelines loaded at gate 1, and any place the existing code diverges from them. Divergence
+is reported, not fixed mid-feature.
 
 | Guideline | Divergence found in existing code |
 |---|---|
 
-## Design decisions
+## Where the build diverged from the design
 
-| Decision | Options considered | Chosen | Why |
+Empty is a valid answer and a good one. A design that survived contact unchanged should say
+so rather than leaving this section out.
+
+| # | Design said | Build did | Why |
 |---|---|---|---|
+| D1 | | | |
 
-**Risks not mitigated:** severity, and what would mitigate it.
+**Tasks changed during build:** from the *Changes during build* table in `tasks.md`, or
+"none".
+
+**Risks that materialised:** from `design.md`, plus any that were not foreseen.
 
 ## Changes
 

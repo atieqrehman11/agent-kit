@@ -1,0 +1,50 @@
+---
+spec: {{SLUG}}
+gate: 3 Tasks
+status: draft
+derived-from: design.md@{{DESIGN_HASH}}
+---
+
+# Tasks — {{TITLE}}
+
+Dependency-ordered. **No estimates, no priorities, no dates** — those are release-scope and
+belong in the plan skill, not in one feature's task list.
+
+| # | Task | Files | Serves | Depends on | Done |
+|---|---|---|---|---|---|
+| T1 | | the files it adds or changes | AC1, AC3 | — | ☐ |
+| T2 | | | AC2 | T1 | ☐ |
+
+Rules a row must satisfy, all checkable without judgement:
+
+- **Files named.** A task that cannot name its files is not decomposed yet.
+- **No task bigger than one review.** If you would not want to read the diff in one sitting,
+  split it.
+- **Dependencies by ID**, resolving to a task in this same list.
+- **Every task serves at least one `AC`.** A task serving none is either scope creep or a
+  missing criterion — decide which, do not leave it.
+
+## Criteria coverage
+
+The mechanical check. Every `AC` from `requirements.md` maps to at least one task.
+
+| AC | Tasks |
+|---|---|
+| AC1 | T1 |
+
+## Unglamorous work
+
+Explicitly listed, because it is what gets skipped: migrations, config and settings, fixtures
+and test helpers, error paths, log lines, docs, the `.gitignore` entry, the CI change. If a
+row here says "none", that is a claim, not a default.
+
+| Task | Why it is needed |
+|---|---|
+
+## Changes during build
+
+Gate 4 updates this file rather than working around it. A task that turned out to be wrong is
+struck through with a reason, not deleted — the trail is what makes the report honest.
+
+| # | Change | Why |
+|---|---|---|

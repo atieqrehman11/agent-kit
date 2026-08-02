@@ -107,6 +107,8 @@ you point `--output-dir`.
 <--output-dir>/ai-<slug>-<type>/  a generated repo. Never inside .claude
   docs/*_STANDARDS.md             copied from core/guidelines at scaffold time
   docs/*_CONFORMANCE.md           the audit sheet beside each standard
+  docs/specs/README.md            the per-feature spec convention /deliver:* reads and writes
+  docs/specs/<feature>/           requirements · design · tasks · report, one folder per feature
   CONFIG.md                       this repo's TODO_SET_* sheet
 ```
 
@@ -162,21 +164,22 @@ $ python3 adapters/claude/install.py ~/.claude
   [3/4]  Rendering
          ✓  14 guideline(s)
          ✓  19 skill artifact(s)
-         ✓   9 command(s)
+         ✓  10 command(s)
          ✓   2 subagent(s)
          ·  guidelines render twice: canonical for the guidelines dir, plus a model-invocable copy
 
   [4/4]  Verifying
-         ✓  28 entry points registered, zero payload
+         ✓  29 entry points registered, zero payload
          ✓  no unresolved markers
          ✓  profile sheet untouched
          ·  receipt: .agent-kit-install.json
 
   ──────────────────────────────────────────────────────────────────────
-  ✓  Installed  14 guidelines (3 with a conformance sheet) · 5 skills · 9 commands · 2 subagents
+  ✓  Installed  14 guidelines (3 with a conformance sheet) · 5 skills · 10 commands · 2 subagents
   ──────────────────────────────────────────────────────────────────────
 
     /deliver:feature
+    /deliver:spec
     /diagram:build
     /diagram:review
     /eval:new
@@ -191,7 +194,7 @@ What the verify lines are guarding against:
 
 | Line | Guards against |
 |---|---|
-| `28 entry points, zero payload` | A template `CHANGELOG` or a reference doc registering itself as a slash command. It once registered 40 commands, 22 of them payload. |
+| `29 entry points, zero payload` | A template `CHANGELOG` or a reference doc registering itself as a slash command. It once registered 40 commands, 22 of them payload. |
 | `no unresolved markers` | Any surviving `__TOKEN__`. Scanned generally, not against a list of known names — a list is how `__ORG_PREFIX__` shipped into six installed guidelines unnoticed. |
 | `profile sheet untouched` | Your filled-in profile being clobbered. Hashed before and after; a change fails the install. |
 
@@ -256,6 +259,7 @@ $ scaffold:new --type agent --slug support-agent --display-name "Support Agent"
   [agent] copied skeleton from templates/agent/
   [standards] docs/AGENT_STANDARDS.md, docs/PYTHON_STANDARDS.md
   [gitignore] .gitignore
+  [specs] docs/specs/README.md
   [config] CONFIG.md — no placeholders to fill
 
   Created: ~/repos/ai-support-agent
@@ -319,9 +323,10 @@ $ scaffold:add --repo ~/repos/legacy --aspect api
   [standards] added docs/SERVICE_STRUCTURE_STANDARDS.md   (always included)
   [standards] added docs/SERVICE_STRUCTURE_STANDARDS_CONFORMANCE.md   (always included)
   [gitignore] added .gitignore   (always included)
+  [specs] added docs/specs/README.md   (always included)
   [config-sheet] CONFIG.md — 1 placeholder(s) outstanding
 
-  18 file(s) written into ~/repos/legacy
+  19 file(s) written into ~/repos/legacy
 
   Manual wiring the copy cannot do:
     [api] Wire the router into your FastAPI app:  from routers import platform  →
@@ -407,6 +412,7 @@ Aspects  (--aspect KEY, repeatable; 'all' = the standard set, minus what
 Always included with any add, wherever missing — never asked about:
   docs/         the standards for this repo type, each with its conformance sheet
   .gitignore    the shared Python / Databricks ignore file
+  docs/specs/   the per-feature spec convention /deliver:spec reads and writes
   CONFIG.md     regenerated, keeping any value already filled in
 
 An existing file is never overwritten — it is reported as SKIPPED (--force replaces).

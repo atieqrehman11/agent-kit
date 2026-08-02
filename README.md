@@ -59,7 +59,7 @@ whoever is *auditing* loads the checklist. See [`STANDARD.md`](STANDARD.md) §1.
 
 | | |
 |---|---|
-| `/deliver:feature` | one requirement to reviewed, tested code through seven gates, then a written report |
+| `/deliver:spec` `:feature` | one requirement through nine gates — spec first (approved document by document), then reviewed, tested code and a report |
 | `/diagram:build` `/diagram:review` | draw.io diagrams, verified by rendering and reading them before they are shown |
 | `/plan:release` | a release plan through nine ordered gates, scheduled and validated |
 | `/scaffold:new` `:add` `:configure` `:profile` | Databricks repos by type, and their config |

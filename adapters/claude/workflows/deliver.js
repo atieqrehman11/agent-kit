@@ -75,12 +75,15 @@ const results = await pipeline(
         `Read the deliver skill's reference/gates.md, then produce ONLY gate 0: a kebab-case ` +
         `slug, numbered binary acceptance criteria (AC1, AC2, ...), and any assumptions not ` +
         `settled by the requirement. Include the negative cases the requirement implies — ` +
-        `empty input, upstream failure, unauthorised caller. Do not design and do not write ` +
-        `code. Set ambiguous only if two readings would produce materially different systems.`,
+        `empty input, upstream failure, unauthorised caller. Run gate 0's coverage pass and ` +
+        `resolve every finding into a criterion or a stated exclusion. Write ` +
+        `docs/specs/<slug>/requirements.md from the skill's template. Do not design and do ` +
+        `not write code. Set ambiguous only if two readings would produce materially ` +
+        `different systems.`,
       { label: 'frame', phase: 'Frame', schema: CRITERIA },
     ),
 
-  // ── Gates 1-6 · Ground, Design, Build, Review, Fix, Test ──────────────────
+  // ── Gates 1-7 · Ground, Design, Tasks, Build, Review, Fix, Test ───────────
   // isolation: worktree so concurrent requirements cannot collide on the same files.
   (framed, req, i) => {
     if (!framed) return null
@@ -90,20 +93,26 @@ const results = await pipeline(
     }
     const acs = framed.criteria.map((c) => `${c.id}: ${c.statement}`).join('\n')
     return agent(
-      `Run gates 1 through 6 of the deliver skill for this requirement.\n\n` +
+      `Run gates 1 through 7 of the deliver skill for this requirement.\n\n` +
         `REQUIREMENT:\n${req}\n\n` +
         `ACCEPTANCE CRITERIA (fixed — do not renegotiate, do not narrow):\n${acs}\n\n` +
         `ASSUMPTIONS ALREADY MADE:\n${(framed.assumptions || []).join('\n') || '(none)'}\n\n` +
+        `Gate 0 already ran and wrote docs/specs/${framed.slug}/requirements.md. Load it ` +
+        `rather than re-deriving it.\n\n` +
         `Read the deliver skill's reference/gates.md and follow it exactly. Specifically:\n` +
         `- Gate 1: load the guidelines for this repo type, plus service-structure if there is ` +
-        `service code. Name them in the report.\n` +
-        `- Gate 3: work on branch deliver/${framed.slug}. Zero TODOs in delivered code.\n` +
-        `- Gate 4: dispatch the reviewer subagent. Record its verdict VERBATIM.\n` +
-        `- Gate 5: at most 3 fix rounds. On a fourth FAIL, stop and return BLOCKED.\n` +
-        `- Gate 6: dispatch the qa subagent, then RUN the tests and keep the real output.\n` +
+        `service code. Name them in the report. This gate produces context, not a document — ` +
+        `run it even though gate 0 already ran.\n` +
+        `- Gates 2 and 3: write docs/specs/${framed.slug}/design.md and tasks.md from the ` +
+        `skill's templates, each stamped with its upstream's git hash-object hash.\n` +
+        `- Gate 4: work on branch deliver/${framed.slug}. Zero TODOs in delivered code.\n` +
+        `- Gate 5: dispatch the reviewer subagent. Record its verdict VERBATIM.\n` +
+        `- Gate 6: at most 3 fix rounds. On a fourth FAIL, stop and return BLOCKED.\n` +
+        `- Gate 7: dispatch the qa subagent, then RUN the tests and keep the real output.\n` +
         `Never weaken a test or a criterion to reach green. Do not push, open a PR, deploy ` +
         `or touch CI.\n\n` +
-        `Return the outcome. Write the full report at gate 7 to docs/delivery/${framed.slug}.md.`,
+        `Return the outcome. Write the full report at gate 8 to ` +
+        `docs/specs/${framed.slug}/report.md.`,
       {
         label: `deliver:${framed.slug}`,
         phase: 'Build',

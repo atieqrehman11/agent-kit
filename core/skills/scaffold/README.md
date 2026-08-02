@@ -82,9 +82,16 @@ five-year-old one. Two are choosable:
 | `api` | `routers/platform.py` (`GET /v1/health` + `GET /v1/info`) plus the service spine those endpoints need: `core/` (validated settings, one logging setup, one exception hierarchy behind one handler layer, request-id middleware), `schema/`, `services/`, `repositories/` | `api` |
 
 The rest are **not decisions**, so they are never offered: the standards docs for the repo's
-type (each with its `*_CONFORMANCE.md` sheet), `.gitignore`, and a regenerated `CONFIG.md`
-come with **any** add wherever they are missing. They live in the same registry — one
-definition each — just flagged `selectable: False`.
+type (each with its `*_CONFORMANCE.md` sheet), `.gitignore`, `docs/specs/README.md`, and a
+regenerated `CONFIG.md` come with **any** add wherever they are missing. They live in the same
+registry — one definition each — just flagged `selectable: False`, and `add --list` prints
+them straight from `AUTO` so the list cannot drift from what a run actually applies.
+
+`docs/specs/` is seeded with a README and nothing else. A convention needs somewhere to land
+before the first feature or the first spec gets written wherever that run happened to guess —
+but a placeholder example folder is the kind of thing people copy rather than replace, so
+there isn't one. {{cmd:deliver:spec}} and {{cmd:deliver:feature}} create the per-feature
+folders.
 
 The standards ship with `add`, not only with `new`, because the code an aspect delivers
 *cites* them: the `api` aspect alone writes ten references to `docs/API_STANDARDS.md` and

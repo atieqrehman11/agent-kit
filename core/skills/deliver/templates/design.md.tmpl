@@ -1,0 +1,68 @@
+---
+spec: {{SLUG}}
+gate: 2 Design
+status: draft
+derived-from: requirements.md@{{REQUIREMENTS_HASH}}
+---
+
+# Design — {{TITLE}}
+
+Proportionate to the change: five lines for a one-file fix, a page for a new subsystem. Every
+section below still appears — a short answer is fine, a missing one is not.
+
+## Grounding
+
+Filled at gate 1, re-checked on every run. Naming a guideline here does not load it; whoever
+builds must load it again.
+
+| | |
+|---|---|
+| **Repo type** | api / pipeline / job / agent / genie / frontend / mixed |
+| **Guidelines that bind this change** | |
+| **Test command** | or "none found" — never invented |
+| **Lint command** | or "none found" |
+
+**Existing conventions this follows** — where the surrounding code and the written standard
+disagree, the surrounding code wins and the divergence is noted here rather than fixed
+mid-feature.
+
+## Approach
+
+One paragraph: what is being built, and the shape of it.
+
+## Decisions
+
+One row per non-trivial decision. A decision with one option was not a decision.
+
+| # | Decision | Option A | Option B | Chosen | Why |
+|---|---|---|---|---|---|
+| D1 | | | | | |
+
+## Assumptions new to this gate
+
+Ones the requirements did not settle. Continue the numbering from `requirements.md`.
+
+| # | Assumption | What breaks if it is wrong |
+|---|---|---|
+
+## Criteria coverage
+
+Every `AC` from `requirements.md` appears here. A criterion with no design row is a criterion
+about to be forgotten — that is what this table exists to make visible.
+
+| AC | Satisfied by | Where |
+|---|---|---|
+| AC1 | | file or component |
+
+## Files
+
+| File | Add / Change | What |
+|---|---|---|
+
+## Risks
+
+| Risk | Severity | Mitigation | Mitigated here? |
+|---|---|---|---|
+
+A risk whose mitigation is "out of scope" stays in this table with that written down. Removing
+the row is how a risk becomes a surprise.
