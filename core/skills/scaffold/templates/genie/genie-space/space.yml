@@ -1,11 +1,10 @@
 # Genie space definition — the single source of truth for this space.
 # Long prose (description, instructions) lives in the referenced .md files, not
-# inline here, so it stays easy to write and review. deploy_genie.py assembles
+# inline here, so it stays easy to write and review. src/deploy.py assembles
 # them into the serialized_space payload.
 #
-# Leave space_id empty to CREATE a new space; the deploy script writes the new id
-# back here. A set space_id means UPDATE the existing space.
-space_id: ""                      # set by deploy on first create; do not edit by hand
+# No space id is stored here — deploy.py finds it by title, "<title> [ENV]".
+# Renaming the title therefore points the next deploy at a NEW space.
 title: "TPLVAR_DISPLAY_NAME"
 warehouse_id: TODO_SET_WAREHOUSE_ID
 
@@ -15,7 +14,7 @@ instructions_file: instructions.md
 
 # Curated example question -> SQL pairs that teach Genie the right query patterns
 # (few-shot). OPTIONAL: the file ships as a commented template; leave its list
-# empty and nothing is sent. deploy_genie.py includes any entries present.
+# empty and nothing is sent. src/deploy.py includes any entries present.
 example_queries_file: example_queries.yml
 
 # Tables / metric views Genie can query. START EMPTY — point the space at your

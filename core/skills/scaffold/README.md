@@ -61,8 +61,12 @@ not the tech inside it:
 | `api` | `resources.apps` — FastAPI Databricks App | `bundle deploy` | enterprise controller |
 | `etl` | `resources.pipelines` — Lakeflow declarative pipeline | `bundle deploy` | enterprise controller |
 | `job` | `resources.jobs` — scheduled Databricks Job | `bundle deploy` | enterprise controller |
-| `agent` | Agent Bricks Multi-Agent Supervisor | `supervisor_agents` SDK (`./deploy.sh`) | script (deferred) |
-| `genie` | Genie space | Genie management API (`./deploy.sh`) | validate → apply → deploy |
+| `agent` | Agent Bricks Multi-Agent Supervisor | `supervisor_agents` SDK (`./deploy.sh`) | validate → deploy |
+| `genie` | Genie space | Genie management API (`./deploy.sh`) | validate → apply DDL → deploy |
+
+`agent` and `genie` have no DAB bundle — `src/deploy.py` calls a management API instead, and
+neither repo stores an id: the resource is resolved by name, `"<display_name|title> [ENV]"`,
+in the target workspace.
 
 The one ambiguous pair is `etl` vs `job`. The sharp test: **does the repo materialize a
 graph of Delta tables via declarative transforms? Yes → `etl`. No — it performs an *action*

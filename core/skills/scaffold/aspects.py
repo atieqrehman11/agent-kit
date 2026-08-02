@@ -136,6 +136,16 @@ _CICD_WIRING = [
     "Push the `stg` / `prod` branches — the pipeline fires on merge to each.",
 ]
 
+# genie/agent deploy through a management API, so they need workspace credentials
+# rather than a controller token. Per-branch scoping is what separates stg from prod.
+_API_TYPE_CICD_WIRING = [
+    "Set DATABRICKS_HOST + DATABRICKS_TOKEN in GitLab > Settings > CI/CD > "
+    "Variables (masked), scoped to the `stg` and `prod` branches separately — the "
+    "deploy job authenticates with them, and the workspace is what separates the "
+    "environments.",
+    "Push the `stg` / `prod` branches — the deploy job is manual on each.",
+]
+
 _ENV_CONFIG_WIRING = [
     "Add the config_dir + policy_id variables to databricks.yml and set them per "
     "target (the resource then reads ${var.config_dir}/task_config.yaml):\n"
@@ -182,10 +192,12 @@ ASPECTS = {
     "cicd": {
         "label": "CI/CD pipeline",
         "summary": (
-            "GitLab pipeline that deploys this repo to stg/prod (bundle types: via "
-            "the shared DAB controller) + the per-environment config a job reads"
+            "GitLab pipeline that deploys this repo to stg/prod — bundle types via "
+            "the shared DAB controller (+ the per-environment config a job reads); "
+            "genie/agent validate their declaration, then run their own deploy "
+            "script with --env <branch>"
         ),
-        "applies_to": ("api", "etl", "job", "genie"),
+        "applies_to": ("api", "etl", "job", "genie", "agent"),
         "selectable": True,
         "files": {
             "*": [
@@ -193,9 +205,20 @@ ASPECTS = {
                 ("cicd/team_config.yaml", "team_config.yaml"),
                 ("cicd/bundleignore", ".bundleignore"),
             ],
-            # Genie is not a DAB resource — its CI validates space.yml and runs
-            # the deploy script instead of triggering the bundle controller.
-            "genie": [("genie/.gitlab-ci.yml", ".gitlab-ci.yml")],
+            # Neither is a DAB resource, so neither triggers the controller. Their
+            # jobs invoke src/validate.py and src/deploy.py, so the aspect ships
+            # those too — otherwise `add` installs a pipeline pointing at missing
+            # files. _emit skips what exists, so this is a no-op on a scaffolded repo.
+            "genie": [
+                ("genie/.gitlab-ci.yml", ".gitlab-ci.yml"),
+                ("genie/src/validate.py", "src/validate.py"),
+                ("genie/src/deploy.py", "src/deploy.py"),
+            ],
+            "agent": [
+                ("agent/.gitlab-ci.yml", ".gitlab-ci.yml"),
+                ("agent/src/validate.py", "src/validate.py"),
+                ("agent/src/deploy.py", "src/deploy.py"),
+            ],
         },
         # config/{DEV,STG,PROD} is part of the deploy story, not a thing to choose
         # separately: the DEV/STG/PROD split exists *because* the controller deploys
@@ -206,15 +229,30 @@ ASPECTS = {
         "generated": {
             "*": [("run_resources.yml", run_resources_yaml)],
             "genie": [],
+            "agent": [],
         },
         "wiring": {
             "*": _CICD_WIRING,
             "job": _CICD_WIRING + _ENV_CONFIG_WIRING,
-            "genie": [
-                "Set DATABRICKS_HOST + DATABRICKS_TOKEN in GitLab > Settings > "
-                "CI/CD > Variables (the deploy job authenticates with them).",
-                "Confirm genie-space/space.yml has title, warehouse_id and "
-                "data_sources — the validate stage fails without them.",
+            "genie": _API_TYPE_CICD_WIRING
+            + [
+                "Run `python src/validate.py` before pushing — it is exactly what the "
+                "pipeline's first stage runs, and it needs no credentials. A repo that "
+                "predates this pipeline usually fails on one thing: a `space_id:` left "
+                "in genie-space/space.yml. Delete it. The space is resolved by title, "
+                "so a committed id is deploy state the repo must not hold.",
+                "If the repo already had a deploy_genie.py at its root, delete it — "
+                "src/deploy.py replaces it, and two deploy scripts means two answers "
+                "to which space this repo owns.",
+            ],
+            "agent": _API_TYPE_CICD_WIRING
+            + [
+                "Run `python src/validate.py` before pushing — it is exactly what the "
+                "pipeline's first stage runs, and it needs no credentials. A repo that "
+                "predates this pipeline usually fails on one thing: a "
+                "`supervisor_agent_id:` left in supervisor/supervisor.yml. Delete it. "
+                "The supervisor is resolved by name, so a committed id is deploy state "
+                "the repo must not hold.",
             ],
         },
     },
@@ -357,9 +395,9 @@ MERGED = {
 # The **standard set** per type: what a repo of this type gets from `new`, and so
 # what `add --aspect all` restores in a repo that predates the scaffold. Notes:
 #   cicd  — bundle types get the controller pipeline (job also gets config/).
-#           genie ships its own (space-validating) .gitlab-ci.yml inside
-#           templates/genie/, so `new` does not layer the aspect on top; `add`
-#           still can. agent's CI/CD is deferred.
+#           genie and agent each ship their own declaration-validating
+#           .gitlab-ci.yml inside their template dir, so `new` does not layer the
+#           aspect on top; `add` still can, for a repo that predates it.
 #   api   — part of the api skeleton already, so not layered again by `new`; the
 #           aspect exists for FastAPI repos that were never scaffolded.
 # README.md ships inside each template dir (tokens patched by new.py's _patch_tree).

@@ -18,7 +18,7 @@ wired for every type.
 | `api` | `resources.apps` — FastAPI Databricks App | `bundle deploy` | enterprise controller |
 | `etl` | `resources.pipelines` — Lakeflow declarative pipeline | `bundle deploy` | enterprise controller |
 | `job` | `resources.jobs` — scheduled Databricks Job | `bundle deploy` | enterprise controller |
-| `agent` | Agent Bricks Multi-Agent Supervisor | `supervisor_agents` SDK (`./deploy.sh`) | script (CI/CD deferred) |
+| `agent` | Agent Bricks Multi-Agent Supervisor | `supervisor_agents` SDK (`./deploy.sh`) | validate → deploy script |
 | `genie` | Genie space | Genie management API (`createspace`/`updatespace`) | validate → apply DDL → deploy script |
 
 > `apps` / `jobs` / `pipelines` are the DAB **schema collection keys** (always plural, even
@@ -32,15 +32,20 @@ wired for every type.
 - **`agent`** — no DAB bundle. A **Multi-Agent Supervisor** created via the Databricks
   `supervisor_agents` SDK — the scripted equivalent of the Agents-tab UI. `supervisor/`
   holds the definition (`supervisor.yml`: display_name, description, tools list +
-  `instructions.md`), and `src/deploy.py` creates/updates the supervisor, attaches the
-  listed tools, and prints the working query URL. **local**: `./deploy.sh`; CI/CD is
-  deferred. (Agent Bricks + the `supervisor_agents` SDK are Public Preview — confirm the
-  service/tool-type names first.)
+  `instructions.md`), and `src/deploy.py` reconciles the supervisor, attaches the
+  listed tools, and prints the working query URL. **local**: `./deploy.sh` (dev);
+  **stg/prod**: CI runs `src/deploy.py --env <branch>` on branch merge. (Agent Bricks + the
+  `supervisor_agents` SDK are Public Preview — confirm the service/tool-type names first.)
 - **`genie`** — no DAB bundle. `genie-space/space.yml` is the definition and points to
-  `description.md` + `instructions.md` (long prose kept out of the YAML); `deploy_genie.py`
+  `description.md` + `instructions.md` (long prose kept out of the YAML); `src/deploy.py`
   assembles the `serialized_space` payload and calls the Genie management API. **local**:
-  `./deploy.sh`; **stg/prod**: CI runs the deploy script on branch merge. (Genie management
-  API is Public Preview — confirm the `w.genie.*` calls before first deploy.)
+  `./deploy.sh` (dev); **stg/prod**: CI runs the deploy script on branch merge. (Genie
+  management API is Public Preview — confirm the payload field names before first deploy.)
+
+> **Both non-bundle types store no deploy state.** Neither `supervisor.yml` nor `space.yml`
+> holds an id; the script resolves the resource by name, `"<display_name|title> [ENV]"`, in
+> the workspace `DATABRICKS_HOST` points at. The sharp edge: renaming that field points the
+> next deploy at a *different* resource. See `AGENT_STANDARDS.md` §3a / `GENIE_STANDARDS.md` §4.
 
 ## Choosing the type
 
@@ -185,17 +190,21 @@ checklist.
 - **agent** — no bundle: a Multi-Agent Supervisor deployed by script. Write the routing
   guidance in `supervisor/instructions.md`, set `display_name`/`description` and the `tools`
   list (each: `id`, `type`, `description` + its id) in `supervisor/supervisor.yml`, then
-  `./deploy.sh` to create/update the supervisor, attach the tools, and print the working
-  query URL (needs `DATABRICKS_HOST` + `DATABRICKS_TOKEN`). Confirm the `supervisor_agents`
-  SDK service/tool-type names in `src/deploy.py` first (Preview). Full guidance:
+  `./deploy.sh` to reconcile the supervisor, attach the tools, and print the working
+  query URL (needs `DATABRICKS_HOST` + `DATABRICKS_TOKEN`). For stg/prod, set those two
+  variables per branch in GitLab CI/CD and merge — the deploy job is manual on each. Tell
+  the user that `display_name` **is** the deployed supervisor's identity (no id is stored),
+  so renaming it re-points the deploy. Confirm the `supervisor_agents` SDK
+  service/tool-type names in `src/deploy.py` first (Preview). Full guidance:
   `docs/AGENT_STANDARDS.md`.
 - **genie** — no dummy content is scaffolded: `views/` and `functions/` ship empty and
   `example_queries.yml` / `sample_questions` are commented templates. Point
   `genie-space/space.yml` → `data_sources.tables` at curated gold tables you already own
   (add a backing view under `views/` only if needed), write `description.md` + `instructions.md`,
   optionally fill `example_queries.yml` (question→SQL few-shot pairs — the biggest accuracy
-  lever), confirm the `w.genie.*` calls in `deploy_genie.py`, then `./deploy.sh` (local) or
-  merge to stg/prod (CI). Full walkthrough: `docs/GENIE_STANDARDS.md` §5–§8.
+  lever), then `./deploy.sh` (local dev) or merge to stg/prod (CI). Tell the user that
+  `title` **is** the deployed space's identity (no id is stored), so renaming it re-points
+  the deploy. Full walkthrough: `docs/GENIE_STANDARDS.md` §5–§8.
 - To score the deployed stack, scaffold `evaluation/` with `{{cmd:eval:new}}`.
 - To add a **single piece** later — or to a repo this command never created — use
   **`{{cmd:scaffold:add}}`**: the `cicd` deploy pipeline, or the `api` surface (`/v1/health` +

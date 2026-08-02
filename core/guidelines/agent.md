@@ -13,7 +13,8 @@ applies_to:
 
 Standard for the `agent` repo type: a Databricks **Agent Bricks Multi-Agent Supervisor**
 created via the `supervisor_agents` **SDK** — the scripted equivalent of building a
-supervisor in the Agents-tab UI. There is no DAB bundle and (for now) no CI/CD.
+supervisor in the Agents-tab UI. There is no DAB bundle; CI deploys by running the same
+script (§3, §6).
 
 The idea: **standardize how we stamp out supervisors.** To spin up a new one you provide
 only two things — **instructions** and a **list of tools to attach** — and one script does
@@ -26,14 +27,19 @@ supervisor is (re)deployed *from* these files.
 
 ```
 supervisor/
-├── supervisor.yml     the DEFINITION — display_name, description, tools list,
-│                       supervisor_agent_id (written back by deploy on first create)
+├── supervisor.yml     the DEFINITION — display_name, description, tools list
 └── instructions.md    the supervisor's routing instructions (prose)
-src/deploy.py          create/update the supervisor + attach tools; prints the URL
-deploy.sh              one-shot: pip install + run deploy.py
+src/validate.py        check supervisor.yml — no credentials, no network
+src/deploy.py          reconcile the supervisor + attach tools; prints the URL
+deploy.sh              one-shot: pip install + run deploy.py (dev)
+.gitlab-ci.yml         two jobs, each one line: run validate.py, run deploy.py
 CHANGELOG.md           version → date → eval baseline → what changed
 AGENT_STANDARDS.md     this file
 ```
+
+> **CI holds no logic of its own** — each stage runs one of these scripts, so every check
+> that gates a deploy also runs on a laptop. `deploy.py` calls the same `validate.check()`
+> before touching a workspace.
 
 No per-agent Python and no hand-written tool loop — the supervisor's reasoning and
 tool-routing are managed by Agent Bricks. You supply configuration, not code.
@@ -59,18 +65,52 @@ Everything else (display name, description) is a couple of scalar fields at the 
 
 `deploy.py` uses the Databricks SDK:
 
-1. Build a `SupervisorAgent(display_name, description, instructions)`.
-2. **Create** it (`w.supervisor_agents.create_supervisor_agent`) when `supervisor_agent_id`
-   is empty, and write the new id back to `supervisor.yml`; **update** it when the id is
-   set. Commit the id so later runs target the same supervisor (idempotent).
-3. **Attach** each configured tool with `w.supervisor_agents.create_tool(...)`, building the
-   type-specific `Tool` object in `_build_tool` (extend that function to support more tool
-   types).
-4. **Print the working query URL** — the same URL the Agents-tab UI would show.
+1. Resolve the target name: `"<display_name> [ENV]"` for the `--env` given (§3a).
+2. Build a `SupervisorAgent(display_name, description, instructions)`.
+3. **Resolve** the existing supervisor by listing and matching that name. Exactly one
+   match → **update** it (`update_supervisor_agent`); none → **create** it
+   (`create_supervisor_agent`); more than one → **fail**, rather than guess which
+   supervisor belongs to this repo.
+4. **Attach** each configured tool with `w.supervisor_agents.create_tool(...)`, falling back
+   to `update_tool` when the `tool_id` is already attached, so a redeploy converges instead
+   of erroring. Build the type-specific `Tool` object in `_build_tool` (extend that function
+   to support more tool types).
+5. **Print the working query URL** — the same URL the Agents-tab UI would show.
 
 ```
-./deploy.sh          # needs DATABRICKS_HOST + DATABRICKS_TOKEN (or a CLI profile)
+./deploy.sh                # dev; needs DATABRICKS_HOST + DATABRICKS_TOKEN (or a CLI profile)
+./deploy.sh --env stg      # normally CI's job, not a laptop's
 ```
+
+---
+
+## 3a. Identity and environments — declare, don't record
+
+**The repo stores no id for the deployed supervisor.** `supervisor.yml` declares what should
+exist; it does not record what does. Identity is two axes together:
+
+| Axis | Source |
+|---|---|
+| Which workspace | `DATABRICKS_HOST` / the CLI profile the deploy authenticated with |
+| Which supervisor in it | the name `"<display_name> [ENV]"`, from config + `--env` |
+
+Every environment is suffixed, prod included — one rule, no exception, so the name is
+derivable from `(config, env)` alone in CI as on a laptop.
+
+**Why not store the id?** CI cannot hold it. A runner checks out fresh, reads an empty id,
+creates a *new* supervisor, and discards the write-back — one more per pipeline run. A field
+per environment does not help: the id is an output of a deploy, and CI's only place to put an
+output is a commit, which is a race.
+
+Two consequences:
+
+- **`display_name` is the identity.** Renaming it does not rename the deployed supervisor;
+  the next deploy creates a new one under the new name. Clean up the old one yourself.
+- **Duplicate names are a hard error** — deploy refuses rather than silently retargeting
+  someone else's resource.
+
+Same model as a DAB target: declarative identity plus a per-target workspace, no deploy state
+in git. `genie` repos follow it by space title; see `GENIE_STANDARDS.md`.
 
 > Agent Bricks and the `supervisor_agents` SDK service are in **Preview** and move quickly.
 > Confirm the service name, the `SupervisorAgent`/`Tool` classes, the tool-type field names,
@@ -138,8 +178,18 @@ for a vague one.
 
 ---
 
-## 6. Moving to CI/CD later
+## 6. Deployment
 
-Deployment is a plain script by design while the path is being proven. When the shared
-controller supports supervisor deploys, wrap `deploy.py` in the CI runner (Databricks SDK
-auth) — `supervisor/` and `deploy.py` do not change.
+| Target | How |
+|---|---|
+| **local (dev)** | `./deploy.sh` — reconciles `"<display_name> [DEV]"` |
+| **stg / prod** | merge to the `stg` / `prod` branch — CI runs `src/deploy.py --env <branch>`, manual-gated |
+
+Auth is the default Databricks SDK chain (`DATABRICKS_HOST` + token, or a CLI profile). For
+stg / prod those two variables are set **per branch** in GitLab CI/CD settings — the
+workspace they point at is what separates the environments, since the repo stores no
+per-environment id (§3a).
+
+There is no shared-controller path: a supervisor is not a DAB resource, so nothing is
+deployed by the bundle controller. If that changes, the wrapper changes and `supervisor/` +
+`deploy.py` do not.

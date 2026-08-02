@@ -1,14 +1,12 @@
-"""Deploy the Genie space from its source-of-truth files.
+"""Build serialized_space from genie-space/space.yml and reconcile the space.
 
-Builds the `serialized_space` payload from genie-space/space.yml and calls the
-Genie management API: createspace when space_id is empty, else updatespace. With
---apply-ddl it first runs views/*.sql and functions/*.sql on the space warehouse.
+The space is identified by title, "<title> [ENV]", in the workspace the SDK
+authenticated to — no id is stored in the repo. See docs/GENIE_STANDARDS.md §4.
 
-Auth: uses the default Databricks SDK auth chain (DATABRICKS_HOST + token, or a
-CLI profile). Run locally via ./deploy.sh, or in CI (see .gitlab-ci.yml).
+    ./deploy.sh                     # dev, applies views/ + functions/ DDL first
+    ./deploy.sh --env stg
 
-NOTE: the Genie management API is recent (Public Preview). Verify the exact SDK
-method / payload field names against the docs for your workspace version:
+The Genie management API is Public Preview; payload fields may move:
 https://docs.databricks.com/api/workspace/genie/createspace
 """
 
@@ -19,6 +17,9 @@ import os
 
 import yaml
 from databricks.sdk import WorkspaceClient
+from validate import check
+
+ENVS = ("dev", "stg", "prod")
 
 
 def _read_rel(root, name):
@@ -30,9 +31,7 @@ def _read_rel(root, name):
 
 
 def _read_example_queries(root, name):
-    """Load curated question->SQL pairs from example_queries.yml if referenced and
-    present. Returns [] when the file is missing or its list is empty, so the
-    payload only carries example queries when the author actually provided some."""
+    """Curated question->SQL pairs, or [] when the file is absent or its list empty."""
     if not name:
         return []
     path = os.path.join(root, name)
@@ -41,17 +40,20 @@ def _read_example_queries(root, name):
     with open(path, encoding="utf-8") as f:
         doc = yaml.safe_load(f) or {}
     return [
-        {"question": e["question"], "query": e["sql"]}
-        for e in (doc.get("example_queries") or [])
+        {"question": e["question"], "query": e["sql"]} for e in (doc.get("example_queries") or [])
     ]
 
 
-def build_serialized_space(space, root):
-    """Map space.yml (+ its referenced prose / example files) → the serialized_space
-    JSON the API expects (version 2)."""
+def target_title(title, env):
+    """Every environment is suffixed, prod included — one rule, no exception."""
+    return f"{title} [{env.upper()}]"
+
+
+def build_serialized_space(space, root, title):
+    """space.yml + its prose files -> the serialized_space payload (version 2)."""
     payload = {
         "version": 2,
-        "title": space["title"],
+        "title": title,
         "description": _read_rel(root, space.get("description_file")),
         "instructions": _read_rel(root, space.get("instructions_file")),
         "data_sources": space.get("data_sources", {"tables": [], "metric_views": []}),
@@ -60,18 +62,36 @@ def build_serialized_space(space, root):
             for i, q in enumerate(space.get("sample_questions", []))
         ],
     }
-    # Curated example SQL queries are optional — only include the field when the
-    # author supplied entries. Confirm the exact payload field name for your
-    # workspace (Public Preview); see docs/GENIE_STANDARDS.md §3, §6.
+    # Optional — send the field only when there are entries (see GENIE_STANDARDS §6).
     example_queries = _read_example_queries(root, space.get("example_queries_file"))
     if example_queries:
         payload["example_queries"] = example_queries
     return payload
 
 
+def resolve_existing(w, title):
+    """The space with this title, or None. Refuses on duplicates."""
+    matches, token = [], None
+    while True:
+        page = w.genie.list_spaces(page_token=token)
+        matches += [s for s in (page.spaces or []) if s.title == title]
+        token = page.next_page_token
+        if not token:
+            break
+    if len(matches) > 1:
+        raise SystemExit(
+            f"{len(matches)} Genie spaces in this workspace are titled {title!r}. "
+            "Deploy refuses to guess which one is this repo's — delete or rename "
+            "the extras."
+        )
+    return matches[0] if matches else None
+
+
 def apply_ddl(w, warehouse_id, root):
-    for sql_file in sorted(glob.glob(os.path.join(root, "views", "*.sql")) +
-                           glob.glob(os.path.join(root, "functions", "*.sql"))):
+    for sql_file in sorted(
+        glob.glob(os.path.join(root, "views", "*.sql"))
+        + glob.glob(os.path.join(root, "functions", "*.sql"))
+    ):
         print(f"==> applying {sql_file}")
         w.statement_execution.execute_statement(
             warehouse_id=warehouse_id, statement=open(sql_file).read()
@@ -82,32 +102,52 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--space", default="genie-space/space.yml")
     ap.add_argument("--apply-ddl", action="store_true")
+    ap.add_argument(
+        "--env",
+        default="dev",
+        choices=ENVS,
+        help="target environment — the title suffix; the workspace comes from "
+        "DATABRICKS_HOST / the CLI profile",
+    )
     args = ap.parse_args()
+
+    problems = check(args.space)
+    if problems:
+        raise SystemExit("\n".join([f"ERROR: {p}" for p in problems] + ["Refusing to deploy."]))
 
     root = os.path.dirname(args.space)
     space = yaml.safe_load(open(args.space))
     w = WorkspaceClient()
 
+    title = target_title(space["title"], args.env)
+    print(f"==> target {title!r} in {w.config.host}")
+
     if args.apply_ddl:
         apply_ddl(w, space["warehouse_id"], root)
 
-    payload = build_serialized_space(space, root)
-    serialized = json.dumps(payload)
+    serialized = json.dumps(build_serialized_space(space, root, title))
 
-    # TODO: confirm SDK method names for your workspace (w.genie.*). Fallback:
-    #       call the REST API directly (POST /api/2.0/genie/spaces).
-    if space.get("space_id"):
-        print(f"==> updating Genie space {space['space_id']}")
-        # w.genie.update_space(space_id=space["space_id"], serialized_space=serialized)
+    existing = resolve_existing(w, title)
+    if existing:
+        print(f"==> updating Genie space {existing.space_id}")
+        deployed = w.genie.update_space(
+            space_id=existing.space_id,
+            title=title,
+            serialized_space=serialized,
+            warehouse_id=space["warehouse_id"],
+        )
     else:
-        print("==> creating new Genie space")
-        # resp = w.genie.create_space(serialized_space=serialized,
-        #                             warehouse_id=space["warehouse_id"])
-        # space["space_id"] = resp.space_id
-        # yaml.safe_dump(space, open(args.space, "w"), sort_keys=False)
-        # print(f"    wrote new space_id={resp.space_id} back to {args.space}")
+        print("==> creating Genie space (no existing one with that title)")
+        deployed = w.genie.create_space(
+            warehouse_id=space["warehouse_id"],
+            serialized_space=serialized,
+            title=title,
+        )
 
-    print("==> done (uncomment the API calls once method/fields are confirmed)")
+    print("==> deployed")
+    print(f"    env:      {args.env}")
+    print(f"    space id: {deployed.space_id}")
+    print(f"    open:     {w.config.host.rstrip('/')}/genie/rooms/{deployed.space_id}")
 
 
 if __name__ == "__main__":

@@ -19,13 +19,10 @@ Deployment model:
       dev  — LOCAL dev loop:  `./bundle.sh` (this laptop → dev workspace).
       stg  — CLOUD: CI/CD controller deploys on merge to the `stg` branch.
       prod — CLOUD: CI/CD controller deploys on merge to the `prod` branch.
-    agent: no bundle. src/deploy.py creates/updates an Agent Bricks Multi-Agent
-      Supervisor via the supervisor_agents SDK from supervisor/ config (instructions
-      + a tools list) and prints the working query URL; local via ./deploy.sh
-      (CI/CD deferred).
-    genie: no bundle. deploy_genie.py builds serialized_space from space.yml and
-      calls the Genie createspace/updatespace API (backing-view DDL applied first);
-      local via ./deploy.sh, cloud via CI on stg/prod merge.
+    API types (agent/genie): no bundle. src/deploy.py calls a management API —
+      supervisor_agents for agent, createspace/updatespace for genie. Local via
+      ./deploy.sh (dev), cloud via CI on stg/prod merge. Neither stores an id: the
+      resource is resolved by name, "<name> [ENV]", in the target workspace.
 
 Usage:
     python new.py --type {api|etl|job|genie|agent} \\
@@ -457,12 +454,19 @@ def _print_next_steps(
             "                                    (each tool: id, type, description + its id)"
         )
         print(
-            "    3. Deploy                     — ./deploy.sh   (creates/updates the supervisor,"
+            "    3. Local dev deploy           — ./deploy.sh   (reconciles '<name> [DEV]',"
         )
         print(
             "                                    attaches tools, prints the working URL)"
         )
-        print("    4. Scaffold evaluation with {{cmd:eval:new}}")
+        print(
+            "    4. Cloud deploy               — set DATABRICKS_HOST + DATABRICKS_TOKEN in"
+        )
+        print(
+            "                                    GitLab CI/CD vars per branch, then merge to"
+        )
+        print("                                    the stg / prod branch")
+        print("    5. Scaffold evaluation with {{cmd:eval:new}}")
     else:  # genie
         print(
             "    1. genie-space/space.yml   — set warehouse_id, description, instructions,"
@@ -474,16 +478,15 @@ def _print_next_steps(
         print(
             "                                 empty; add a bespoke view only if needed — see README)"
         )
+        print("    3. Local dev deploy        — ./deploy.sh  (applies DDL, reconciles")
+        print("                                 '<title> [DEV]')")
         print(
-            "    3. deploy_genie.py         — confirm the w.genie.* API calls, then uncomment"
+            "    4. Cloud deploy            — set DATABRICKS_HOST + DATABRICKS_TOKEN in GitLab"
         )
         print(
-            "    4. Local deploy            — ./deploy.sh  (applies DDL + create/update space)"
+            "                                 CI/CD vars per branch, then merge to stg / prod"
         )
-        print(
-            "    5. Cloud deploy            — merge to the stg / prod branch (CI runs deploy_genie.py)"
-        )
-        print("    6. Scaffold evaluation with {{cmd:eval:new}}")
+        print("    5. Scaffold evaluation with {{cmd:eval:new}}")
     print()
 
 

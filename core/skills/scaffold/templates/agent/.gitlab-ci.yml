@@ -1,9 +1,9 @@
-# Genie space deploy — management API, not a DAB bundle, so no controller. Both
-# jobs just run a script in this repo; nothing here is logic you cannot run
-# locally. --apply-ddl runs views/ + functions/ before the space is reconciled.
+# Multi-Agent Supervisor deploy — management API, not a DAB bundle, so no
+# controller. Both jobs just run a script in this repo; nothing here is logic you
+# cannot run locally.
 #
 # Needs DATABRICKS_HOST + DATABRICKS_TOKEN in GitLab CI/CD variables, scoped per
-# branch — the workspace is what separates stg from prod (GENIE_STANDARDS §4).
+# branch — the workspace is what separates stg from prod (AGENT_STANDARDS §3a).
 
 stages:
   - validate
@@ -31,7 +31,7 @@ deploy:
   image: TODO_SET_CI_IMAGE
   script:
     - pip install -q -r requirements.txt
-    - python src/deploy.py --apply-ddl --env "$CI_COMMIT_BRANCH"
+    - python src/deploy.py --env "$CI_COMMIT_BRANCH"
   rules:
     - if: $CI_COMMIT_BRANCH == "stg"
       when: manual
