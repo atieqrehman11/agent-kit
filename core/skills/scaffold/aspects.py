@@ -296,6 +296,20 @@ ASPECTS = {
         "selectable": False,
         "files": [("common/gitignore", ".gitignore")],
     },
+    # A convention needs somewhere to land before the first feature, or the first
+    # spec gets written wherever that run happened to guess. One README, no
+    # placeholder feature folder — an empty example folder is the kind of thing
+    # people copy rather than replace.
+    "specs": {
+        "label": "docs/specs/ convention",
+        "summary": (
+            "one README explaining the per-feature spec folder "
+            "(requirements / design / tasks / report) the deliver skill reads and writes"
+        ),
+        "applies_to": ALL_TYPES,
+        "selectable": False,
+        "files": [("common/specs-README.md", "docs/specs/README.md")],
+    },
     "config-sheet": {
         "label": "CONFIG.md placeholder sheet",
         "summary": (
@@ -312,7 +326,7 @@ ASPECTS = {
 
 # Apply order. config-sheet is last on purpose: it must see the tokens the other
 # aspects bring in.
-ORDER = ["cicd", "api", "standards", "gitignore", "config-sheet"]
+ORDER = ["cicd", "api", "standards", "gitignore", "specs", "config-sheet"]
 
 # What a user chooses between. Everything else in ASPECTS is applied for them.
 SELECTABLE = [k for k in ORDER if ASPECTS[k].get("selectable")]
@@ -327,7 +341,7 @@ SELECTABLE = [k for k in ORDER if ASPECTS[k].get("selectable")]
 # same broken-link class STANDARD.md §1.6.1 refuses for command references.
 # Safe on a repo that already has them: _emit skips an existing file rather than
 # overwriting it, so a doc someone has edited survives.
-AUTO = ["standards", "gitignore", "config-sheet"]
+AUTO = ["standards", "gitignore", "specs", "config-sheet"]
 
 # Keys that are not choices, mapped to where that work lives now — so anyone who
 # reaches for one gets a pointer instead of "unknown aspect".
@@ -336,6 +350,7 @@ MERGED = {
     "api-platform": "it is now called `api`.",
     "standards": "standards docs ship with {{cmd:scaffold:new}}, per repo type.",
     "gitignore": ".gitignore is applied automatically wherever it is missing.",
+    "specs": "docs/specs/README.md is applied automatically wherever it is missing.",
     "config-sheet": "CONFIG.md is regenerated automatically after every add.",
 }
 
@@ -349,11 +364,11 @@ MERGED = {
 #           aspect exists for FastAPI repos that were never scaffolded.
 # README.md ships inside each template dir (tokens patched by new.py's _patch_tree).
 DEFAULT_BY_TYPE = {
-    "api": ("cicd", "standards", "gitignore"),
-    "etl": ("cicd", "standards", "gitignore"),
-    "job": ("cicd", "standards", "gitignore"),
-    "agent": ("standards", "gitignore"),
-    "genie": ("standards", "gitignore"),
+    "api": ("cicd", "standards", "gitignore", "specs"),
+    "etl": ("cicd", "standards", "gitignore", "specs"),
+    "job": ("cicd", "standards", "gitignore", "specs"),
+    "agent": ("standards", "gitignore", "specs"),
+    "genie": ("standards", "gitignore", "specs"),
 }
 
 

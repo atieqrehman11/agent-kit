@@ -1,0 +1,58 @@
+---
+spec: {{SLUG}}
+gate: 0 Frame
+status: draft
+---
+
+# Requirements — {{TITLE}}
+
+**As stated:** the requirement in the user's own words, one or two lines, unedited. If it was
+reworded to be workable, the original goes here and the rewording goes under Assumptions.
+
+## Acceptance criteria
+
+Each one binary: true or false when you look at the result. "Fast" is not a criterion; "P95
+under 400 ms on the existing benchmark" is.
+
+| # | Criterion | Kind | How it is checked |
+|---|---|---|---|
+| AC1 | | happy / negative / non-functional | the test, measurement or observation that settles it |
+
+At least one criterion should be **negative-path**. A criteria list with no negative rows has
+not been thought through — it describes a demo, not a feature.
+
+## Assumptions
+
+Only ones not settled by the requirement itself.
+
+| # | Assumption | What breaks if it is wrong |
+|---|---|---|
+| A1 | | |
+
+## Explicitly not doing
+
+What a broader reading of the requirement would have included, and why it is out. This list
+is as load-bearing as the criteria — it is the difference between a scope decision and an
+oversight.
+
+| Not doing | Why |
+|---|---|
+
+## Coverage pass
+
+Run in a fresh context, given only the requirement and the criteria above. Every finding
+must resolve into a criterion or a row in *Explicitly not doing* — none may be dropped.
+
+| # | Question | Finding | Resolved as |
+|---|---|---|---|
+| C1 | Which failure mode has no criterion? | | AC_n / not doing / none found |
+| C2 | Which non-functional requirement is implied and unstated? | | |
+| C3 | Which existing part of the system does this touch, unmentioned? | | |
+| C4 | What does the phrasing assume is already true? | | |
+
+## Open questions
+
+Only the ones where two readings would produce materially different systems. Everything else
+is an assumption above, not a question.
+
+- [ ] question — and what each answer would change
