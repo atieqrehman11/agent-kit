@@ -38,17 +38,23 @@ oversight.
 | Not doing | Why |
 |---|---|
 
-## Coverage pass
+## Critic
 
-Run in a fresh context, given only the requirement and the criteria above. Every finding
-must resolve into a criterion or a row in *Explicitly not doing* — none may be dropped.
+The `critic` subagent, run in its own context on the requirement and the criteria above —
+never on the reasoning that produced them. Every finding resolves into a criterion or a row in
+*Explicitly not doing*. None may be dropped, and no `BLOCKING` finding may be left open.
 
-| # | Question | Finding | Resolved as |
-|---|---|---|---|
-| C1 | Which failure mode has no criterion? | | AC_n / not doing / none found |
-| C2 | Which non-functional requirement is implied and unstated? | | |
-| C3 | Which existing part of the system does this touch, unmentioned? | | |
-| C4 | What does the phrasing assume is already true? | | |
+```
+VERDICT: COMPLETE | GAPS_FOUND      BLOCKING: n   IMPORTANT: n   MINOR: n
+```
+
+| # | Dimension | Gap | Severity | Resolved as |
+|---|---|---|---|---|
+| C1 | failure modes / non-functional / integration / premises / lifecycle / boundaries / observability | | BLOCKING / IMPORTANT / MINOR | AC_n, or a *not doing* row |
+
+**Checked and clean:** the dimensions the critic worked through and found nothing in. Keep
+this line — it is what makes `VERDICT: COMPLETE` mean "looked and found nothing" rather than
+"did not look".
 
 ## Open questions
 

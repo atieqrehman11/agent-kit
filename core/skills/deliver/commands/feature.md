@@ -60,8 +60,11 @@ can name which standards apply; it cannot put them in your context for you.
    documents are part of the deliverable, not a byproduct of the supervised path.
 2. **Bounded fix loop.** Three rounds. On a fourth `FAIL`, stop, report `BLOCKED`, and name
    the outstanding findings. Do not keep going because you feel close.
-3. **The review is not yours.** Dispatch the `reviewer` subagent and copy its verdict in
-   verbatim, including anything unflattering. Do not soften it and do not paraphrase it.
+3. **Neither check is yours.** Dispatch the `critic` subagent at gate 0 and the `reviewer`
+   subagent at gate 5, each without your reasoning. Copy the reviewer's verdict in verbatim,
+   including anything unflattering — do not soften it and do not paraphrase it. Resolve every
+   critic finding into a criterion or a stated exclusion; running unsupervised is not licence
+   to dismiss one.
 4. **Run the tests, paste the output.** Not "tests pass". Never weaken a test or narrow a
    criterion to reach green — a failing test in the report is information; a quietly relaxed
    assertion is a lie.

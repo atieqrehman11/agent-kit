@@ -75,8 +75,10 @@ const results = await pipeline(
         `Read the deliver skill's reference/gates.md, then produce ONLY gate 0: a kebab-case ` +
         `slug, numbered binary acceptance criteria (AC1, AC2, ...), and any assumptions not ` +
         `settled by the requirement. Include the negative cases the requirement implies — ` +
-        `empty input, upstream failure, unauthorised caller. Run gate 0's coverage pass and ` +
-        `resolve every finding into a criterion or a stated exclusion. Write ` +
+        `empty input, upstream failure, unauthorised caller. Then dispatch the critic ` +
+        `subagent — give it the requirement, the criteria and the exclusions, NOT your ` +
+        `reasoning — and resolve every finding into a criterion or a stated exclusion. Set ` +
+        `ambiguous if it returns a BLOCKING gap you cannot settle by assumption. Write ` +
         `docs/specs/<slug>/requirements.md from the skill's template. Do not design and do ` +
         `not write code. Set ambiguous only if two readings would produce materially ` +
         `different systems.`,
