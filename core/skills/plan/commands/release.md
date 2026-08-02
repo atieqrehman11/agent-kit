@@ -1,3 +1,12 @@
+---
+name: release
+kind: command
+description: >
+  Build a complete release plan from a codebase or a set of specs — backlog, priorities,
+  man-day estimates, dependencies, a resource-constrained schedule, Gantt and milestones —
+  validated before it is shown. Use for any planning, roadmap, WBS or estimating request.
+---
+
 # Build a release plan from a codebase, scheduled and validated before it is shown
 
 Produce a complete release plan — task backlog, priorities, man-day estimates, dependencies,

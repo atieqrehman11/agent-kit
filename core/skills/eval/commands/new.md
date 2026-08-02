@@ -1,3 +1,13 @@
+---
+name: new
+kind: command
+description: >
+  Scaffold an evaluation/ folder — spec, runner, README and starter data — into the repo
+  that owns the use case, wired to a deployed agent, an HTTP backend or an OpenAI-compatible
+  endpoint. Use when a use case needs an eval suite.
+arguments: "[use-case slug; prompted if omitted]"
+---
+
 # Scaffold an eval spec in the repo that owns it
 
 Adds an `evaluation/` folder (`spec.py` + `run.sh` + `README.md` + starter `questions.csv`

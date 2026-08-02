@@ -1,3 +1,14 @@
+---
+name: add
+kind: command
+description: >
+  Add one slice of the scaffold — the CI/CD pipeline, or the use case API surface — to a
+  repo that already exists, including
+  repos the scaffold never created. Use to bring an existing repo up to the org standard
+  without regenerating it.
+arguments: "[aspect and target repo; prompted if omitted]"
+---
+
 # Add one aspect of the scaffold to an existing repo
 
 `{{cmd:scaffold:new}}` creates a whole repo. **This adds one slice to a repo that already exists** —

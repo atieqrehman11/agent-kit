@@ -49,7 +49,9 @@ A capability that fails all three is a skill. A skill nobody deliberately invoke
 ```
 core/skills/<name>/
   SKILL.md               REQUIRED   frontmatter + body. The model-invoked entry point.
-  commands/<verb>.md     optional   user-invoked entry points → /<name>:<verb>
+  commands/<verb>.md     optional   user-invoked entry points → /<name>:<verb>. Frontmatter
+                                    too — an entry point without a description is §1.4's
+                                    failure, whoever invokes it.
   README.md              optional   DOCUMENTATION — for whoever maintains the skill.
                                     Never registered, never installed. Lives here so it
                                     cannot drift away from what it documents.
@@ -84,17 +86,30 @@ will eventually try to.
 
 ## 1.4 Frontmatter
 
-Required on every artifact of every kind.
+Required on **every entry point**, of every kind — including each `commands/<verb>.md`.
 
 ```yaml
 ---
 name: diagram                 # kebab-case; MUST match the directory or file name
-kind: skill                   # guideline | skill | subagent
+kind: skill                   # guideline | skill | subagent | command
 description: >                # prose, 1–2 sentences, stating WHEN to reach for this.
   Build a draw.io diagram and verify it renders before presenting it.
   Use for architecture, network, data-flow, auth diagrams and ERDs.
 ---
 ```
+
+`kind: command` is the one kind that is not a top-level artifact — it belongs to the skill whose
+`commands/` directory holds it, and its `name` is the verb, matching the filename. It is listed
+here because §1.3 registers it as an entry point, and **the rules for an entry point do not
+depend on whether a model or a user is the one selecting it.** A command's description is what a
+user reads in a command picker, at exactly the moment they are choosing between commands — the
+same job the description does for a model. Omitting it does not degrade selection quietly; it
+leaves the line blank.
+
+> Measured, after Part 1 was first written: all eight commands in `core/` carried no frontmatter
+> at all. The adapter validated `description` for three kinds and copied command files through
+> byte-for-byte, because §1.4 said "every artifact" and a command had not been named as one. The
+> `/` picker listed eight commands with nothing beside them.
 
 Optional:
 
