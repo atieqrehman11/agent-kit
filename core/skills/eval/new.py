@@ -34,6 +34,7 @@ import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
+
 def _kit_data_dir():
     """The kit's shared data directory: one per install, shared by every skill, and never
     replaced by an install (unlike the skill dir, which is). __KIT_DATA_DIR__ is rewritten
@@ -47,6 +48,7 @@ def _kit_data_dir():
             return p
         p = os.path.dirname(p)
     return os.path.dirname(os.path.dirname(_HERE))
+
 
 TEMPLATES = os.path.join(_HERE, "templates")
 
@@ -90,16 +92,67 @@ _DEFAULT_ENDPOINT = {
 }
 
 
-# Shared install profile saved by {{cmd:scaffold:profile}}, in the kit data dir. Returns only non-empty string values; {} when there is no profile.
+def _project_scope_dir():
+    """The directory name that marks a project scope — the tool's per-project config
+    folder, resolved at install time because core/ must not know what any one tool calls
+    its directories (§1.6).
+
+    Empty when the token is unresolved, i.e. running from an uninstalled checkout: with
+    no adapter there is no project convention to honour. $AGENT_KIT_PROJECT_DIR is the
+    escape hatch, and how a repo checkout exercises project scoping without installing.
+    """
+    d = os.environ.get("AGENT_KIT_PROJECT_DIR") or "__PROJECT_SCOPE_DIR__"
+    return "" if d.startswith("__") else d
+
+
+def _profile_path(start=None):
+    """Which profile this run uses, where it came from, and what it may be shadowing.
+
+    One machine serves more than one client, and the profile holds the values that
+    differ between them. So it is SCOPED: the nearest project profile above the working
+    directory wins over the install-wide one.
+
+        $AGENT_KIT_PROFILE                     an explicit file, for one invocation
+        <dir>/<scope dir>/scaffold-profile.json  nearest project profile, walking up
+        <kit data dir>/scaffold-profile.json     install-wide fallback
+
+    Returns ``(path, scope, shadowed)``. ``scope`` is "env" | "project" | "global".
+    ``shadowed`` is the nearest project scope directory with NO profile of its own, or
+    None. Kept in step with the copy in the scaffold skill's profile.py, which owns the
+    rule; duplicated rather than imported so this skill works without that one, exactly
+    as ``_kit_data_dir`` above is.
+    """
+    env = os.environ.get("AGENT_KIT_PROFILE")
+    if env:
+        return os.path.expanduser(os.path.expandvars(env)), "env", None
+    root = os.path.abspath(_kit_data_dir())
+    scope_name = _project_scope_dir()
+    here, shadowed = os.path.abspath(start or os.getcwd()), None
+    while scope_name:
+        d = os.path.join(here, scope_name)
+        if os.path.abspath(d) != root and os.path.isdir(d):
+            cand = os.path.join(d, "scaffold-profile.json")
+            if os.path.isfile(cand):
+                return cand, "project", None
+            shadowed = shadowed or d
+        parent = os.path.dirname(here)
+        if parent == here:
+            break
+        here = parent
+    return os.path.join(root, "scaffold-profile.json"), "global", shadowed
+
+
+# The profile governing the working directory (see ``_profile_path``). Returns only
+# non-empty string values, plus where they came from so the caller can say so.
 def _load_profile():
-    root = _kit_data_dir()
-    path = os.path.join(root, "scaffold-profile.json")
+    path, scope, shadowed = _profile_path()
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
-        return {k: v for k, v in data.items() if isinstance(v, str) and v.strip()}
+        values = {k: v for k, v in data.items() if isinstance(v, str) and v.strip()}
     except (FileNotFoundError, ValueError):
-        return {}
+        values = {}
+    return values, (path, scope, shadowed)
 
 
 def _resolve_engine_path(cli_value, profile):
@@ -141,7 +194,7 @@ def parse_args(argv):
 
 def main(argv=None):
     args = parse_args(argv if argv is not None else sys.argv[1:])
-    profile = _load_profile()
+    profile, profile_origin = _load_profile()
 
     slug = args.slug.strip()
     display_name = args.display_name.strip() or slug.replace("-", " ").title()
@@ -185,6 +238,11 @@ def main(argv=None):
     print(f"  Scaffolding eval spec: {resource_key}")
     print(f"  Target:  {label}")
     print(f"  Into:    {dest}")
+    # Which profile supplied the engine path — a project's own beats the machine's.
+    _pp, _ps, _psh = profile_origin
+    print(f"  Profile: {_ps:<7} {_pp}")
+    if _psh:
+        print(f"           ! {_psh} has no profile of its own — using the machine's")
     print("=" * 62)
 
     os.makedirs(dest, exist_ok=True)

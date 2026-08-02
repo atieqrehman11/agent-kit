@@ -48,19 +48,40 @@ lifetime:
 | **CONFIG.md** | one repo | the repo itself | `/scaffold:configure` |
 
 The profile holds what never varies between your repos — org name, team, workspace hosts,
-cluster policy ids, CI runner. It lives in the kit data dir precisely so that installing,
-re-installing or uninstalling the kit cannot destroy it.
+cluster policy ids, CI runner. It lives outside the skill directories precisely so that
+installing, re-installing or uninstalling the kit cannot destroy it.
 
 ```
 $ scaffold:profile --generate      # write the fill-in sheet
 $ scaffold:profile                 # apply sheet -> scaffold-profile.json
-$ scaffold:profile --show          # print what is saved
+$ scaffold:profile --show          # print the resolved profile and its scope
 ```
 
 ```
 ~/.claude/scaffold-profile.md      you fill this in (has example hints per line)
 ~/.claude/scaffold-profile.json    the applied values — this is what new.py reads
 ```
+
+**A profile has a scope.** The values above are exactly the ones that differ between the
+clients one machine serves, so the nearest project profile wins over the install-wide one:
+
+```
+$AGENT_KIT_PROFILE                       an explicit file, for one invocation
+<project>/.claude/scaffold-profile.json  nearest project profile, walking up from the cwd
+~/.claude/scaffold-profile.json          install-wide fallback
+```
+
+```
+$ cd ~/clients/acme
+$ scaffold:profile --generate --scope project    # -> ~/clients/acme/.claude/, gitignored
+$ scaffold:profile                               # apply it, from anywhere under that tree
+```
+
+Scaffold inside `~/clients/acme` and the repo is branded from Acme's profile; scaffold
+anywhere else and it falls back to the machine's. Every command that reads a profile
+prints which one it used *before* it writes anything, and warns when it falls back to the
+machine's while standing inside a project that has a `.claude/` of its own — that silent
+case is what produces a repo branded for the wrong client.
 
 `CONFIG.md` is everything the profile could not answer for *this* repo. It is regenerated on
 every scaffold and every add, keeping any value you already filled in:

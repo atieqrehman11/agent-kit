@@ -23,4 +23,10 @@ description: >
 - `new.py` · `add.py` · `configure.py` · `aspects.py` · `config_tokens.py` · `profile.py`
 
 Org-wide values (branding, team, CI/CD, cluster policies) come from the profile sheet,
-which is generated per install and never committed. Everything else is per-repo.
+which is never committed. Everything else is per-repo.
+
+A profile is **scoped**: `<project>/__PROJECT_SCOPE_DIR__/scaffold-profile.json` governs
+that project and beats the install-wide one in the kit data dir. On a machine serving more than one
+client, give each client's tree its own — those values are what differ between clients,
+and a repo scaffolded with the wrong one looks correct. Every command that reads a
+profile prints which one it used before writing anything.

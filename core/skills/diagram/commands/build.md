@@ -26,9 +26,11 @@ step 4 is not optional.
 - **Brand** → load the style guide this project's diagrams must follow, and never mix one
   project's brand into another's diagram. Resolve it in this order:
   1. a style guide the user names in this request,
-  2. the `brand_guidelines` value in the shared profile
-     (`python3 __SKILL_DIR__/../scaffold/profile.py --show`, if the scaffold skill is
-     installed),
+  2. the `brand_guidelines` value in the profile governing this directory —
+     `python3 __SKILL_DIR__/render.py --profile`, which prints the values **and** the
+     scope they came from. A `global` scope while you are inside one client's tree is
+     how another client's palette reaches this diagram: check the value names the brand
+     you are actually drawing for before you use it,
   3. the style/brand guide the active project's instruction file points at,
   4. no brand guide → use the reference file's own defaults and say so when presenting.
 - **Output folder** → a design/docs workspace, never a deployed code repo. Resolve:

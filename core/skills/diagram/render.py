@@ -21,6 +21,7 @@ import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
+
 def _kit_data_dir():
     """The kit's shared data directory: one per install, shared by every skill, and never
     replaced by an install (unlike the skill dir, which is). __KIT_DATA_DIR__ is rewritten
@@ -56,11 +57,63 @@ _KNOWN_LOCATIONS = {
 }
 
 
+def _project_scope_dir():
+    """The directory name that marks a project scope — the tool's per-project config
+    folder, resolved at install time because core/ must not know what any one tool calls
+    its directories (§1.6).
+
+    Empty when the token is unresolved, i.e. running from an uninstalled checkout: with
+    no adapter there is no project convention to honour. $AGENT_KIT_PROJECT_DIR is the
+    escape hatch, and how a repo checkout exercises project scoping without installing.
+    """
+    d = os.environ.get("AGENT_KIT_PROJECT_DIR") or "__PROJECT_SCOPE_DIR__"
+    return "" if d.startswith("__") else d
+
+
+def _profile_path(start=None):
+    """Which profile this run uses, where it came from, and what it may be shadowing.
+
+    One machine serves more than one client, and the profile holds exactly the values
+    that differ between them — for this skill, the brand guide a diagram is drawn to.
+    A single install-wide profile is therefore how one client's palette ends up on
+    another client's diagram. So the profile is SCOPED: the nearest project profile
+    above the working directory wins over the install-wide one.
+
+        $AGENT_KIT_PROFILE                     an explicit file, for one invocation
+        <dir>/<scope dir>/scaffold-profile.json  nearest project profile, walking up
+        <kit data dir>/scaffold-profile.json     install-wide fallback
+
+    Returns ``(path, scope, shadowed)``. ``scope`` is "env" | "project" | "global".
+    ``shadowed`` is the nearest project scope directory with NO profile of its own, or
+    None. Kept in step with the copy in the scaffold skill's profile.py, which owns the
+    rule; duplicated rather than imported so this skill works without that one, exactly
+    as ``_kit_data_dir`` above is.
+    """
+    env = os.environ.get("AGENT_KIT_PROFILE")
+    if env:
+        return os.path.expanduser(os.path.expandvars(env)), "env", None
+    root = os.path.abspath(_kit_data_dir())
+    scope_name = _project_scope_dir()
+    here, shadowed = os.path.abspath(start or os.getcwd()), None
+    while scope_name:
+        d = os.path.join(here, scope_name)
+        if os.path.abspath(d) != root and os.path.isdir(d):
+            cand = os.path.join(d, "scaffold-profile.json")
+            if os.path.isfile(cand):
+                return cand, "project", None
+            shadowed = shadowed or d
+        parent = os.path.dirname(here)
+        if parent == here:
+            break
+        here = parent
+    return os.path.join(root, "scaffold-profile.json"), "global", shadowed
+
+
 def _load_profile():
-    """Shared install profile saved by {{cmd:scaffold:profile}}, in the kit data dir."""
-    root = _kit_data_dir()
+    """The profile governing the working directory (see ``_profile_path``)."""
+    path, _scope, _shadowed = _profile_path()
     try:
-        with open(os.path.join(root, "scaffold-profile.json"), encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         return {k: v for k, v in data.items() if isinstance(v, str) and v.strip()}
     except (FileNotFoundError, ValueError):
@@ -139,7 +192,26 @@ def main(argv=None):
     p.add_argument(
         "--which", action="store_true", help="print the resolved binary, then exit"
     )
+    p.add_argument(
+        "--profile",
+        action="store_true",
+        help="print the profile governing this directory (brand guide, output "
+        "folder) and its scope, then exit",
+    )
     args = p.parse_args(argv if argv is not None else sys.argv[1:])
+
+    # The brand guide and output folder come from a profile, and which profile that is
+    # depends on where you are standing. Printed on request so the answer is read, not
+    # assumed — a diagram drawn to another client's palette looks entirely fine.
+    if args.profile:
+        path, scope, shadowed = _profile_path()
+        print(f"profile: {scope:<7} {path}")
+        if shadowed:
+            print(f"         ! {shadowed} has no profile of its own — this")
+            print("           directory falls back to the machine-wide profile")
+        prof = _load_profile()
+        print(json.dumps(prof, indent=2, sort_keys=True) if prof else "(no profile)")
+        return 0
 
     binary = resolve_binary(args.bin)
     if args.which:

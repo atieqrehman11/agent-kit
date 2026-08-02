@@ -204,6 +204,7 @@ resolved at install time. They exist separately because they have **opposite lif
 | `__SKILL_DIR__` | the absolute path of *this artifact's* installed directory | **replaced wholesale on every install** (obligation 6) |
 | `__KIT_DATA_DIR__` | one directory per install, shared by every artifact | **never created over, never deleted** by an install |
 | `__GUIDELINES_DIR__` | where `core/guidelines/` was installed | replaced with the rest of `core/` |
+| `__PROJECT_SCOPE_DIR__` | the directory *name* marking a project scope for per-project user state | a naming convention, not a path — see below |
 | `__ORG_PREFIX__` | `"<Org> "`, or the empty string when no org is configured | read from user data at install time |
 
 `__ORG_PREFIX__` is not a path — it is a **value** token, and it is listed here because
@@ -250,6 +251,52 @@ $AGENT_KIT_DATA_DIR          escape hatch, and how a repo checkout runs uninstal
 __KIT_DATA_DIR__             baked in at install time
 repo root                    dev fallback: walk up to the directory holding STANDARD.md
 ```
+
+### Why one data dir is not one profile
+
+The data dir is per **install**. Some of the state inside it is not — it is per **client**,
+or per codebase. The scaffold profile is the clear case: `org`, `team_name`, the CI
+controller, the cluster policies. Those are precisely the values that differ between the
+clients one machine serves, and the profile is read by a script whose job is to bake them
+permanently into a generated repo.
+
+With one profile per install, standing in client B's tree and scaffolding produces a repo
+branded for client A, wired to client A's CI controller — and nothing says so, because a
+generated repo looks correct either way. The failure surfaces at review, or at deploy.
+
+So user state that can be client-specific is **scoped**, and a scope is a directory:
+
+```
+$AGENT_KIT_PROFILE                       an explicit file, for one invocation
+<dir>/__PROJECT_SCOPE_DIR__/<name>.json  nearest project scope, walking up from the cwd
+<kit data dir>/<name>.json               install-wide fallback
+```
+
+`__PROJECT_SCOPE_DIR__` is a token for the same reason `__KIT_DATA_DIR__` is: **what a
+tool calls its per-project directory is the adapter's business.** Writing the Claude
+adapter's `.claude` into a `core/` script is the leak §2.5 tests for, and hardcoding it
+would silently do nothing under any other tool. Unresolved — a checkout running with no
+adapter — it means *there is no project convention here*, so the walk is skipped
+entirely rather than guessed at. `$AGENT_KIT_PROJECT_DIR` is the escape hatch.
+
+Three obligations follow, and they are what make the scoping worth having:
+
+- **The walk skips the data dir itself.** An install into `~/.claude` would otherwise
+  report itself as the project scope for everything under `$HOME`.
+- **Every consumer states what it resolved.** Not on request — on every run, next to the
+  work it is about to do. Silent resolution is the defect; resolving to the wrong file is
+  only its symptom. A consumer that finds no scope profile while standing inside a project
+  that *has* a `.claude/` says so too, because that is the case that produces the wrongly
+  branded repo.
+- **Writing and reading agree.** The command that writes a scoped profile resolves the
+  scope by the same walk as the commands that read it, including before the first value is
+  applied — otherwise "fill in the sheet, then apply it" writes to a different scope than
+  the one the sheet was generated for.
+
+What stays install-wide: anything resolved at **install time** rather than run time.
+`__ORG_PREFIX__` is baked into installed guidelines once per install (§1.6), so it reads
+the install-wide profile and a per-client value cannot reach it. An adapter that wants
+per-client guideline branding installs per client.
 
 ## 1.6.1 Command references
 
