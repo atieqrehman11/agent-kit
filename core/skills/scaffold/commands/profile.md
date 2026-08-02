@@ -4,45 +4,80 @@ kind: command
 description: >
   Set up the values that are identical across every repo a team scaffolds — doc branding,
   workspace folder, ownership, permissions, CI/CD and cluster policies. Collected once per
-  install; run before the first scaffold, or when those org-wide values change.
+  scope: the whole machine, or one client's tree so another client's values cannot reach
+  it. Run before the first scaffold, or when those org-wide values change.
 ---
 
 # Set up the shared org/project profile (sheet → profile)
 
-Sets up the values that are the **same across every repo** a team scaffolds — doc
-branding, workspace project folder, team/ownership, app permissions, CI/CD, and cluster
-policies. Collected **once per install**, not per repo. `{{cmd:scaffold:new}}` reads the saved
-profile and bakes these into every new repo, so they never appear in a repo's `CONFIG.md`.
+Sets up the values that are the **same across every repo** in one scope — doc branding,
+workspace project folder, team/ownership, app permissions, CI/CD, and cluster policies.
+`{{cmd:scaffold:new}}` reads the saved profile and bakes these into every new repo, so they
+never appear in a repo's `CONFIG.md`.
 
-This mirrors `{{cmd:scaffold:configure}}`, but there is **one sheet for the whole install** and
-**every field is optional** — anything left blank stays a `TODO_SET_*` placeholder that
-`{{cmd:scaffold:configure}}` fills per repo. The sheet (`scaffold-profile.md`) and the saved
-profile (`scaffold-profile.json`) live in the **kit data dir**, not in the skill dir.
+This mirrors `{{cmd:scaffold:configure}}`, but there is **one sheet per scope** and **every
+field is optional** — anything left blank stays a `TODO_SET_*` placeholder that
+`{{cmd:scaffold:configure}}` fills per repo.
 
 The heavy lifting is a deterministic script — do **not** hand-edit the saved profile.
 Run the script.
 
 ```bash
 python3 __SKILL_DIR__/profile.py \
-  [--generate] \   # (re)write the fill-in sheet, then exit
-  [--show]         # print the saved profile, then exit
+  [--generate] \                    # (re)write the fill-in sheet, then exit
+  [--show] \                        # print the resolved profile + its scope, then exit
+  [--scope auto|project|global] \   # which profile to act on (default: auto)
+  [--project-dir <dir>]             # with --scope project: the project root
 # no flag = apply: parse the sheet and save to scaffold-profile.json
 ```
 
+## Scope — global or per client
+
+A profile has a **scope**, because a machine serves more than one client and these are
+exactly the values that differ between them.
+
+| Scope | Lives in | Governs |
+|---|---|---|
+| `project` | `<project>/__PROJECT_SCOPE_DIR__/` | that project and everything under it — **wins** |
+| `global` | the kit data dir | everything else on the machine |
+
+Resolution, used identically by every command that reads a profile:
+
+```
+$AGENT_KIT_PROFILE                                   an explicit file, one invocation
+<dir>/__PROJECT_SCOPE_DIR__/scaffold-profile.json    nearest project profile, walking up
+<kit data dir>/scaffold-profile.json                 install-wide fallback
+```
+
+**Use `--scope project` whenever the machine scaffolds for more than one client.** With
+only a global profile, running `{{cmd:scaffold:new}}` inside client B's tree produces a repo
+branded for client A and wired to client A's CI controller, and the repo looks correct
+either way. A project profile is created gitignored — it holds CI ids, a workspace group
+and team addresses, which are operator state and not the client's source.
+
+Every command that reads a profile prints which one it used before it does any work. If
+it reports `global` while a project `__PROJECT_SCOPE_DIR__/` sits above the working
+directory, it says so — that is the case to fix with `--generate --scope project`.
+
 ## Flow
 
-**Step 1 — Make sure the sheet exists.** If `scaffold-profile.md` is missing, run with
-`--generate` to create it (install does this for you). Existing saved values prefill the
-sheet, so regenerating never loses anything.
+**Step 1 — Decide the scope.** Working inside one client's tree, and other clients exist
+on this machine? Use `--scope project`. Setting up values that genuinely apply everywhere
+(an output dir, a draw.io binary path)? `--scope global`. `auto` (the default) acts on
+whichever profile already governs the working directory.
 
-**Step 2 — Fill it in.** Open `scaffold-profile.md` (in the kit data dir) and set the
-values shared across your repos (output dir, org name, workspace project, team, developers
-group, prod admin, CI controller URL + runner + project id + image, cluster policies). Leave
-any line blank to keep that value per-repo. Keep the keys as-is.
+**Step 2 — Make sure the sheet exists.** If `scaffold-profile.md` is missing for that
+scope, run with `--generate` to create it. Existing saved values prefill the sheet, so
+regenerating never loses anything.
 
-**Step 3 — Apply.** Run the script with no flag. It parses the sheet and saves the filled
-values to `scaffold-profile.json`. Report which values were saved and which were left
-per-repo.
+**Step 3 — Fill it in.** Open the `scaffold-profile.md` the script reported and set the
+values shared across that scope's repos (output dir, org name, workspace project, team,
+developers group, prod admin, CI controller URL + runner + project id + image, cluster
+policies). Leave any line blank to keep that value per-repo. Keep the keys as-is.
+
+**Step 4 — Apply.** Run the script with no flag, from the same directory. It parses the
+sheet and saves the filled values beside it. Report the scope, which values were saved,
+and which were left per-repo.
 
 Re-running is safe: applying only writes `scaffold-profile.json`; the sheet is untouched,
 so you can edit and re-apply any time. Newly scaffolded repos pick up the current profile.
@@ -53,6 +88,16 @@ so you can edit and re-apply any time. Newly scaffolded repos pick up the curren
   placeholder that `{{cmd:scaffold:configure}}` resolves for each repo.
 - **Precedence at scaffold time:** an explicit `new.py` CLI arg wins over the profile,
   which wins over the `TODO_SET_*` placeholder.
+- **Scopes do not merge.** The nearest profile is used whole; a project profile does not
+  inherit the global one's unset fields. Whatever a project leaves blank stays a
+  `TODO_SET_*` for `{{cmd:scaffold:configure}}` — which is the safe direction, since
+  inheriting would quietly reintroduce another client's CI controller.
+- **The org-prefix token in the installed guidelines is install-wide.** It is resolved
+  once, at install time, from the global profile — a project profile's `org` reaches every
+  repo `{{cmd:scaffold:new}}` generates, but not the guideline copies in the kit itself.
+  (Naming that token in prose here would be pointless: the installer substitutes it in
+  this file too, which is how this bullet once read "`Acme ` in the installed
+  guidelines".)
 - **Where values land in a scaffolded repo:** `databricks.yml` (workspace project folder,
   prod admin), the app resource (developers group), `.gitlab-ci.yml` + `team_config.yaml`
   (runner, controller project id + repo URL, CI image, team), and the docs' brand title.

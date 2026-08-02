@@ -37,9 +37,10 @@ so the split is a soft default, not a hard boundary.
 ## Typical flow
 
 ```
-# once per install (the installer seeds the sheet for you)
-edit <kit data dir>/scaffold-profile.md       # fill shared values
-{{cmd:scaffold:profile}}                      # apply → scaffold-profile.json
+# once per scope — the machine, or one client's tree
+{{cmd:scaffold:profile}} --generate           # writes the sheet; add --scope project
+edit <the sheet it reports>                   # fill shared values
+{{cmd:scaffold:profile}}                      # apply → scaffold-profile.json beside it
 
 # per use case
 {{cmd:scaffold:new}}                          # interactive wizard → creates the repo
@@ -156,7 +157,8 @@ a small table, so **adding a type is a new `templates/<type>/` dir plus one row 
 At scaffold time each token is resolved in order, and the first match wins:
 
 1. an explicit `new.py` CLI arg,
-2. the install **profile** (`scaffold-profile.json`, org-wide values),
+2. the **profile** (`scaffold-profile.json`, org-wide values) — the project's own if the
+   working directory sits under one, else the install-wide one,
 3. otherwise a `TODO_SET_*` placeholder left for `{{cmd:scaffold:configure}}`.
 
 To extend the system:

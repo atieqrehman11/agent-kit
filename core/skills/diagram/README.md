@@ -55,8 +55,15 @@ and every one is optional:
 | Brand guide | named in the request > profile `brand_guidelines` > the guide the active project instructions point at > reference defaults |
 | draw.io binary | `--bin` > `$DRAWIO_BIN` > profile `drawio_bin` > `PATH` > the usual install locations for the OS |
 
-Set the profile values once in the shared profile sheet and apply them with
-`{{cmd:scaffold:profile}}`; the fields are declared in this skill's `profile_fields.py`.
+"profile" above means the one governing the working directory: a project's own
+`<project>/__PROJECT_SCOPE_DIR__/scaffold-profile.json` beats the install-wide one. `render.py
+--profile` prints the resolved values and the scope. On a machine that draws for more
+than one client, give each client's tree its own profile — `brand_guidelines` is the
+value that decides whose palette a diagram is drawn in, and the wrong one still renders
+a diagram that looks fine.
+
+Set the values with `{{cmd:scaffold:profile}}` (add `--scope project` for a per-client
+profile); the fields are declared in this skill's `profile_fields.py`.
 
 ## Files
 

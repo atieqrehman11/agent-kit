@@ -33,7 +33,8 @@ wholesale on every install, so neither can drift from `core/`.
 | `__SKILL_DIR__` | `<target>/skills/<name>` |
 | `__GUIDELINES_DIR__` | `<target>/guidelines` |
 | `__KIT_DATA_DIR__` | `<target>` — see below |
-| `__ORG_PREFIX__` | `"<org> "` from `scaffold-profile.json`, or nothing when unset |
+| `__PROJECT_SCOPE_DIR__` | `.claude` — Claude's per-project config directory, so a project-scoped profile sits beside that project's `CLAUDE.md` |
+| `__ORG_PREFIX__` | `"<org> "` from the install-wide `scaffold-profile.json`, or nothing when unset |
 | `{{cmd:<skill>:<verb>}}` | `/<skill>:<verb>` |
 | `{{args}}` | `$ARGUMENTS` |
 

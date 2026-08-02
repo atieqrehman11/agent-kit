@@ -246,10 +246,18 @@ def org_prefix(target):
     return f"{v} " if v and not v.startswith("TODO_SET") else ""
 
 
+# §1.6 / obligation 12: the directory name that marks a project scope for per-project
+# user state. Claude's per-project configuration lives in a `.claude/` beside the code,
+# so a project profile belongs there too — core/ must not know that, which is the whole
+# reason this is a token and not a string in a skill.
+PROJECT_SCOPE_DIR = ".claude"
+
+
 def substitute(text, skill_dir, data_dir, guide_dir, org=""):
     text = text.replace("__SKILL_DIR__", skill_dir)
     text = text.replace("__KIT_DATA_DIR__", data_dir)
     text = text.replace("__GUIDELINES_DIR__", guide_dir)
+    text = text.replace("__PROJECT_SCOPE_DIR__", PROJECT_SCOPE_DIR)
     text = text.replace("__ORG_PREFIX__", org)
     text = re.sub(r"\{\{cmd:([a-z-]+):([a-z-]+)\}\}", r"/\1:\2", text)
     text = re.sub(r"\{\{cmd:([a-z-]+)\}\}", r"/\1", text)

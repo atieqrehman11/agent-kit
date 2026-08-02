@@ -47,27 +47,35 @@ import uuid
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
 
-def _kit_data_dir():
-    """The kit's shared data directory: one per install, shared by every skill, and never
-    replaced by an install (unlike the skill dir, which is). __KIT_DATA_DIR__ is rewritten
-    at install time; the fallbacks keep this working from a repo checkout."""
-    d = os.environ.get("AGENT_KIT_DATA_DIR") or "__KIT_DATA_DIR__"
-    if not d.startswith("__"):
-        return d
-    p = _HERE
-    while p != os.path.dirname(p):
-        if os.path.exists(os.path.join(p, "STANDARD.md")):
-            return p
-        p = os.path.dirname(p)
-    return os.path.dirname(os.path.dirname(_HERE))
-
-
 sys.path.insert(0, _HERE)
 
 # The composable slices of a repo (CI/CD, standards docs, per-env config, ...).
 # `new` applies them to a fresh tree; `{{cmd:scaffold:add}}` applies one to a repo that
 # already exists. One registry, so an aspect means the same thing in both.
 import aspects  # noqa: E402
+
+
+# The profile, and the rule for WHICH profile a run uses — a project's own wins over the
+# machine's (profile.py::_profile_path). Reused rather than reimplemented: this is the
+# script that bakes org, team and CI controller into a repo, so it must resolve exactly
+# the file {{cmd:scaffold:profile}} writes.
+#
+# Loaded by path rather than `import profile`, because `profile` is a stdlib module name
+# and _HERE is on sys.path: a plain import would shadow the stdlib profiler for
+# everything downstream of this script. Same by-path idiom profile.py uses to read its
+# sibling skills' fields.
+def _profile_module():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_scaffold_profile", os.path.join(_HERE, "profile.py")
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+profilelib = _profile_module()
 
 _TPL = _HERE + "/templates"
 API_TPL = _TPL + "/api-skeleton"
@@ -89,20 +97,13 @@ def _resolve_output_dir(cli_value, profile=None):
     return os.path.expanduser(os.path.expandvars(chosen))
 
 
-# Org/project profile saved by {{cmd:scaffold:profile}} (profile.py) next to this script.
-# Returns only non-empty string values; {} when no profile has been set up.
+# Org/project profile saved by {{cmd:scaffold:profile}}. Returns the values plus where
+# they came from, because "which profile" is a decision this script must not make
+# silently: the same machine scaffolds for more than one client, and these values are
+# the ones that differ between them.
 def _load_profile():
-    import json
-
-    # Saved by {{cmd:scaffold:profile}} in the kit data dir.
-    root = _kit_data_dir()
-    path = os.path.join(root, "scaffold-profile.json")
-    try:
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-        return {k: v for k, v in data.items() if isinstance(v, str) and v.strip()}
-    except (FileNotFoundError, ValueError):
-        return {}
+    path, scope, shadowed = profilelib._profile_path()
+    return profilelib.load(path), (path, scope, shadowed)
 
 
 # Tool caches a formatter/linter might drop in a template dir — never copy into a repo.
@@ -225,10 +226,12 @@ def main(argv=None):
 
     resource_key = slug.replace("-", "_")
 
-    # Org/project profile (set up once via {{cmd:scaffold:profile}}; see profile.py). It
-    # fills the values constant across every repo a team scaffolds. Precedence:
-    #   CLI arg  >  install profile  >  TODO_SET_ placeholder (left for {{cmd:scaffold:configure}}).
-    profile = _load_profile()
+    # Org/project profile (set up via {{cmd:scaffold:profile}}; see profile.py). It fills the
+    # values constant across every repo a team scaffolds. Precedence:
+    #   CLI arg  >  profile  >  TODO_SET_ placeholder (left for {{cmd:scaffold:configure}}).
+    # `origin` is reported in the banner — a repo is about to be stamped with an org,
+    # a team and a CI controller, and which profile supplied them is not a detail.
+    profile, origin = _load_profile()
 
     # Loaded before the folder name because repo_prefix comes from it. "ai" only when the
     # profile is silent; an explicit blank in the sheet means no prefix, so the lookup
@@ -306,7 +309,7 @@ def main(argv=None):
         if profile.get(key):
             vars_[tok] = profile[key]
 
-    _banner(repo_name, repo_dir, args.type)
+    _banner(repo_name, repo_dir, args.type, profile, origin)
 
     # The type's own skeleton, then the aspects layered on top. Every aspect here
     # is the same one {{cmd:scaffold:add}} can put into a repo later — see aspects.py.
@@ -404,10 +407,15 @@ def _patch_tree(repo_dir: str, vars_: dict) -> None:
                 f.write(content)
 
 
-def _banner(repo_name: str, repo_dir: str, rtype: str) -> None:
+def _banner(repo_name: str, repo_dir: str, rtype: str, profile: dict, origin) -> None:
     print("=" * 60)
     print(f"  Scaffolding: {repo_name}  (type: {rtype})")
     print(f"  Output:      {repo_dir}")
+    # Which profile supplied the org, team and CI controller about to be written into
+    # this repo — stated before the first file is copied, not discovered afterwards in
+    # a committed databricks.yml.
+    for line in profilelib.report(*origin, profile, prefix="  "):
+        print(line)
     print("=" * 60)
 
 

@@ -44,7 +44,7 @@ import configure  # noqa: E402
 # Reused rather than re-declared: the profile loader and the profile-key ->
 # TODO_SET_ token map must behave identically in `new` and `add`, or the same
 # profile would produce two different repos.
-from new import _PROFILE_TODO_TOKENS, _load_profile  # noqa: E402
+from new import _PROFILE_TODO_TOKENS, _load_profile, profilelib  # noqa: E402
 
 _TYPE_SUFFIX_RE = re.compile(r"-(?:" + "|".join(aspects.ALL_TYPES) + r")$")
 
@@ -161,6 +161,13 @@ def main(argv=None):
     print(f"  Repo:    {repo}")
     print(f"  Type:    {type_note}")
     print(f"  Adding:  {', '.join(keys)}" + ("   [dry run]" if args.dry_run else ""))
+    # `add` writes the org's CI controller, groups and policies into an existing repo,
+    # so say which profile they came from — up here, before the files, for the same
+    # reason `new` does it: a wrongly-branded repo is cheap to prevent and expensive
+    # to notice later. Not a "heads-up" note at the end; those come after the writing.
+    _p, _s, _sh = profilelib._profile_path()
+    for line in profilelib.report(_p, _s, _sh, profilelib.load(_p), prefix="  "):
+        print(line)
     print("=" * 66)
 
     all_written, all_skipped, wiring = [], [], []
@@ -287,7 +294,7 @@ def _build_vars(args, repo, rtype, bundle_name, bundle_uuid, keys=()):
     the caller must be told (e.g. a bundle uuid had to be invented) — raised only
     for the aspects that actually depend on the value.
     """
-    profile = _load_profile()
+    profile, _origin = _load_profile()
     notes = []
 
     slug = args.slug or _slug_from_repo(repo)
