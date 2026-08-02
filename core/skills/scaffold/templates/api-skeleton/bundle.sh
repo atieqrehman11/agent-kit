@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 # ==============================================================================
 # LOCAL DEV-LOOP deploy — deploys this app bundle to the DEV workspace only.

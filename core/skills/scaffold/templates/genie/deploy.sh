@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 cd "$(dirname "$0")"   # paths below are repo-relative, so run from anywhere
 # Local Genie deploy — applies backing-view DDL, then create/update the space.
 # Needs DATABRICKS_HOST + DATABRICKS_TOKEN (or a configured CLI profile) and a
