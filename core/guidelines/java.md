@@ -25,13 +25,21 @@ You are a senior Java/Spring Boot developer. Implement to production quality.
 
 ## Architecture standards
 
+The layer chain, model placement, exception hierarchy, logging levels and the
+no-hardcoded-values rule are [`service-structure`](./service-structure.md) — shared with every
+other language. What follows is only how those rules are spelled in Spring Boot.
+
 - Clean Architecture: Controller → Service (interface) → Port → Adapter → Repository
 - DTOs never cross into the domain layer
 - @Transactional at service layer only — never on private methods
 - Constructor injection only — never @Autowired field injection
-- Custom exceptions extend BaseException with errorCode + message
+- Custom exceptions extend BaseException with errorCode + message; **one
+  @RestControllerAdvice** converts them to the standard error response — no controller builds
+  an error body, and no service throws ResponseStatusException
 - All config via @ConfigurationProperties, not raw @Value for complex objects
+- Log level from `logging.level.*` in the environment's config — never `setLevel` in code
 - Externalize all LLM prompts to YAML — never hardcode
+- Enforce the layer chain mechanically with an **ArchUnit** test, not by review alone
 
 ## Code output per task — in this order
 

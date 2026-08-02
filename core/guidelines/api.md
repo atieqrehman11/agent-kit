@@ -19,6 +19,12 @@ This document defines the minimum standard for building a new use case API.
 
 Keep use case APIs focused on domain data, domain actions, reports, jobs, and files. Conversational/chat endpoints are not part of the default use case API surface. Chat is covered separately in the [`chat-api`](./chat-api.md) guideline.
 
+This document is the **contract on the wire** — paths, payloads, status codes. How the service
+behind that contract is arranged — routers delegating to services, services to repositories,
+one exception hierarchy behind one handler, log levels from configuration, no hardcoded
+prompts or thresholds — is [`service-structure`](./service-structure.md). Both apply to every
+API; neither repeats the other.
+
 ---
 
 ## 1. What Every Use Case API Must Provide
@@ -353,6 +359,36 @@ Every request log should include:
 - `duration_ms`
 - `error_code` when applicable
 
+Emit that line from **one middleware**, not from each route. Log levels themselves are
+[`service-structure`](./service-structure.md) §4.
+
+### Request identity
+
+- Accept an inbound `X-Request-ID`; generate a UUID v4 when the caller does not send one.
+- Echo it on **every** response, success and error alike, and put it in `ErrorResponse.request_id`.
+- Propagate it to every downstream call so one id spans the whole request path.
+
+### Limits and resilience
+
+Defaults are configuration, never literals in code:
+
+| Control | Rule |
+|---|---|
+| **Request timeout** | Every outbound call has an explicit connect and read timeout. No unbounded call. |
+| **Retries** | Idempotent operations only, with capped exponential backoff and jitter. Never retry a `4xx` other than `429`. |
+| **Rate limiting** | Public endpoints are rate limited; over-limit returns `429 RATE_LIMITED` with `Retry-After`. |
+| **Payload size** | Cap request body and upload size; over-limit returns `413`. |
+| **Pagination cap** | `limit` has a maximum; a larger value is clamped or rejected with `VALIDATION_ERROR` — never honoured. |
+| **Concurrency** | Long-running work goes through `POST /v1/jobs` (§9), never a synchronous request held open. |
+
+### Compatibility
+
+- `/v1` is a contract. Within a version: add optional fields freely; **never** remove a field,
+  rename one, tighten a type, or add a required request field.
+- A breaking change is `/v2`, served alongside `/v1`.
+- Deprecate before removing: mark it in OpenAPI, return the `Deprecation` header, and give
+  consumers a stated window.
+
 ---
 
 ## 11. OpenAPI
@@ -375,35 +411,10 @@ The OpenAPI spec is the contract. Frontend integration should start after the re
 
 ---
 
-## 12. Conformance Checklist
-
-Required:
-
-- [ ] `GET /v1/health` exists.
-- [ ] `GET /v1/info` exists.
-- [ ] `service_id` is stable and kebab-case.
-- [ ] Paths use `/v1`.
-- [ ] Paths use lowercase hyphenated resource names.
-- [ ] JSON fields use `snake_case`.
-- [ ] Errors use `ErrorResponse`.
-- [ ] FastAPI default errors are normalized.
-- [ ] List endpoints use the pagination envelope.
-- [ ] OpenAPI 3.x spec is committed.
-- [ ] Production auth, authorization, CORS, and HTTPS are configured.
-- [ ] Logs include `service_id`, `request_id`, route, status, and latency.
-
-If async jobs are supported:
-
-- [ ] `POST /v1/jobs` returns `202`.
-- [ ] `GET /v1/jobs/{job_id}` returns standard job state.
-- [ ] Failed jobs use `state: "FAILED"` and include `error`.
-
-If conversational access is needed:
-
-- [ ] The use case API does not add chat endpoints by default.
-- [ ] The use case API advertises `CONVERSATION_CONTEXT` only if it exposes context/actions for the conversational API.
-- [ ] Chat endpoint and guardrail rules are handled by the [`chat-api`](./chat-api.md) guideline.
+*API Standards v1.0 | Gen AI Platform*
 
 ---
 
-*API Standards v1.0 | Gen AI Platform*
+## Conformance
+
+The audit checklist for this guideline lives beside it, in [`api.conformance.md`](api.conformance.md) — one file, one source of truth, loaded by whoever is auditing rather than by everyone who edits a file.

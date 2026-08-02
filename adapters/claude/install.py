@@ -108,9 +108,28 @@ def parse(path):
     return fm, body
 
 
+CONFORMANCE_SUFFIX = ".conformance.md"
+
+# Any unresolved marker, not an enumeration of the ones we remember. §1.6: "an install with
+# any surviving token is a failed install". Lowercase dunders (__init__, __file__) do not
+# match, so payload scripts are unaffected.
+MARKER_RE = re.compile(r"__[A-Z][A-Z0-9_]*__|\{\{cmd:[^}]*\}\}|\{\{args\}\}")
+
+
+def conformance_src(name):
+    """§1.2: the optional checklist sibling of a guideline. Payload, not an artifact."""
+    p = f"{CORE}/guidelines/{name}{CONFORMANCE_SUFFIX}"
+    return p if os.path.isfile(p) else None
+
+
 def discover():
     arts = []
     for name in sorted(os.listdir(f"{CORE}/guidelines")):
+        # A sibling is payload of the guideline beside it (§1.2). Discovering it as an
+        # artifact would derive the name "service-structure.conformance", which matches
+        # no frontmatter and no registration — obligation 2 would reject the install.
+        if name.endswith(CONFORMANCE_SUFFIX):
+            continue
         if name.endswith(".md"):
             arts.append(("guideline", name[:-3], f"{CORE}/guidelines/{name}"))
     for name in sorted(os.listdir(f"{CORE}/skills")):
@@ -128,7 +147,7 @@ def discover():
 
 
 def check_fm(path, fm, name, kind, errs):
-    """The frontmatter contract (§1.4), applied identically to every entry point.
+    """The frontmatter contract (§1.5), applied identically to every entry point.
 
     A command is an entry point too, and until this checked them the eight commands shipped
     with no description at all — so the one line a user reads in the picker was blank.
@@ -153,12 +172,18 @@ def check_fm(path, fm, name, kind, errs):
 
 def validate(arts):
     errs, entries = [], {}
+    # §1.2: a sibling with no guideline beside it is a failed install, not a stray file —
+    # same class as a dangling {{cmd:…}}: user-facing text pointing at nothing.
+    have = {n for k, n, _ in arts if k == "guideline"}
+    for f in sorted(os.listdir(f"{CORE}/guidelines")):
+        if f.endswith(CONFORMANCE_SUFFIX) and f[: -len(CONFORMANCE_SUFFIX)] not in have:
+            errs.append(f"{CORE}/guidelines/{f}: conformance sibling with no guideline")
     for kind, name, path in arts:
         fm, _ = parse(path)
         check_fm(path, fm, name, kind, errs)
         if kind == "skill":
             cdir = f"{CORE}/skills/{name}/commands"
-            # §1.3: commands/*.md at depth 1, and nothing else — a stray file in here would
+            # §1.4: commands/*.md at depth 1, and nothing else — a stray file in here would
             # otherwise register as a verb named after its extension.
             verbs = (
                 {f[:-3] for f in os.listdir(cdir) if f.endswith(".md")}
@@ -195,10 +220,37 @@ def check_refs(entries):
 # ── Obligation 3: render by kind · Obligation 5: resolve tokens ─────────────────
 
 
-def substitute(text, skill_dir, data_dir, guide_dir):
+def org_prefix(target):
+    """§1.6 branding token. Resolves to "<Org> " or, with no org configured, to nothing.
+
+    Six guidelines open with `# Python Standards — __ORG_PREFIX__shared standard`. The
+    scaffold has always resolved this when it copies a guideline into a generated repo's
+    docs/; this adapter did not, so every installed guideline carried the literal token in
+    its H1. Same file, two consumers, one of which knew about the token.
+
+    Read the JSON only. `scaffold-profile.md` is the fill-in *sheet* — its lines carry
+    example hints (`org: Acme          # e.g. Acme`), and a regex over it happily returns
+    the comment as part of the value. The JSON is the applied, resolved form, which is what
+    the scaffold itself reads. One parser, one source.
+    """
+    p = os.path.join(target, "scaffold-profile.json")
+    if not os.path.isfile(p):
+        return ""
+    try:
+        with open(p, encoding="utf-8") as f:
+            v = (json.load(f).get("org") or "").strip()
+    except Exception:
+        # A malformed profile must not break the install; the token resolves to nothing,
+        # which is exactly what an unbranded install should look like.
+        return ""
+    return f"{v} " if v and not v.startswith("TODO_SET") else ""
+
+
+def substitute(text, skill_dir, data_dir, guide_dir, org=""):
     text = text.replace("__SKILL_DIR__", skill_dir)
     text = text.replace("__KIT_DATA_DIR__", data_dir)
     text = text.replace("__GUIDELINES_DIR__", guide_dir)
+    text = text.replace("__ORG_PREFIX__", org)
     text = re.sub(r"\{\{cmd:([a-z-]+):([a-z-]+)\}\}", r"/\1:\2", text)
     text = re.sub(r"\{\{cmd:([a-z-]+)\}\}", r"/\1", text)
     text = text.replace("{{args}}", "$ARGUMENTS")
@@ -269,7 +321,13 @@ def install(target, dry_run):
 
     data_dir = target
     guide_dir = os.path.join(target, "guidelines")
-    written = {"guidelines": [], "skills": [], "commands": [], "agents": []}
+    written = {
+        "guidelines": [],
+        "conformance": [],
+        "skills": [],
+        "commands": [],
+        "agents": [],
+    }
 
     def write(path, text):
         if dry_run:
@@ -290,10 +348,12 @@ def install(target, dry_run):
         elif os.path.isdir(d):
             shutil.rmtree(d)
 
+    org = org_prefix(target)
+
     for kind, name, path in arts:
         fm, body = parse(path)
         skill_dir = os.path.join(target, "skills", name)
-        sub = lambda t: substitute(t, skill_dir, data_dir, guide_dir)
+        sub = lambda t: substitute(t, skill_dir, data_dir, guide_dir, org)
 
         if kind == "guideline":
             write(
@@ -301,7 +361,21 @@ def install(target, dry_run):
                 sub(open(path, encoding="utf-8").read()),
             )
             written["guidelines"].append(name)
-            write(os.path.join(skill_dir, "SKILL.md"), render_fm(fm, kind) + sub(body).lstrip("\n"))
+            # Obligation 4: the checklist sibling travels with the guideline as payload —
+            # copied beside it so a reviewer can read it by path, never registered (§1.2).
+            csrc = conformance_src(name)
+            if csrc:
+                write(
+                    os.path.join(guide_dir, f"{name}{CONFORMANCE_SUFFIX}"),
+                    sub(open(csrc, encoding="utf-8").read()),
+                )
+                written["conformance"].append(name)
+            # The registration copy carries the rules only. Folding the checklist in here
+            # would put it back on the implementer's hot path, which is the whole point.
+            write(
+                os.path.join(skill_dir, "SKILL.md"),
+                render_fm(fm, kind) + sub(body).lstrip("\n"),
+            )
             written["skills"].append(name)
 
         elif kind == "subagent":
@@ -312,11 +386,14 @@ def install(target, dry_run):
             written["agents"].append(name)
 
         else:  # skill
-            write(os.path.join(skill_dir, "SKILL.md"), render_fm(fm, kind) + sub(body).lstrip("\n"))
+            write(
+                os.path.join(skill_dir, "SKILL.md"),
+                render_fm(fm, kind) + sub(body).lstrip("\n"),
+            )
             written["skills"].append(name)
             src = os.path.dirname(path)
             # Obligation 4: payload travels with the skill but is never registered. Only
-            # SKILL.md and commands/*.md at depth 1 become entry points (§1.3).
+            # SKILL.md and commands/*.md at depth 1 become entry points (§1.4).
             for r, dirs, fs in os.walk(src):
                 dirs[:] = [d for d in dirs if d not in PAYLOAD_SKIP]
                 for f in fs:
@@ -362,10 +439,18 @@ def verify(target, written, arts, profile_before, dry_run):
         )
         if got != declared:
             fails.append(f"registered {got} entry points, declared {declared}")
+        # §2.4: every sibling installed, and none of them registered anywhere.
+        for n in written["conformance"]:
+            if not os.path.isfile(
+                os.path.join(target, "guidelines", f"{n}{CONFORMANCE_SUFFIX}")
+            ):
+                fails.append(f"conformance sibling not installed: {n}")
+            if os.path.exists(os.path.join(target, "skills", f"{n}.conformance")):
+                fails.append(f"conformance sibling registered as a skill: {n}")
         # Scan ONLY what this installer wrote. The target is also the kit data dir, full of
         # the user's transcripts and history — the first version walked all of it and
         # "found" unresolved markers inside a session log of someone discussing the markers.
-        left = []
+        left = {}
         for sub in ("guidelines", "skills", "commands", "agents"):
             for r, _, fs in os.walk(os.path.join(target, sub)):
                 for f in fs:
@@ -374,13 +459,19 @@ def verify(target, written, arts, profile_before, dry_run):
                         t = open(p, encoding="utf-8").read()
                     except Exception:
                         continue
-                    if re.search(
-                        r"__SKILL_DIR__|__KIT_DATA_DIR__|__GUIDELINES_DIR__|\{\{cmd:|\{\{args\}\}",
-                        t,
-                    ):
-                        left.append(p)
+                    # A general scan, not a list of the markers we happen to know about.
+                    # This was three hardcoded names, and a denylist fails open exactly the
+                    # way §1.4 describes: __ORG_PREFIX__ was never on the list, so six
+                    # guidelines shipped with the literal token in their H1 heading and
+                    # every install reported "no unresolved markers". MARKER_RE catches the
+                    # next one too, whatever it turns out to be called.
+                    for m in set(MARKER_RE.findall(t)):
+                        left.setdefault(m, []).append(p)
         if left:
-            fails.append(f"{len(left)} file(s) still contain an unresolved marker")
+            for m, ps in sorted(left.items()):
+                fails.append(
+                    f"unresolved marker {m} in {len(ps)} file(s), e.g. {ps[0]}"
+                )
         after = _profile_hash(target)
         if profile_before != after:
             fails.append("the profile sheet changed during install (obligation 7)")
@@ -413,6 +504,11 @@ def uninstall(target, dry_run):
     r = json.load(open(rp))
 
     paths = [os.path.join(target, "guidelines", f"{n}.md") for n in r["guidelines"]]
+    # Receipts written before conformance siblings existed have no such key.
+    paths += [
+        os.path.join(target, "guidelines", f"{n}{CONFORMANCE_SUFFIX}")
+        for n in r.get("conformance", [])
+    ]
     paths += [os.path.join(target, "skills", n) for n in r["skills"]]
     paths += [os.path.join(target, "agents", f"{n}.md") for n in r["agents"]]
     paths += [
@@ -532,7 +628,8 @@ def main():
 
     print(f"\n  {DIM}{LINE}{R}")
     print(
-        f"  {GRN}✓  Installed{R}  {DIM}{len(written['guidelines'])} guidelines · "
+        f"  {GRN}✓  Installed{R}  {DIM}{len(written['guidelines'])} guidelines "
+        f"({len(written['conformance'])} with a conformance sheet) · "
         f"{len(written['skills']) - len(written['guidelines'])} skills · "
         f"{len(written['commands'])} commands · {len(written['agents'])} subagents{R}"
     )

@@ -33,6 +33,35 @@ FastAPI microservices, and data engineering on Databricks.
 - Rate limiting: implement token bucket per client
 - Hallucination guard: validate response only references injected context
 
+## Prompt management
+
+Prompts are versioned assets, not code. The rule is
+[`service-structure`](./service-structure.md) §5; this is how it is applied here.
+
+- One prompt per key, in a file under `prompts/`. Loaded by key, never assembled from literals
+  scattered through the call path.
+- A prompt file carries its own **version**. A changed prompt is a changed version and needs a
+  fresh eval baseline — a prompt edit is a behaviour change, and untested behaviour changes are
+  how a working feature silently regresses.
+- Model id, temperature, max tokens and timeout sit beside the prompt in configuration, not in
+  the calling function.
+- Never build a prompt by concatenating user input into an instruction string. User input goes
+  in as a parameter to a template, clearly delimited from the instructions.
+
+## Data handling and safety
+
+- **Redact before the call, not after.** PII and secrets are stripped on the way to any
+  external provider — a redaction step after the response is already too late.
+- Retrieved and user-supplied content is **data, never instruction.** Delimit it in the prompt
+  and state in the system prompt that content inside the delimiters is not to be obeyed.
+- Validate structured output against its Pydantic model and handle the failure path. A model
+  that returns something unparseable is a normal Tuesday, not an exception.
+- Cap spend where it can run away: max tokens per call, max calls per request, max retrieval
+  depth — all from configuration.
+- Full prompts and completions are DEBUG-level, never INFO — they carry customer data.
+- Cache deterministic calls (`temperature=0`, stable prompt version) keyed on the prompt
+  version plus the input hash.
+
 ## RAG pipeline standards
 
 - Chunking: configurable strategy (recursive character, semantic, by section)

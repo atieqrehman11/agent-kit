@@ -8,7 +8,21 @@ command:
   # Databricks Apps routes to a fixed port — a mismatch causes 502s.
   - "8000"
 
+# Every name below maps to a field on Settings in core/config.py. Nothing reads an
+# env var directly — add the field there first, or the value is silently ignored.
 env:
+  # ── Observability ───────────────────────────────────────────────────────────
+  # Flip to DEBUG here to get debug logs. No code change, no rebuild.
+  - name: LOG_LEVEL
+    value: "INFO"
+  - name: LOG_FORMAT
+    value: "json"
+
+  # ── Boundary ────────────────────────────────────────────────────────────────
+  # A JSON array of allowed origins. Never ["*"] — API_STANDARDS §10.
+  - name: CORS_ORIGINS
+    value: '["TODO_SET_FRONTEND_ORIGIN"]'
+
   # ── SQL warehouse (gold-layer panel queries) ────────────────────────────────
   - name: DATABRICKS_HTTP_PATH
     value: "/sql/1.0/warehouses/TODO_SET_WAREHOUSE_ID"

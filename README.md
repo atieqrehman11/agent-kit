@@ -17,18 +17,23 @@ adapter, never editing `core/`.
 
 ## What's in it
 
-**12 guidelines** — constraints that apply from context, never invoked.
+**14 guidelines** — constraints that apply from context, never invoked.
 
 | | |
 |---|---|
 | language / framework | `python` `python-llm` `java` `react` `streamlit` `chainlit` |
-| repo type | `api` `pipeline` `job` `agent` `genie` |
-| practice | `design` |
+| repo type | `api` `chat-api` `pipeline` `job` `agent` `genie` |
+| practice | `design` `service-structure` |
 
-**4 skills** — procedures you deliberately run, each with scripts behind it.
+Three of them — `api`, `chat-api`, `service-structure` — ship a `<name>.conformance.md`
+beside them: the audit list, split out so whoever is *writing* code loads the rules and
+whoever is *auditing* loads the checklist. See [`STANDARD.md`](STANDARD.md) §1.2.
+
+**5 skills** — procedures you deliberately run, each with scripts behind it.
 
 | | |
 |---|---|
+| `/deliver:feature` | one requirement to reviewed, tested code through seven gates, then a written report |
 | `/diagram:build` `/diagram:review` | draw.io diagrams, verified by rendering and reading them before they are shown |
 | `/plan:release` | a release plan through nine ordered gates, scheduled and validated |
 | `/scaffold:new` `:add` `:configure` `:profile` | Databricks repos by type, and their config |

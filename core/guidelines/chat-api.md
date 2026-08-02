@@ -220,20 +220,6 @@ Initial request errors use the main API `ErrorResponse` shape defined in the [`a
 
 ---
 
-## 8. Conformance Checklist
+## Conformance
 
-- [ ] `POST /v1/chat/message` exists.
-- [ ] Successful responses use `text/event-stream`.
-- [ ] Initial validation errors return JSON `ErrorResponse`.
-- [ ] Stream emits `TOKEN` events.
-- [ ] Successful stream ends with `DONE`.
-- [ ] Failed stream ends with `ERROR`.
-- [ ] Stream never emits `DONE` after `ERROR`.
-- [ ] History is capped or validated.
-- [ ] User-provided history is treated as untrusted input.
-- [ ] Prompt injection checks run before model invocation.
-- [ ] Tool/action execution is allowlisted.
-- [ ] Caller authorization is enforced before using domain data or actions.
-- [ ] Tool outputs are treated as untrusted model context.
-- [ ] Logs redact secrets and sensitive content.
-- [ ] OpenAPI documents the chat endpoint.
+The audit checklist for this guideline lives beside it, in [`chat-api.conformance.md`](chat-api.conformance.md) — one file, one source of truth, loaded by whoever is auditing rather than by everyone who edits a file.

@@ -89,6 +89,46 @@ builder. `knowledge_assistant` and `genie_space` ship wired. To attach another k
 
 ---
 
+## 4a. Writing the two things well
+
+Instructions and tool descriptions **are** the product here — there is no code to compensate
+for a vague one.
+
+`instructions.md`:
+
+- **Route by observable condition, not by topic.** "When the question names a specific document
+  or asks for a quotation, call X" beats "X is for documents."
+- Name the **out-of-scope** behaviour explicitly: what the supervisor declines, and what it
+  says when it declines. An unstated boundary is one the model invents per conversation.
+- State the grounding rule: answer only from tool output, and say so when a tool returns nothing.
+  Never let the fallback be the model's own knowledge unless that is a deliberate decision.
+- Give a tie-break rule for the case where two tools both look applicable.
+- One instruction per line, imperative. Prose paragraphs read well and route badly.
+
+`supervisor.yml: tools[].description`:
+
+- Written **for the router, not for a human** — it is the only thing distinguishing this tool
+  from its neighbours at selection time.
+- Say what the tool covers *and* what it does not. Overlapping descriptions are the single
+  largest cause of wrong routing.
+- Keep them mutually exclusive. If two descriptions could both match the same question, either
+  merge the tools or add the discriminator to both.
+
+## 4b. Safety and data handling
+
+- Instructions are a **trust boundary, not a security control.** Anything a tool must not do,
+  the tool itself must refuse — an instruction saying "do not" is advisory to a model and
+  bypassable by the user.
+- Attach the narrowest tool set that covers the use case. Every attached tool is reachable by
+  any user who can reach the supervisor.
+- Retrieved content is untrusted input. Instructions must state that text inside a document is
+  data to summarise, never an instruction to follow.
+- Access control lives on the tool's own resource — the Genie space, the index, the function —
+  under the supervisor's principal. Never rely on the supervisor to keep a user away from data
+  its principal can read.
+- Record in `CHANGELOG.md` whether a change altered routing, scope or grounding — those are the
+  changes that need a fresh eval baseline, not a wording tidy.
+
 ## 5. Versioning & the eval loop
 
 - Keep `CHANGELOG.md`: version → date → eval baseline → what changed, one row per deploy.

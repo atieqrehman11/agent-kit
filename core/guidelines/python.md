@@ -17,6 +17,11 @@ Python here* layer; pair it with your repo's **resource** standard
 `GENIE_STANDARDS.md`), which covers *how to build this resource type*. The two layers do not
 overlap — style and structure live here, domain patterns live there.
 
+> **Service code also follows [`service-structure`](./service-structure.md)** — the layer
+> chain, where models live, one exception hierarchy behind one boundary handler, log levels
+> from configuration, and no hardcoded prompts or thresholds. This document does not repeat
+> those rules. Where the two appear to conflict, see the note under *Error handling*.
+
 > Adopted from the enterprise Python rules so every coding assistant applies the **same**
 > rules. Keep this in sync with the enterprise copy rather than forking it.
 
@@ -74,6 +79,11 @@ except Exception as e:
     raise
 ```
 
+**In a service, this rule narrows.** Catch a *specific* exception, add context, and re-raise
+as a **domain exception**; a bare `except Exception` is allowed only in the single catch-all
+handler at the boundary. Which exception maps to which response code, and who is allowed to
+build an error body, is [`service-structure`](./service-structure.md) §3 — not this file.
+
 ## Configuration handling
 
 Configuration-driven by default. Load and **validate** YAML; fail loudly on a missing key.
@@ -106,8 +116,9 @@ def load_config(config_path: str) -> dict:
 - Access the pre-initialized `spark` session; use `dbutils` for widgets, secrets, filesystem.
 - Prefer the DataFrame API over RDDs, and PySpark functions over UDFs; rely on lazy evaluation.
 - **Logging:** `print()` is acceptable for driver logs in notebooks/jobs (surfaced in run
-  logs) — include context (env, catalog, counts, progress). **API code uses the `logging`
-  module / structured logs** per the API guidelines, not `print`.
+  logs) — include context (env, catalog, counts, progress). **This allowance does not extend
+  to service code**, which uses the `logging` module with the level read from configuration —
+  see [`service-structure`](./service-structure.md) §4.
 - **Unity Catalog access:** use the three-level namespace `catalog.schema.table`; rely on
   managed identities for access; use `spark.sql()` for DDL; query `information_schema` for
   metadata. (Table **naming** conventions live in `PIPELINE_STANDARDS.md`.)
