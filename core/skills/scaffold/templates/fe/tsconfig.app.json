@@ -11,7 +11,10 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["vite/client"],
+    // vitest/globals + jest-dom because tests live under src/ and are
+    // typechecked with everything else. Without them `npm run typecheck` fails
+    // on `describe` and on `toBeInTheDocument`.
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
     "skipLibCheck": true,
 
     "strict": true,

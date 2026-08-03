@@ -64,7 +64,14 @@ def _strip_frontmatter(text):
 
 
 # Repo types, mirrored from new.py (kept here so add.py needs only this module).
-BUNDLE_TYPES = ("api", "etl", "job")
+# Bundle types deploy with `databricks bundle deploy`; of those, the controller
+# types hand stg/prod to the shared DAB CI/CD controller. `fe` is a bundle type
+# that is NOT a controller type: what it deploys is a build artifact (dist/), the
+# controller deploys from a git checkout and runs no Node build, and dist/ must
+# not be committed — so building and deploying have to happen in one job, which
+# is the job in the repo's own pipeline.
+BUNDLE_TYPES = ("api", "etl", "job", "fe")
+CONTROLLER_TYPES = ("api", "etl", "job")
 API_TYPES = ("genie", "agent")
 ALL_TYPES = BUNDLE_TYPES + API_TYPES
 
@@ -73,6 +80,7 @@ STANDARDS = {
     "api": ("guidelines:api.md", "API_STANDARDS.md"),
     "etl": ("guidelines:pipeline.md", "PIPELINE_STANDARDS.md"),
     "job": ("guidelines:job.md", "JOB_STANDARDS.md"),
+    "fe": ("guidelines:react.md", "REACT_STANDARDS.md"),
     "agent": ("guidelines:agent.md", "AGENT_STANDARDS.md"),
     "genie": ("guidelines:genie.md", "GENIE_STANDARDS.md"),
 }
@@ -80,6 +88,11 @@ STANDARDS = {
 # Repo types that contain a request boundary and therefore hand-written service
 # code — these get the service-structure standard alongside their own.
 SERVICE_TYPES = ("api", "job")
+
+# Types whose baseline language standard is Python. `fe` is TypeScript end to
+# end — server.mjs included — so shipping it PYTHON_STANDARDS.md would be a doc
+# nobody in that repo can act on.
+PYTHON_TYPES = tuple(t for t in ALL_TYPES if t != "fe")
 
 
 def _conformance_for(src_rel, dest):
@@ -146,6 +159,26 @@ _API_TYPE_CICD_WIRING = [
     "Push the `stg` / `prod` branches — the deploy job is manual on each.",
 ]
 
+# fe deploys a DAB bundle but not through the controller: the controller deploys
+# from a git checkout and runs no Node build, so it would deploy a repo with no
+# dist/ in it. Build and deploy therefore happen in one job, which needs a
+# workspace token of its own rather than a controller trigger token.
+_FE_CICD_WIRING = [
+    "Set DATABRICKS_TOKEN in GitLab > Settings > CI/CD > Variables (masked), "
+    "scoped to the `stg` and `prod` branches separately. The HOST is deliberately "
+    "not a CI variable — it comes from the matching target in databricks.yml, so "
+    "there is one answer to which workspace is stg.",
+    "Confirm .nvmrc and the CI image agree on a Node version — the pipeline runs "
+    "`npm ci` and will fail on a runtime older than the engines field in package.json.",
+    "Push the `stg` / `prod` branches — the deploy job is manual on each. It runs "
+    "`npm run build` and then `databricks bundle deploy`, in that order and in the "
+    "same job: splitting them means passing dist/ between jobs and hoping both ran "
+    "on the same commit.",
+    "If your DAB controller later gains a Node build stage, replace the deploy jobs "
+    "with the controller-trigger form the other bundle types use. Nothing else in "
+    "the repo has to change.",
+]
+
 _ENV_CONFIG_WIRING = [
     "Add the config_dir + policy_id variables to databricks.yml and set them per "
     "target (the resource then reads ${var.config_dir}/task_config.yaml):\n"
@@ -192,18 +225,25 @@ ASPECTS = {
     "cicd": {
         "label": "CI/CD pipeline",
         "summary": (
-            "GitLab pipeline that deploys this repo to stg/prod — bundle types via "
+            "GitLab pipeline that deploys this repo to stg/prod — controller types via "
             "the shared DAB controller (+ the per-environment config a job reads); "
-            "genie/agent validate their declaration, then run their own deploy "
-            "script with --env <branch>"
+            "fe builds and deploys its own bundle; genie/agent validate their "
+            "declaration, then run their own deploy script with --env <branch>"
         ),
-        "applies_to": ("api", "etl", "job", "genie", "agent"),
+        "applies_to": ALL_TYPES,
         "selectable": True,
         "files": {
             "*": [
                 ("cicd/gitlab-ci.controller.yml", ".gitlab-ci.yml"),
                 ("cicd/team_config.yaml", "team_config.yaml"),
                 ("cicd/bundleignore", ".bundleignore"),
+            ],
+            # No team_config.yaml and no controller bundleignore: neither goes
+            # near the controller. The .bundleignore here is the inverse of the
+            # shared one — it keeps dist/ and drops src/ and node_modules/.
+            "fe": [
+                ("fe/.gitlab-ci.yml", ".gitlab-ci.yml"),
+                ("fe/.bundleignore", ".bundleignore"),
             ],
             # Neither is a DAB resource, so neither triggers the controller. Their
             # jobs invoke src/validate.py and src/deploy.py, so the aspect ships
@@ -226,14 +266,18 @@ ASPECTS = {
         # serves env from app.yml and etl bakes the catalog into its tasks, so
         # shipping config/ for them would be dead weight.
         "dirs": {"job": [("cicd/config", "config")], "*": []},
+        # run_resources.yml tells the CONTROLLER what to run after deploy, so it
+        # is meaningless in a repo that does not use the controller.
         "generated": {
             "*": [("run_resources.yml", run_resources_yaml)],
+            "fe": [],
             "genie": [],
             "agent": [],
         },
         "wiring": {
             "*": _CICD_WIRING,
             "job": _CICD_WIRING + _ENV_CONFIG_WIRING,
+            "fe": _FE_CICD_WIRING,
             "genie": _API_TYPE_CICD_WIRING
             + [
                 "Run `python src/validate.py` before pushing — it is exactly what the "
@@ -300,10 +344,12 @@ ASPECTS = {
         "applies_to": ALL_TYPES,
         "selectable": False,
         "files": {
-            t: [
-                (src, f"docs/{dest}"),
-                ("guidelines:python.md", "docs/PYTHON_STANDARDS.md"),
-            ]
+            t: [(src, f"docs/{dest}")]
+            + (
+                [("guidelines:python.md", "docs/PYTHON_STANDARDS.md")]
+                if t in PYTHON_TYPES
+                else []
+            )
             # A guideline's checklist lives in a sibling now (STANDARD.md §1.2), so the
             # standards doc alone would land in the repo without its audit list.
             + _conformance_for(src, dest)
@@ -332,7 +378,13 @@ ASPECTS = {
         "summary": "the shared .gitignore (venvs, .databricks/, build + deploy artifacts)",
         "applies_to": ALL_TYPES,
         "selectable": False,
-        "files": [("common/gitignore", ".gitignore")],
+        # fe gets a Node one. The shared file ignores dist/ as build junk, which
+        # is right everywhere except here, where dist/ is the deployed payload —
+        # still not committed, but for a different reason, and the file says so.
+        "files": {
+            "*": [("common/gitignore", ".gitignore")],
+            "fe": [("fe/.gitignore", ".gitignore")],
+        },
     },
     # A convention needs somewhere to land before the first feature, or the first
     # spec gets written wherever that run happened to guess. One README, no
@@ -394,10 +446,10 @@ MERGED = {
 
 # The **standard set** per type: what a repo of this type gets from `new`, and so
 # what `add --aspect all` restores in a repo that predates the scaffold. Notes:
-#   cicd  — bundle types get the controller pipeline (job also gets config/).
-#           genie and agent each ship their own declaration-validating
-#           .gitlab-ci.yml inside their template dir, so `new` does not layer the
-#           aspect on top; `add` still can, for a repo that predates it.
+#   cicd  — controller types get the controller pipeline (job also gets config/).
+#           fe, genie and agent each ship their own .gitlab-ci.yml inside their
+#           template dir, so `new` does not layer the aspect on top; `add` still
+#           can, for a repo that predates it.
 #   api   — part of the api skeleton already, so not layered again by `new`; the
 #           aspect exists for FastAPI repos that were never scaffolded.
 # README.md ships inside each template dir (tokens patched by new.py's _patch_tree).
@@ -405,6 +457,7 @@ DEFAULT_BY_TYPE = {
     "api": ("cicd", "standards", "gitignore", "specs"),
     "etl": ("cicd", "standards", "gitignore", "specs"),
     "job": ("cicd", "standards", "gitignore", "specs"),
+    "fe": ("standards", "gitignore", "specs"),
     "agent": ("standards", "gitignore", "specs"),
     "genie": ("standards", "gitignore", "specs"),
 }
@@ -564,6 +617,14 @@ def detect_type(repo_dir):
         return "genie", "genie-space/space.yml"
     if os.path.isfile(j("supervisor", "supervisor.yml")):
         return "agent", "supervisor/supervisor.yml"
+
+    # Checked BEFORE the resource-file scan below: a front end is also an
+    # `apps` resource, so `.app.yml` alone cannot tell it from an api repo. A
+    # package.json next to a Vite config can.
+    if os.path.isfile(j("package.json")):
+        for fn in ("vite.config.ts", "vite.config.js", "vite.config.mts"):
+            if os.path.isfile(j(fn)):
+                return "fe", f"package.json + {fn}"
 
     # A bundle repo naming its resource in resources/<key>.<kind>.yml.
     res = _resource_files(repo_dir)

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="TPLVAR_DISPLAY_NAME">
+  <rect width="32" height="32" rx="7" fill="#111827" />
+  <!-- Neutral placeholder mark. Replace it with the product's own — and keep it
+       a single flat SVG, so it stays legible at 16px in a browser tab. -->
+  <path d="M9 21.5 16 9l7 12.5H9z" fill="#818cf8" />
+</svg>

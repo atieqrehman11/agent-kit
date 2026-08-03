@@ -1,0 +1,37 @@
+# ── App resource ─────────────────────────────────────────────────────────────
+# `resources.apps` is the DAB schema collection key (always plural, even for one
+# app). TPLVAR_RESOURCE_KEY is the single resource key — `databricks bundle run
+# TPLVAR_RESOURCE_KEY` targets it. Do not rename it once deployed: renaming makes
+# DAB destroy + recreate the app, minting a new client id / secret — and the API
+# this front end calls grants CAN_USE to the OLD service principal.
+#
+# This file DECLARES the app for deployment (name, source, permissions). It does
+# NOT set command/env — the runtime spec lives in app.yml at the source root,
+# which is the single source of truth for how the app starts.
+resources:
+  apps:
+    TPLVAR_RESOURCE_KEY:
+      name: "TPLVAR_SLUG"
+      description: "TPLVAR_DESCRIPTION"
+      source_code_path: ..
+
+      permissions:
+        - group_name: TODO_SET_DEVELOPERS_GROUP
+          level: CAN_MANAGE
+
+      # ── On-behalf-of-user, when you get there ──────────────────────────────
+      # Today this app authenticates to the backend as its OWN service principal
+      # (BACKEND_API_AUTH=sp in app.yml), using the client id + secret Databricks
+      # Apps injects. That needs no scopes here, so none are requested: a scope
+      # granted before anything reads it is standing permission nobody is using.
+      #
+      # To move to forwarding the signed-in user's token instead, uncomment the
+      # block below and set BACKEND_API_AUTH=obo. Requesting a scope is what
+      # makes the platform inject X-Forwarded-Access-Token, which server.mjs
+      # already knows how to forward. Confirm the scope names your workspace
+      # exposes first, and make sure the backend actually authorizes per user —
+      # otherwise the token changes who is calling without changing what they
+      # are allowed to do.
+      #
+      # user_api_scopes:
+      #   - sql

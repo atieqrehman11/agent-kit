@@ -16,12 +16,13 @@ including repos the scaffold never created. Two aspects are choosable:
 
 | Aspect | What the repo gains | Repo types |
 |---|---|---|
-| `cicd` | The deploy pipeline: `.gitlab-ci.yml` + `team_config.yaml` + `run_resources.yml` + `.bundleignore` — bundle types trigger the shared DAB controller on merge to `stg`/`prod`. `genie` and `agent` get a declaration-validating pipeline instead, which runs their own deploy script with `--env <branch>` (no bundle, no controller, no `team_config.yaml`). A `job` repo also gets the `config/{DEV,STG,PROD}/task_config.yaml` it reads per target. | `api` `etl` `job` `genie` `agent` |
+| `cicd` | The deploy pipeline: `.gitlab-ci.yml` + `team_config.yaml` + `run_resources.yml` + `.bundleignore` — controller types (`api` `etl` `job`) trigger the shared DAB controller on merge to `stg`/`prod`. `genie` and `agent` get a declaration-validating pipeline instead, which runs their own deploy script with `--env <branch>` (no bundle, no controller, no `team_config.yaml`). `fe` gets a verify → build → `bundle deploy` pipeline it runs itself, plus an **inverted `.bundleignore`** that keeps `dist/` and drops `src/` and `node_modules/` (no controller, no `team_config.yaml`, no `run_resources.yml`). A `job` repo also gets the `config/{DEV,STG,PROD}/task_config.yaml` it reads per target. | `api` `etl` `job` `fe` `genie` `agent` |
 | `api` | The use case API surface: `routers/platform.py` + `config.py` — `GET /v1/health` and `GET /v1/info`, the two endpoints every use case API must expose (API_STANDARDS §3–4). | `api` |
 
 **Not choices** — these come with any add, wherever they are missing, and are never asked
-about: the shared **`.gitignore`**, and a regenerated **`CONFIG.md`** (which keeps every value
-already filled in). Standards docs (`docs/*_STANDARDS.md`) ship with `{{cmd:scaffold:new}}` per repo
+about: the **`.gitignore`** for the repo's type (Node on an `fe` repo, Python / Databricks
+everywhere else), and a regenerated **`CONFIG.md`** (which keeps every value already filled
+in). Standards docs (`docs/*_STANDARDS.md`) ship with `{{cmd:scaffold:new}}` per repo
 type. Evaluation is its own command — **`{{cmd:eval:new}}`** — because the spec belongs to the use
 case, not the scaffold.
 
@@ -61,7 +62,7 @@ python3 __SKILL_DIR__/add.py --repo "<repo>" --detect
 It prints the repo's type (and the evidence for it), the bundle name/uuid it found, and each
 aspect's status — `PRESENT` / `PARTIAL` / `MISSING` / `N/A` — plus the exact file list for
 anything missing. This is what makes the picker honest: **offer only what the repo is actually
-missing.** If it cannot tell the type, ask for it (`api` · `etl` · `job` · `genie` · `agent`)
+missing.** If it cannot tell the type, ask for it (`api` · `etl` · `job` · `fe` · `genie` · `agent`)
 rather than guessing.
 
 **Step 1 — One form (`AskUserQuestion`, one screen).**
@@ -86,14 +87,16 @@ python3 __SKILL_DIR__/add.py \
   --repo "<path to the existing repo>" \
   --aspect <cicd|api|all> \
   [--aspect <the other>] \              # repeatable
-  [--type <api|etl|job|genie|agent>] \  # only if detection failed or is wrong
+  [--type <api|etl|job|fe|genie|agent>] \  # only if detection failed or is wrong
   [--force] [--dry-run] [--no-config-sheet]
 ```
 
 Everything else is inferred, in the same precedence order `{{cmd:scaffold:new}}` uses — **CLI flag >
 the repo's own files > the install profile > a `TODO_SET_*` placeholder**:
 
-- **type** — from `genie-space/space.yml`, `supervisor/supervisor.yml`,
+- **type** — from `genie-space/space.yml`, `supervisor/supervisor.yml`, a `package.json`
+  beside a `vite.config.*` (`fe` — checked before the resource scan, since a front end is
+  also an `apps` resource and `.app.yml` alone cannot tell it from an `api` repo),
   `resources/*.{app,pipeline,job}.yml`, an inline `resources: apps:|pipelines:|jobs:` in
   `databricks.yml`, `app.yml`/`app.yaml`/`app.py`, `pipeline/`, then the repo-name suffix.
 - **bundle name + uuid** — read from the repo's existing `databricks.yml`, so

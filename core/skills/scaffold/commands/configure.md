@@ -66,8 +66,12 @@ files to the repo.
 - **The sheet is not read at deploy time.** It only drives this step. Once every value is
   applied you may keep `CONFIG.md` as a record or delete it.
 - **Where values land:** `databricks.yml` (workspace hosts, service principals),
-  `team_config.yaml` (repo url, SP ids, policy id), `app.yml` (api runtime env: warehouse,
-  chat gateway, genie), and any other file containing a matching token.
+  `team_config.yaml` (repo url, SP ids, policy id), `app.yml` (runtime env — an `api`'s
+  warehouse, chat gateway and genie space; an `fe`'s backend API url), and any other file
+  containing a matching token.
+- **An `fe` repo's brand colour is deliberately not a placeholder.** It lives in
+  `src/styles/globals.css`, which ships a working default — light and dark need different
+  lightness values for the same hue, so no single substituted token could set both.
 - **Add a new placeholder?** Register it in `config_tokens.py` (token → group, label,
   example) so it groups correctly in generated sheets. Unregistered tokens still appear
   under an "Other" group, so nothing is silently missed.

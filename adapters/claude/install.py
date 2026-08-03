@@ -317,14 +317,25 @@ def render_fm(fm, kind):
     return out + "---\n\n"
 
 
-# Copied with the skill, or deliberately left behind. §1.4: an adapter installs payload but
-# not documentation — "docs" is a directory name here, so a skill's whole docs/ tree
-# (workflow diagrams and the like) stays in the repo rather than shipping a PNG into every
-# install. Contrast reference/, which the skill itself reads at run time and so must ship.
-PAYLOAD_SKIP = {
+# Copied with the skill, or deliberately left behind.
+#
+# Tool droppings are never payload, at any depth.
+PAYLOAD_SKIP_ANY = {
     "__pycache__",
     ".ruff_cache",
     ".DS_Store",
+}
+
+# §1.4: an adapter installs payload but not documentation — a skill's README.md and its
+# whole docs/ tree (workflow diagrams and the like) stay in the repo rather than shipping a
+# PNG into every install, and SKILL.md / commands/ are installed separately as entry points.
+#
+# These names are skipped ONLY at the skill root. Applying them at every depth was silently
+# dropping payload that happens to share a name: templates/<type>/README.md is a file a
+# SCAFFOLDED REPO receives, not documentation about the skill, and every installed template
+# was shipping without the README the scaffold's own docs promise it ships. Contrast
+# reference/, which the skill reads at run time and so must ship.
+PAYLOAD_SKIP_ROOT = {
     "README.md",
     "docs",
     "commands",
@@ -424,9 +435,12 @@ def install(target, dry_run):
             # Obligation 4: payload travels with the skill but is never registered. Only
             # SKILL.md and commands/*.md at depth 1 become entry points (§1.4).
             for r, dirs, fs in os.walk(src):
-                dirs[:] = [d for d in dirs if d not in PAYLOAD_SKIP]
+                skip = PAYLOAD_SKIP_ANY | (
+                    PAYLOAD_SKIP_ROOT if os.path.samefile(r, src) else set()
+                )
+                dirs[:] = [d for d in dirs if d not in skip]
                 for f in fs:
-                    if f in PAYLOAD_SKIP:
+                    if f in skip:
                         continue
                     s = os.path.join(r, f)
                     dst = os.path.join(skill_dir, os.path.relpath(s, src))

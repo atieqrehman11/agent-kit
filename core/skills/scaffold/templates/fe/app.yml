@@ -1,0 +1,54 @@
+# Runtime spec for the Databricks App — the single source of truth for how this
+# front end starts. The app resource in resources/fe.app.yml declares the app;
+# it does not duplicate this block.
+#
+# server.mjs has NO dependencies: it is Node built-ins only, serving the already
+# built dist/ and proxying /api. Nothing is installed at app startup, so a cold
+# start does not depend on reaching the npm registry — the build happened in CI
+# (or in ./bundle.sh) before anything was deployed.
+command:
+  - node
+  - server.mjs
+
+env:
+  # Keep in sync with server.mjs's default. Databricks Apps routes to a fixed
+  # port — a mismatch causes 502s.
+  - name: PORT
+    value: "8000"
+
+  # ── Backend ─────────────────────────────────────────────────────────────────
+  # The use case API this front end calls — the ONLY thing it calls. Everything
+  # the UI needs comes from here; the front end talks to no other service, and
+  # to no Databricks API directly.
+  #
+  # The browser never sees this value: it calls the same-origin path /api/*, and
+  # server.mjs proxies to here. Leave it unset and /api returns 404 — the honest
+  # signal that no backend is wired, which is what the Vite dev proxy does too.
+  - name: BACKEND_API_URL
+    value: "TODO_SET_BACKEND_API_URL"
+
+  # How the proxy authenticates to that API:
+  #
+  #   sp   — DEFAULT. Mint a token for THIS app's own service principal, by
+  #          client-credentials exchange against DATABRICKS_CLIENT_ID +
+  #          DATABRICKS_CLIENT_SECRET. Databricks Apps injects both; nothing to
+  #          configure, and no secret in this file or in the repo. The API must
+  #          grant that principal CAN_USE in the api repo's app resource, or
+  #          every call is 401 — that is the one thing to get right.
+  #
+  #   obo   — Forward the signed-in USER's token (X-Forwarded-Access-Token) so
+  #          the backend sees the person, not the app. This is where you are
+  #          going, not where you are: it needs user_api_scopes declared in
+  #          resources/fe.app.yml (commented out there for now) AND a backend
+  #          that authorizes per user. Switching is a one-word change here plus
+  #          uncommenting the scopes — server.mjs already implements it.
+  #
+  #   none — send no Authorization header (backend is public or does its own).
+  - name: BACKEND_API_AUTH
+    value: "sp"
+
+  # ── Observability ───────────────────────────────────────────────────────────
+  # info | debug. debug logs one line per proxied request, including the upstream
+  # status — no code change, no redeploy of the bundle contents.
+  - name: LOG_LEVEL
+    value: "info"

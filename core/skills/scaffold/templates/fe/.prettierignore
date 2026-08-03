@@ -2,3 +2,14 @@ dist
 node_modules
 public/mockServiceWorker.js
 src/shared/ui
+
+# Prettier's job here is the application source. The files below are written by
+# hand or by another tool, and reformatting them would only produce a diff:
+#   *.yml — bundle, app and pipeline descriptors, where the comments are the
+#           documentation and their alignment is deliberate.
+#   *.md  — docs/ is copied verbatim from the shared standards and CONFIG.md is
+#           generated, so `prettier --check` would fail the build on files this
+#           repo does not own.
+*.yml
+*.yaml
+*.md

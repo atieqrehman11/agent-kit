@@ -1,0 +1,41 @@
+# What NOT to sync into the workspace.
+#
+# The inverse of the other bundle types': for them dist/ is build junk, here it
+# is the ENTIRE payload. The deployed app is dist/ + server.mjs + app.yml and
+# nothing else — no node_modules, no TypeScript, no test files. server.mjs has
+# no dependencies precisely so this stays true.
+#
+# If you add a runtime dependency to server.mjs you must also stop ignoring
+# node_modules, and the deploy grows from kilobytes to tens of megabytes. That
+# is the trade being made here; make it deliberately.
+
+node_modules/
+.npm/
+src/
+public/
+scripts/
+docs/
+test/
+coverage/
+
+*.ts
+*.tsx
+*.test.*
+tsconfig*.json
+vite.config.*
+eslint.config.*
+components.json
+.prettierrc.json
+.prettierignore
+.nvmrc
+index.html
+package-lock.json
+
+.git/
+.gitlab-ci.yml
+.idea/
+.vscode/
+.databricks/
+.vite/
+CONFIG.md
+*.log

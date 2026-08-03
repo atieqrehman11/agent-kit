@@ -1,0 +1,29 @@
+# ── Node ────────────────────────────────────────────────────────────────────
+node_modules/
+.npm/
+
+# ── Build output ────────────────────────────────────────────────────────────
+# dist/ is what the Databricks App serves, and it is still not committed: it is
+# rebuilt by ./bundle.sh and by the deploy job, from the commit being deployed.
+# A committed build is a second answer to "what is running".
+dist/
+.vite/
+*.tsbuildinfo
+
+# ── Test output ─────────────────────────────────────────────────────────────
+coverage/
+
+# ── Databricks Asset Bundles ────────────────────────────────────────────────
+.databricks/
+
+# ── Secrets / local config ──────────────────────────────────────────────────
+# BACKEND_API_UPSTREAM / BACKEND_API_TOKEN for the Vite dev proxy live here.
+.env
+.env.*
+*.local
+
+# ── Editor / OS ─────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

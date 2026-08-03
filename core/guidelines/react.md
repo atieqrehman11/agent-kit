@@ -2,8 +2,9 @@
 name: react
 kind: guideline
 description: >
-  Standards for React front ends: tech stack, component and folder conventions, and Gen AI
-  UI patterns. Applies whenever React, JSX or TSX is written, changed or reviewed.
+  Standards for React front ends: tech stack, the shell/feature split, theming, data access,
+  and the rules a Databricks App front end must meet. Applies whenever React, JSX or TSX is
+  written, changed or reviewed.
 applies_to:
   - "**/*.tsx"
   - "**/*.jsx"
@@ -13,87 +14,146 @@ applies_to:
 
 You are a senior React/TypeScript developer. Implement to production quality.
 
+The audit list for these rules is [`react.conformance.md`](react.conformance.md).
+
 ## Tech stack
 
-- React 18 + TypeScript (strict mode — no `any`)
-- Vite (default) | Next.js 14 App Router (only if SSR explicitly required)
-- State: Zustand for global state, TanStack Query v5 for server state
-- Styling: Tailwind CSS v3 + shadcn/ui
-- Forms: React Hook Form + Zod validation
-- HTTP: Axios with interceptors for auth headers and error normalisation
-- Testing: Vitest + React Testing Library + MSW (Mock Service Worker)
+- React 19 + TypeScript `strict` — no `any`, no `as T` on untrusted data
+- Vite. Next.js only if server rendering is a stated requirement, which for an internal
+  dashboard it usually is not
+- Styling: Tailwind v4, configured CSS-first with `@theme` in one stylesheet. There is no
+  `tailwind.config.js`
+- Components: shadcn/ui for anything with behaviour — dialogs, dropdowns, comboboxes, tabs,
+  tooltips, command palettes. Hand-rolling one of these means re-deriving its focus and
+  keyboard semantics, and the second attempt is never as good as the vendored one
+- Data grids: TanStack Table. No bespoke sort/filter/paginate logic
+- Server state: TanStack Query v5. No `useEffect` fetch-and-store
+- Global state: none by default. Add a store only when a feature demonstrably needs state that
+  outlives its route, and then only for that feature
+- HTTP: one typed `fetch` client. No Axios — the interceptor stack it exists for is a
+  `fetch` wrapper of about forty lines here
+- Validation: Zod at the API boundary, and for form schemas
+- Testing: Vitest + React Testing Library + MSW
 
-## Component standards
+## Shell and features
 
-- Functional components only — no class components
-- Props typed with explicit TypeScript interfaces — never `any` or `unknown` without narrowing
-- Custom hooks for all business logic — one hook per concern, named `use<Thing><Action>`
-- Components render; hooks decide. No fetch, no business rule, no derived-state maths in JSX
-- Co-locate: Component.tsx + Component.test.tsx in the same directory
-- Error boundaries at page level minimum
-- Loading, error, and empty states are mandatory for every data-fetching component
-- Accessibility: semantic HTML, ARIA labels on interactive elements, keyboard nav, visible
-  focus, and a contrast ratio meeting WCAG 2.1 AA
+The shell is generic; features are the only thing that grows.
 
-## Folder structure per feature
+- **One feature registry drives both navigation and routing.** A feature declares its id,
+  title, path, status and lazy component in one place; nav and routes are derived from it
+- Adding a feature must require **no edit to a shell file**. If it does, the registry is not
+  actually the source of truth
+- A roadmap feature (`status: 'soon'`) appears in nav as unavailable and registers **no
+  route** — its URL reaches the 404 surface like any other unknown path
+- Every feature component is `React.lazy`, so each feature is its own chunk
+- **No feature imports another feature.** They talk through `@/shared` and `@/app`, and
+  `no-restricted-imports` enforces it. Inside a feature, reach your own files by relative
+  path — not through the feature's own alias, which is what keeps it movable
+- An error boundary wraps the feature slot, so one feature's crash does not take the shell
 
-src/features/[feature-name]/
-  components/    UI components
-  hooks/         Custom hooks (data fetching + state)
-  api/           API call functions (typed with Zod schemas)
-  store/         Zustand slice (if feature has global state)
-  types/         TypeScript interfaces
-  index.ts       Public exports
+### Folder structure per feature
 
-## Security
+```
+src/features/<feature>/
+  components/    UI components (Component.tsx + Component.test.tsx side by side)
+  hooks/         custom hooks — data fetching + state
+  api/           API call functions, Zod-typed
+  types/         shared interfaces
+  index.ts       the public entry the registry lazy-loads
+```
 
-- **Nothing secret reaches the browser.** No API keys, model keys or service credentials in
-  the bundle, in `VITE_*`/`NEXT_PUBLIC_*` vars, or in source. Anything secret is proxied by a
-  backend the client calls.
-- Tokens in memory or an httpOnly cookie — never `localStorage`, which any XSS can read.
-- No `dangerouslySetInnerHTML` without sanitising through an allowlist.
-- All URLs and feature flags come from build/runtime config, never a literal in a component.
-- Validate the *response* shape with Zod at the API-client boundary; a backend contract change
-  should surface as a typed error, not as `undefined` deep inside a component.
+## Components
+
+- Functional components only. Props typed with explicit interfaces
+- Custom hooks for business logic — one hook per concern, named `use<Thing><Action>`
+- **Components render; hooks decide.** No fetch, no business rule, no derived-state maths
+  in JSX
+- Co-locate `Component.tsx` with `Component.test.tsx`
+- Loading, error **and** empty states are mandatory for every data-fetching component. An
+  empty result renders as empty, not as an error
+
+## Theming
+
+- Components reference design tokens. A literal colour in a component is a bug
+- Tokens are CSS custom properties declared in both themes and republished to Tailwind with
+  `@theme inline`. Light and dark are both implemented **from day one** — retrofitting dark
+  onto a light-only system means finding every hardcoded surface again, which is a
+  re-authoring rather than a change
+- Contrast meets WCAG 2.1 AA in **both** themes. Dark is where it quietly fails: a muted
+  foreground that passes on white rarely passes on near-black
+- No class, token or folder is named after a product, project or codename. Names outlive the
+  thing they were named for
+
+## Data access
+
+- Every response is parsed with Zod at the client boundary. A backend contract change should
+  surface as a typed error, not as `undefined` deep inside a component
+- One error shape across the app, so every caller handles failure the same way
+- `staleTime` is set deliberately per query. One global default across a dashboard is a
+  decision nobody made
+- **The browser calls a same-origin path** (`/api/...`), proxied server-side. It never calls
+  a backend origin directly — that is what keeps the backend URL, and any credential needed
+  to reach it, out of the bundle
+
+## Configuration and secrets
+
+- **Nothing secret reaches the browser.** No API key, model key or service credential in
+  source, in a `VITE_*` var, or anywhere in `dist/`. Grep the build output before believing
+  otherwise — `VITE_*` values are inlined at build time and are readable by anyone with the page
+- Tokens live in memory or an httpOnly cookie. Never `localStorage`, which any XSS can read
+- URLs and feature flags come from configuration, never a literal in a component
+- **The serving process exits at startup when required configuration is missing.** A server
+  that starts and then 500s on first use has converted a deploy-time failure into a
+  user-facing one
+- No `dangerouslySetInnerHTML` without escape-then-allowlist sanitising
 
 ## Performance
 
-- Route-level code splitting with `React.lazy` + `Suspense`; a page pulls in only its own code.
-- Server state belongs to TanStack Query — no manual `useEffect` fetch-and-store. Set
-  `staleTime` deliberately rather than accepting the default everywhere.
-- Memoise only where a profiler shows a cost. `useMemo` on trivial values is noise.
-- Virtualise any list that can exceed a few hundred rows.
-- Stable `key` from a domain id, never the array index, for any list that can reorder.
-- Set and hold a bundle-size budget in CI.
+- Route-level code splitting with `React.lazy` + `Suspense`; a page pulls in only its own code
+- Memoise only where a profiler shows a cost. `useMemo` on trivial values is noise
+- Virtualise any list that can exceed a few hundred rows
+- Stable `key` from a domain id, never the array index, for any list that can reorder
+- A bundle-size budget is enforced in CI as a failing check, not a warning
+
+## Accessibility
+
+- Semantic HTML; ARIA only where it fills a genuine gap
+- Every interactive element is keyboard reachable with a visible focus ring. Removing the
+  focus ring fails WCAG 2.1 AA and makes the app unusable by keyboard
+- Overlays trap focus, close on `Escape`, and restore focus on close
+- Every form control has an associated label
+- `eslint-plugin-jsx-a11y` findings are **errors**. A rule nobody's build fails on is a
+  preference, not a standard
 
 ## Gen AI UI patterns (when building AI features)
 
-- Streaming responses: use EventSource or fetch with ReadableStream
-- Display tokens as they arrive — never wait for full response
+- Stream tokens as they arrive — never wait for the full response. Nothing in the path
+  (including the server-side proxy) may buffer the stream
 - Skeleton loaders for AI response areas, not spinners
-- Retry UI with exponential backoff messaging
-- Clearly label AI-generated content in the UI
-- Every stream is cancellable — an `AbortController` wired to unmount and to a stop control
+- Every stream is cancellable — an `AbortController` wired to unmount **and** to a stop control
 - Render model output as text or through a sanitising markdown renderer, never as raw HTML
-- Show the grounding: cite the sources a RAG answer used, and say plainly when there are none
+- Show the grounding: cite the sources a RAG answer used, and say plainly when there are
+  none. Confidence comes from the backend, not from the UI's own guess
+- Label AI-generated content
 
 ## Code output per task — in this order
 
-1. TypeScript interfaces / Zod schemas for API response types
-2. API client function (typed, with error handling)
-3. Custom hook (data fetching + state management)
-4. Component(s) — with loading state, error state, empty state
-5. Unit tests (Vitest + RTL + MSW handlers for API mocks)
-6. Accessibility notes for any non-standard interactions
+1. Zod schemas / TypeScript interfaces for the API response types
+2. API client function — typed, with the shared error shape
+3. Custom hook — data fetching + state
+4. Component(s) — with loading, error and empty states
+5. Tests (Vitest + RTL, API interactions through MSW handlers)
+6. Accessibility notes for any non-standard interaction
 
 ## Quality rules
 
-- No `any` types — use `unknown` and narrow, or define a proper interface
-- All async operations have loading + error + success states
-- Forms validate on submit AND show inline errors on blur
-- No hardcoded strings — use constants file or i18n keys
-- Test covers: render, user interaction, loading state, error state
-- No form elements without associated labels
+- No `any`. Use `unknown` and narrow, or define the interface
+- Forms validate on submit **and** show inline errors on blur
+- No hardcoded user-facing strings — a constants file or i18n keys
+- Tests are co-located, exercise API interactions through MSW rather than by mocking the
+  client module, and cover render, interaction, loading, error and empty
+- The registry contract is tested: registered features appear in nav, live features route,
+  roadmap features do not
 
 ## Acceptance criteria check
 

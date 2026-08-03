@@ -394,7 +394,8 @@ def _print_list():
     # cannot be applied by a run and missing from the list that describes the run.
     hint = {
         "standards": "docs/         the standards for this repo type, each with its conformance sheet",
-        "gitignore": ".gitignore    the shared Python / Databricks ignore file",
+        "gitignore": ".gitignore    the ignore file for this repo type (Node for fe, "
+        "Python / Databricks otherwise)",
         "specs": "docs/specs/   the per-feature spec convention {{cmd:deliver:spec}} reads and writes",
         "config-sheet": "CONFIG.md     regenerated, keeping any value already filled in",
     }

@@ -15,7 +15,7 @@ documentation rather than payload, it is never installed (STANDARD.md §1.3). Ed
 | Command | What it does | Direction |
 |---|---|---|
 | [`{{cmd:scaffold:profile}}`](commands/profile.md) | Set up the org/project values shared by every repo (branding, team, CI/CD, cluster policies) — once per scope. | `scaffold-profile.md` |
-| [`{{cmd:scaffold:new}}`](commands/new.md) | Scaffold a new repo (type-driven wizard: `api` · `etl` · `job` · `agent` · `genie`). | templates → new repo |
+| [`{{cmd:scaffold:new}}`](commands/new.md) | Scaffold a new repo (type-driven wizard: `api` · `etl` · `job` · `fe` · `agent` · `genie`). | templates → new repo |
 | [`{{cmd:scaffold:add}}`](commands/add.md) | Add **one aspect** — the `cicd` deploy pipeline or the `api` surface — to a repo that already exists. | templates → existing repo |
 | [`{{cmd:scaffold:configure}}`](commands/configure.md) | Fill the per-repo `TODO_SET_*` placeholders a scaffolded repo ships with. | `CONFIG.md` → repo |
 
@@ -61,6 +61,7 @@ not the tech inside it:
 | `api` | `resources.apps` — FastAPI Databricks App | `bundle deploy` | enterprise controller |
 | `etl` | `resources.pipelines` — Lakeflow declarative pipeline | `bundle deploy` | enterprise controller |
 | `job` | `resources.jobs` — scheduled Databricks Job | `bundle deploy` | enterprise controller |
+| `fe` | `resources.apps` — React Databricks App | `bundle deploy` (after a build) | own pipeline: verify → build → deploy |
 | `agent` | Agent Bricks Multi-Agent Supervisor | `supervisor_agents` SDK (`./deploy.sh`) | validate → deploy |
 | `genie` | Genie space | Genie management API (`./deploy.sh`) | validate → apply DDL → deploy |
 
@@ -68,10 +69,46 @@ not the tech inside it:
 neither repo stores an id: the resource is resolved by name, `"<display_name|title> [ENV]"`,
 in the target workspace.
 
+`fe` **is** a bundle — the same `resources.apps` as `api` — but it is the one bundle type
+that does not hand stg/prod to the enterprise controller, and the reason is structural rather
+than a preference. What it deploys is `dist/`, a build artifact that must not be committed;
+the controller deploys from a git checkout and runs no Node build, so it would deploy a repo
+whose `dist/` does not exist. Building and deploying therefore have to happen in one job, and
+that job lives in the repo. If the controller ever gains a Node build stage, the repo swaps
+its deploy jobs for the controller-trigger form and nothing else changes. `aspects.py` keeps
+the distinction as two tuples: `BUNDLE_TYPES` (deploys with `bundle deploy`) and
+`CONTROLLER_TYPES` (…through the shared controller).
+
 The one ambiguous pair is `etl` vs `job`. The sharp test: **does the repo materialize a
 graph of Delta tables via declarative transforms? Yes → `etl`. No — it performs an *action*
-(export, orchestrate, score, maintain, trigger) → `job`.** See [new.md](commands/new.md) for the
+(export, orchestrate, score, maintain, trigger) → `job`.** `api` vs `fe` never is: they are
+two halves of one product, scaffolded as two repos, and the browser reaches the `api` only
+through the `fe`'s same-origin `/api` proxy — never directly, which is what keeps the
+backend's URL and credentials out of the shipped bundle. See [new.md](commands/new.md) for the
 full decision table.
+
+### `fe` — the one repo that is not Python
+
+Everything else in this skill assumes a Python repo, and `fe` is the exception the registry
+had to learn. Three places encode it, all of them one-liners:
+
+- **`PYTHON_TYPES`** — `fe` is excluded, so it does not receive `docs/PYTHON_STANDARDS.md`.
+  It gets `REACT_STANDARDS.md` and its conformance sheet instead. Shipping a repo a doc
+  nobody in it can act on is worse than shipping none.
+- **its own `.gitignore`** — the shared one is Python-flavoured, and `fe`'s ignores
+  `node_modules/`, `dist/`, `.vite/`. `dist/` stays uncommitted in both, but for opposite
+  reasons: build junk there, the deployed payload here.
+- **an inverted `.bundleignore`** — the shared one excludes `dist/`. `fe`'s excludes `src/`
+  and `node_modules/` and *keeps* `dist/`, because the deployed app is `dist/` +
+  `server.mjs` + `app.yml` and nothing else. That is only possible because `server.mjs` has
+  no dependencies — Node built-ins only, so nothing is installed at app startup and a cold
+  start cannot fail on the npm registry. Add a runtime dependency there and the trade
+  changes.
+
+`server.mjs` is also where two rules from `REACT_STANDARDS.md` are actually enforced rather
+than asserted: the browser only ever calls a same-origin `/api` path (so no backend host or
+token reaches `dist/`), and the process **exits at startup** when required configuration is
+missing, rather than booting and 500-ing on first use.
 
 ## Aspects — the same pieces, à la carte
 
@@ -82,12 +119,13 @@ five-year-old one. Two are choosable:
 
 | Aspect | Adds | Types |
 |---|---|---|
-| `cicd` | `.gitlab-ci.yml` + `team_config.yaml` + `run_resources.yml` + `.bundleignore` (genie: its space-validating pipeline); on a `job` repo also `config/{DEV,STG,PROD}/task_config.yaml` | `api` `etl` `job` `genie` |
+| `cicd` | `.gitlab-ci.yml` + `team_config.yaml` + `run_resources.yml` + `.bundleignore` (genie/agent: their declaration-validating pipeline; `fe`: its build-then-deploy pipeline and the inverted `.bundleignore` that keeps `dist/`); on a `job` repo also `config/{DEV,STG,PROD}/task_config.yaml` | `api` `etl` `job` `fe` `genie` `agent` |
 | `api` | `routers/platform.py` (`GET /v1/health` + `GET /v1/info`) plus the service spine those endpoints need: `core/` (validated settings, one logging setup, one exception hierarchy behind one handler layer, request-id middleware), `schema/`, `services/`, `repositories/` | `api` |
 
 The rest are **not decisions**, so they are never offered: the standards docs for the repo's
-type (each with its `*_CONFORMANCE.md` sheet), `.gitignore`, `docs/specs/README.md`, and a
-regenerated `CONFIG.md` come with **any** add wherever they are missing. They live in the same
+type (each with its `*_CONFORMANCE.md` sheet), `.gitignore` (the Node one on an `fe` repo, the
+Python / Databricks one everywhere else), `docs/specs/README.md`, and a regenerated
+`CONFIG.md` come with **any** add wherever they are missing. They live in the same
 registry — one definition each — just flagged `selectable: False`, and `add --list` prints
 them straight from `AUTO` so the list cannot drift from what a run actually applies.
 
@@ -105,7 +143,7 @@ pointers into nothing.
 Per-environment config is deliberately *inside* `cicd` rather than beside it: the DEV/STG/PROD
 split exists because the controller deploys per target, so it is part of the deploy story, not
 a separate thing to choose. Only `job` reads it (`${var.config_dir}/task_config.yaml`) — `api`
-serves env from `app.yml` and `etl` bakes the catalog into its tasks.
+and `fe` serve env from `app.yml` and `etl` bakes the catalog into its tasks.
 
 `{{cmd:scaffold:new}}` applies each type's **standard set** (`DEFAULT_BY_TYPE`); `{{cmd:scaffold:add}}`
 applies a single aspect to an existing repo, and `--aspect all` restores exactly that standard
@@ -136,7 +174,7 @@ scaffold/
   aspects.py                         aspect registry (files / types / wiring) + repo-type detection
   config_tokens.py                   TODO_SET_* token registry (group / label / example)
   templates/                         PAYLOAD — one dir per type
-    api-skeleton/  etl-bundle/  job-bundle/  agent/  genie/
+    api-skeleton/  etl-bundle/  job-bundle/  fe/  agent/  genie/
     cicd/  common/                   shared CI/CD + gitignore fragments
   README.md                          DOCUMENTATION — this file. Never installed
   docs/                              DOCUMENTATION — the workflow diagram. Never installed

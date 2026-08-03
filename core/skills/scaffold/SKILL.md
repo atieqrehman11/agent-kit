@@ -3,9 +3,9 @@ name: scaffold
 kind: skill
 description: >
   Create a new Databricks repository from a type-driven template — ETL bundle, job
-  bundle, API skeleton, agent, or Genie space — or add one aspect to a repo that already
-  exists, and fill its configuration placeholders. Use when starting a new repo or
-  bringing an existing one up to the org standard.
+  bundle, API skeleton, React front end, agent, or Genie space — or add one aspect to a
+  repo that already exists, and fill its configuration placeholders. Use when starting a
+  new repo or bringing an existing one up to the org standard.
 ---
 
 # Scaffold
@@ -21,6 +21,12 @@ description: >
 
 - `templates/` — one directory per repo type, plus the `*_STANDARDS.md` documents
 - `new.py` · `add.py` · `configure.py` · `aspects.py` · `config_tokens.py` · `profile.py`
+
+Types: `api` · `etl` · `job` · `fe` · `agent` · `genie`. `api` and `fe` are both
+`resources.apps` Databricks Apps — the backend and the front end of one product, scaffolded
+as two repos. `fe` is the only type that is not a Python repo, and the only bundle type that
+deploys itself rather than through the shared DAB controller (it ships a build artifact the
+controller's git checkout would not contain).
 
 Org-wide values (branding, team, CI/CD, cluster policies) come from the profile sheet,
 which is never committed. Everything else is per-repo.

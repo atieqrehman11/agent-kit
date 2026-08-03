@@ -38,7 +38,12 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
 
-  /* TODO_SET_BRAND_HUE — the product's accent. Everything "primary" is this. */
+  /* THE BRAND ACCENT. Everything "primary" is this — change it here and the
+     whole app follows. It is deliberately NOT a TODO_SET_ placeholder: the
+     value below is a working neutral indigo, and dark mode needs a *different*
+     lightness for the same hue (see `.dark` below), so one substituted token
+     could never set both. Change the two `--primary` values together, then
+     re-check contrast in both themes. */
   --primary: oklch(0.55 0.2 275);
   --primary-foreground: oklch(0.985 0 0);
 

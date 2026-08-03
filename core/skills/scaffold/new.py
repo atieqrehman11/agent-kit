@@ -8,6 +8,7 @@ is wired for every type.
     api    FastAPI Databricks App        resources.apps       (bundle deploy)
     etl    Lakeflow declarative pipeline resources.pipelines  (bundle deploy)
     job    Scheduled Databricks Job      resources.jobs       (bundle deploy)
+    fe     React Databricks App          resources.apps       (bundle deploy)
     agent  Multi-Agent Supervisor        supervisor_agents API (deploy script)
     genie  Genie space                   Genie management API  (deploy script)
 
@@ -15,17 +16,22 @@ Note: `apps` / `jobs` / `pipelines` are the DAB *schema collection keys* (always
 plural, even for one resource). The single resource key under them is singular.
 
 Deployment model:
-    Bundle types (api/etl/job):
+    Controller types (api/etl/job):
       dev  — LOCAL dev loop:  `./bundle.sh` (this laptop → dev workspace).
       stg  — CLOUD: CI/CD controller deploys on merge to the `stg` branch.
       prod — CLOUD: CI/CD controller deploys on merge to the `prod` branch.
+    fe: also a bundle, but it deploys ITSELF. What ships is dist/, a build
+      artifact that is not committed, and the controller deploys from a git
+      checkout without running a Node build — so build and deploy happen in one
+      job. Local: ./bundle.sh (build → deploy → run). Cloud: the repo's own
+      .gitlab-ci.yml on stg/prod merge, with its own DATABRICKS_TOKEN.
     API types (agent/genie): no bundle. src/deploy.py calls a management API —
       supervisor_agents for agent, createspace/updatespace for genie. Local via
       ./deploy.sh (dev), cloud via CI on stg/prod merge. Neither stores an id: the
       resource is resolved by name, "<name> [ENV]", in the target workspace.
 
 Usage:
-    python new.py --type {api|etl|job|genie|agent} \\
+    python new.py --type {api|etl|job|fe|genie|agent} \\
         --slug <kebab> --repo-name <name> --display-name "<name>" \\
         --description "<one sentence>" [--output-dir <dir>] \\
         --workspace-url <dev-url> --catalog <catalog> --table-prefix <prefix> \\
@@ -81,6 +87,7 @@ _TPL = _HERE + "/templates"
 API_TPL = _TPL + "/api-skeleton"
 ETL_TPL = _TPL + "/etl-bundle"
 JOB_TPL = _TPL + "/job-bundle"
+FE_TPL = _TPL + "/fe"
 
 
 # Where scaffolded repos are created. Resolved at runtime — no hardcoded path:
@@ -112,13 +119,16 @@ _IGNORE_CACHES = shutil.ignore_patterns(
 )
 
 # Repo types, defined once in aspects.py (add.py needs them without importing new).
-#   Bundle types deploy via `databricks bundle deploy` (dev) + the CI/CD controller
-#   (stg/prod): api, etl, job.
+#   Bundle types deploy via `databricks bundle deploy`: api, etl, job, fe.
+#     Of those, the CONTROLLER types (api, etl, job) hand stg/prod to the shared
+#     CI/CD controller; fe deploys itself, because it ships a build artifact the
+#     controller's git checkout would not contain.
 #   Script types have no DAB bundle; a deploy script calls a Databricks management API.
 #     genie: build serialized_space from space.yml → Genie createspace/updatespace API.
 #     agent: a Multi-Agent Supervisor created via the supervisor_agents SDK from config
 #            (instructions + a tools list) — the scripted equivalent of the Agents-tab UI.
 BUNDLE_TYPES = aspects.BUNDLE_TYPES
+CONTROLLER_TYPES = aspects.CONTROLLER_TYPES
 API_TYPES = aspects.API_TYPES
 ALL_TYPES = aspects.ALL_TYPES
 
@@ -327,12 +337,13 @@ def main(argv=None):
 
 # The full repo skeleton for each type lives under templates/<dir>/ (tokens intact).
 # Scaffolding is: copy the dir, (etl only) drop in the generated pipeline tasks,
-# make shell entrypoints executable. Bundle types then get the CI/CD controller
-# wired on top (see main); script types (genie/agent) ship their own deploy files.
+# make shell entrypoints executable. Controller types then get the CI/CD controller
+# wired on top (see main); fe, genie and agent ship their own pipeline + deploy files.
 TEMPLATE_DIR = {
     "api": API_TPL,
     "etl": ETL_TPL,
     "job": JOB_TPL,
+    "fe": FE_TPL,
     "genie": _TPL + "/genie",
     "agent": _TPL + "/agent",
 }
@@ -424,7 +435,38 @@ def _print_next_steps(
 ) -> None:
     print(f"\n  Created: {repo_dir}\n")
     print("  Next steps:")
-    if rtype in BUNDLE_TYPES:
+    if rtype == "fe":
+        print(
+            "    1. CONFIG.md           — fill the placeholder sheet (hosts, service principals,"
+        )
+        print(
+            "                             TODO_SET_BACKEND_API_URL), then apply it with:"
+        )
+        print("                             {{cmd:scaffold:configure}}")
+        print(
+            "    2. npm run setup       — installs deps and vendors shadcn/ui into src/shared/ui/"
+        )
+        print(
+            "    3. src/app/registry.ts — one entry per feature; nav and routes both derive from"
+        )
+        print("                             it, so adding a page edits no shell file")
+        print(
+            "    4. npm run verify      — format, lint, types, tests, build, bundle budget"
+        )
+        print(
+            "    5. Local dev deploy    — ./bundle.sh   (builds, then deploys to DEV)"
+        )
+        print(
+            "    6. Cloud deploy        — set DATABRICKS_TOKEN in GitLab CI/CD vars per branch,"
+        )
+        print(
+            "                             then merge to stg / prod. This repo deploys ITSELF —"
+        )
+        print(
+            "                             the controller has no Node build, so it would deploy"
+        )
+        print("                             a checkout with no dist/ in it.")
+    elif rtype in CONTROLLER_TYPES:
         print(
             "    1. CONFIG.md           — fill the placeholder sheet (hosts, service principals,"
         )

@@ -3,8 +3,8 @@ name: new
 kind: command
 description: >
   Create a new Databricks repo of a single type — ETL bundle, job bundle, API skeleton,
-  agent or Genie space — with CI/CD wired for that type. Use when starting a repo from
-  nothing.
+  React front end, agent or Genie space — with CI/CD wired for that type. Use when starting
+  a repo from nothing.
 arguments: "[repo type and name; prompted if omitted]"
 ---
 
@@ -18,6 +18,7 @@ wired for every type.
 | `api` | `resources.apps` — FastAPI Databricks App | `bundle deploy` | enterprise controller |
 | `etl` | `resources.pipelines` — Lakeflow declarative pipeline | `bundle deploy` | enterprise controller |
 | `job` | `resources.jobs` — scheduled Databricks Job | `bundle deploy` | enterprise controller |
+| `fe` | `resources.apps` — React (Vite + TS) Databricks App | `bundle deploy`, after `npm run build` | own pipeline: verify → build → deploy |
 | `agent` | Agent Bricks Multi-Agent Supervisor | `supervisor_agents` SDK (`./deploy.sh`) | validate → deploy script |
 | `genie` | Genie space | Genie management API (`createspace`/`updatespace`) | validate → apply DDL → deploy script |
 
@@ -25,10 +26,17 @@ wired for every type.
 > for one resource). The single resource key under them is singular and derived from the slug.
 
 **Deployment model:**
-- **Bundle types (`api`/`etl`/`job`)** — **dev** is the LOCAL dev loop (`./bundle.sh`,
+- **Controller types (`api`/`etl`/`job`)** — **dev** is the LOCAL dev loop (`./bundle.sh`,
   this laptop → dev workspace, dev only); **stg/prod** are CLOUD deploys the shared CI/CD
   controller runs on merge to the `stg`/`prod` branch. Never run `bundle deploy -t stg|prod`
   locally.
+- **`fe`** — a DAB bundle like the three above (the same `resources.apps` as `api`), but it
+  deploys **itself**. What ships is `dist/`, a build artifact that is not committed, and the
+  controller deploys from a git checkout without running a Node build — so build and deploy
+  happen in one job. **local**: `./bundle.sh` (npm ci → verify → build → deploy → run, dev
+  only); **stg/prod**: the repo's own `.gitlab-ci.yml`, with its own `DATABRICKS_TOKEN`
+  scoped per branch, manual on each. The workspace host is not a CI variable — it comes from
+  the matching target in `databricks.yml`.
 - **`agent`** — no DAB bundle. A **Multi-Agent Supervisor** created via the Databricks
   `supervisor_agents` SDK — the scripted equivalent of the Agents-tab UI. `supervisor/`
   holds the definition (`supervisor.yml`: display_name, description, tools list +
@@ -55,10 +63,24 @@ in order and stop at the first match:
 | If the deliverable is… | Type | Resource |
 |---|---|---|
 | An HTTP service / interactive backend | `api` | `resources.apps` |
+| A **browser UI** — dashboard, console, chat surface | `fe` | `resources.apps` |
 | A set of **Delta tables** built by declarative transforms (ingest → bronze → silver → gold, with data quality) | `etl` | `resources.pipelines` |
 | An **action run on a schedule** — export, orchestration/glue, batch scoring, maintenance, or triggering a pipeline | `job` | `resources.jobs` |
 | A conversational / tool-routing **supervisor agent** given instructions + a list of tools | `agent` | Agent Bricks Multi-Agent Supervisor (SDK) |
 | **Natural-language-to-SQL** over curated tables | `genie` | Genie management API |
+
+### `api` + `fe` — two repos, one product
+
+A product with a UI is **two repos**, not one: `api` for the backend, `fe` for the browser.
+Scaffold both. They are separately deployable Databricks Apps, and the split is what lets the
+front end proxy rather than expose — the browser calls the `fe`'s **same-origin** `/api` path,
+`server.mjs` forwards it to the `api` App, and the backend's URL and the token used to reach
+it never enter the shipped bundle.
+
+Scaffold the `api` first: `fe`'s `TODO_SET_BACKEND_API_URL` is the api App's URL, and the api
+repo's app resource grants the front end's service principal `CAN_USE`. If the user asks for
+"a dashboard", ask whether the backend exists yet — if it does not, that is two scaffolds, and
+say so before running either.
 
 ### `etl` vs `job` — the one ambiguous pair
 
@@ -83,7 +105,7 @@ generational** — `etl` is a declarative *transformation engine*; `job` is a ge
 ## Wizard
 
 Run this **entirely as an interactive wizard using the `AskUserQuestion` tool**. This
-applies to **every type** (`api`/`etl`/`job`/`agent`/`genie`) and to **every field** — do
+applies to **every type** (`api`/`etl`/`job`/`fe`/`agent`/`genie`) and to **every field** — do
 **not** drop to plain inline text prompts at any step. `AskUserQuestion` is a multiple-choice
 picker; free-text values (slug, names, description, URLs, etc.) are captured via the **"Other"**
 option on each question, which lets the user type. Every question needs **at least two
@@ -105,14 +127,16 @@ now?" screen — that work is deferred to `configure` by design.
 **Step 1 — One form (AskUserQuestion, one screen, four questions).** Ask **Type**, **Slug**,
 **Repo name**, and **Description** together on a single screen:
 
-- **Type** (single-select) — five types exist but the picker shows at most four buttons plus
-  the auto-added **"Other"**, so **show `genie` as a real button** and demote the least-likely
-  bundle type to Other: present `api` · `etl` · `genie` · `agent` as buttons and **name `job`
-  explicitly in the question text** (*"Not a button: `job` — a scheduled action
-  (export / orchestrate / batch-score / maintain / trigger a pipeline); choose 'Other' and
-  type `job`."*). Never bury `genie` in Other. Use **Choosing the type** above to guide the
-  user; if they are unsure between `etl` and `job`, apply the "materialize tables vs perform
-  an action" test and state which the answer implies before confirming.
+- **Type** (single-select) — six types exist but the picker shows at most four buttons plus
+  the auto-added **"Other"**, so present `api` · `fe` · `etl` · `genie` as buttons and **name
+  the other two explicitly in the question text** (*"Not buttons — choose 'Other' and type the
+  name: `job` (a scheduled action: export / orchestrate / batch-score / maintain / trigger a
+  pipeline), `agent` (a tool-routing supervisor)."*). Never bury `genie` or `fe` in Other —
+  both are easy to forget exist, which is exactly when a wrong type gets picked. Use
+  **Choosing the type** above to guide the user; if they are unsure between `etl` and `job`,
+  apply the "materialize tables vs perform an action" test and state which the answer implies
+  before confirming. If they pick `fe`, ask whether the backend `api` repo already exists —
+  a UI with no backend is two scaffolds, not one.
 - **Slug** — kebab-case identifier. It is a **free-text field**, so the two placeholder
   options are illustrative examples ONLY — label them clearly ("example only — choose Other to
   type your real slug") and use neutral values that do **not** collide with existing repo
@@ -147,7 +171,7 @@ not type the placeholder yourself):
 
 ```bash
 python3 __SKILL_DIR__/new.py \
-  --type <api|etl|job|genie|agent> \
+  --type <api|etl|job|fe|genie|agent> \
   --slug "<slug>" \
   --display-name "<display name>" \
   --description "<one sentence>" \
@@ -170,8 +194,9 @@ checklist.
 - Report the full path of the created repo and the printed next-steps.
 - Docs live in **`docs/`**: the cross-cutting `PYTHON_STANDARDS.md` plus the per-type file
   (`API_STANDARDS.md` / `PIPELINE_STANDARDS.md` / `JOB_STANDARDS.md` / `AGENT_STANDARDS.md` /
-  `GENIE_STANDARDS.md`). The root `README.md` links into `docs/`. Point the
-  user at them.
+  `GENIE_STANDARDS.md`), each with its `*_CONFORMANCE.md` sheet. An **`fe`** repo gets
+  `REACT_STANDARDS.md` and **no** `PYTHON_STANDARDS.md` — it is TypeScript end to end,
+  `server.mjs` included. The root `README.md` links into `docs/`. Point the user at them.
 - **Placeholders** — every deferred input is written as a `TODO_SET_` token (e.g.
   `TODO_SET_DEV_WORKSPACE_HOST`, `TODO_SET_CATALOG`, `TODO_SET_TABLE_PREFIX`,
   `TODO_SET_TEAM_NAME`) and listed in the repo's generated `CONFIG.md`. Tell the user to fill
@@ -180,13 +205,30 @@ checklist.
 - **api** — domain schemas live in `schema/models.py`; runtime `command`/`env` live in
   `app.yml` (single source of truth — the app resource in `resources/api.app.yml` no longer
   duplicates them).
-- **Bundle types** — remind the user to fill the `TODO_SET_*` values in `databricks.yml`
-  (stg/prod hosts, service principals, policy ids) and `team_config.yaml` (repo url, service
-  principals) before the first cloud deploy, and to set `CONTROLLER_TRIGGER_TOKEN` in GitLab
-  CI/CD variables. Local dev testing: `./bundle.sh`.
+- **Controller types (`api`/`etl`/`job`)** — remind the user to fill the `TODO_SET_*` values
+  in `databricks.yml` (stg/prod hosts, service principals, policy ids) and `team_config.yaml`
+  (repo url, service principals) before the first cloud deploy, and to set
+  `CONTROLLER_TRIGGER_TOKEN` in GitLab CI/CD variables. Local dev testing: `./bundle.sh`.
 - **api** also: set `TODO_SET_WAREHOUSE_ID` / `TODO_SET_CHAT_GATEWAY_URL` in `app.yml`
   (the runtime env), and register the domain with the shared chat gateway service
   (its `domain_configs/`).
+- **fe** — `npm run setup` first: it installs dependencies **and** vendors the shadcn/ui
+  components into `src/shared/ui/` (they are vendored, not a dependency, which is why that
+  folder is excluded from lint and format). Then `npm run dev`. A feature is **one entry in
+  `src/app/registry.ts`** — nav and routes are both derived from it, so adding a page edits
+  no shell file, and `src/app/registry.test.tsx` asserts that. Set
+  `TODO_SET_BACKEND_API_URL` in `app.yml` to the `api` App's URL; the browser only ever
+  calls the same-origin `/api` path and `server.mjs` proxies it, so no backend host or token
+  reaches `dist/`. The proxy authenticates as **the app's own service principal** by default
+  (`BACKEND_API_AUTH=sp` — Databricks Apps injects the client id + secret, nothing to store),
+  so the one thing to get right is granting that principal `CAN_USE` on the `api` App:
+  `TODO_SET_FRONTEND_SP_ID` in the api repo's app resource. Forwarding the signed-in user's
+  token instead (`obo`) is implemented and commented ready in `resources/fe.app.yml` — tell
+  the user it is the intended direction, but only once the backend authorizes per user. Cloud deploy needs `DATABRICKS_TOKEN` in GitLab CI/CD variables scoped per
+  branch — **not** `CONTROLLER_TRIGGER_TOKEN`; this repo deploys itself, because the
+  controller runs no Node build and would deploy a checkout with no `dist/` in it. Tell the
+  user that `npm run verify` (format → lint → types → tests → build → bundle budget) is
+  exactly what CI and `./bundle.sh` run. Full guidance: `docs/REACT_STANDARDS.md`.
 - **agent** — no bundle: a Multi-Agent Supervisor deployed by script. Write the routing
   guidance in `supervisor/instructions.md`, set `display_name`/`description` and the `tools`
   list (each: `id`, `type`, `description` + its id) in `supervisor/supervisor.yml`, then
@@ -218,9 +260,9 @@ Every step is an `AskUserQuestion` picker — no inline text prompts:
 ```
 {{cmd:scaffold:new}}
 → [picker] Type / Slug / Repo / Desc?   etl |                       (ONE screen, 4 questions;
-   (genie is a button; job named in       signal-quality |           free text via "Other";
-    the Type question → Other)             ai-signal-quality-etl |
-                                           Monitors cable signal health…
+   (api·fe·etl·genie are buttons;         signal-quality |           free text via "Other";
+    job and agent named in the            ai-signal-quality-etl |
+    Type question → Other)                Monitors cable signal health…
    (display name auto-derived: Signal Quality)
 → [picker] Confirm?                      Proceed / Cancel
 ✓ Confirm → runs new.py --type etl --slug signal-quality --display-name "Signal Quality" \

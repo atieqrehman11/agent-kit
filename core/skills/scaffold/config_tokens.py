@@ -167,6 +167,13 @@ TOKENS = [
         "Genie space id (only if the app queries Genie)",
         "",
     ),
+    (
+        "TODO_SET_BACKEND_API_URL",
+        "Front End Runtime",
+        "Use case API the front end proxies to. The browser never sees it — it "
+        "calls the same-origin /api path and server.mjs forwards",
+        "https://<app-name>.<workspace>.databricksapps.com",
+    ),
 ]
 
 # token -> (token, group, label, example)
