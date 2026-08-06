@@ -222,4 +222,4 @@ Initial request errors use the main API `ErrorResponse` shape defined in the [`a
 
 ## Conformance
 
-The audit checklist for this guideline lives beside it, in [`chat-api.conformance.md`](chat-api.conformance.md) — one file, one source of truth, loaded by whoever is auditing rather than by everyone who edits a file.
+The audit checklist for this guideline lives beside it, in [`conformance/chat-api.md`](conformance/chat-api.md) — one file, one source of truth, loaded by whoever is auditing rather than by everyone who edits a file.

@@ -169,12 +169,63 @@ for a vague one.
 - Record in `CHANGELOG.md` whether a change altered routing, scope or grounding — those are the
   changes that need a fresh eval baseline, not a wording tidy.
 
+## 4c. Tools that do things
+
+A read-only tool that routes badly returns a wrong answer. A **side-effecting** tool that routes
+badly writes, sends, refunds or deletes — and no instruction reliably prevents it, because §4b's
+first rule applies hardest here: instructions are advisory.
+
+**Always:**
+
+- **Classify every tool read-only or side-effecting** in its `supervisor.yml` `description`,
+  before attaching it. If nobody can say which it is, it is not ready to attach.
+- **Prefer proposing to acting.** A tool that returns a draft for a human to apply removes this
+  whole class of risk, and is usually what the use case actually needed.
+- **Scope the principal, not the prompt.** A tool that *can* write to everything eventually will.
+
+**Any side-effecting tool that reaches real data or real users also needs:**
+
+- **Confirmation in the tool**, restating the resolved parameters — not in the instructions, and
+  not a sentence the supervisor is asked to emit.
+- **An audit record** per invocation: who asked, resolved parameters, what changed. The
+  supervisor's transcript records what was *said*, not what was committed.
+- **Idempotency, or a caller-supplied key** the tool deduplicates on. A retried turn, a duplicate
+  route or a rephrasing must not double-apply.
+
 ## 5. Versioning & the eval loop
 
 - Keep `CHANGELOG.md`: version → date → eval baseline → what changed, one row per deploy.
 - The loop: **edit `supervisor/` → deploy → run `evaluation/` → record the baseline**.
   Scaffold the eval area with `{{cmd:eval:new}}` and point the spec at the supervisor's
   query URL.
+
+**Instructions and tool descriptions are the product (§4a), so editing them is a behaviour change
+with no compile step and no test to break.** The eval set is the only thing between a routing
+tweak and a silent regression nobody re-checked.
+
+- **Cover routing explicitly.** The common failure is not a bad answer — it is the right answer
+  from the wrong tool, or two tools both firing. Assert *which tool answered*.
+- **Cover the boundary**: an out-of-scope question is declined per §4a, and a tool returning
+  nothing produces a stated "I don't know" rather than a fallback to model knowledge.
+- **Cover injection**: a tool result saying "ignore your instructions" is reported as content.
+- **The gate:** a change to `instructions.md`, a tool `description`, or the attached tool list
+  requires a fresh eval run before merge, with the pass rate at or above the `CHANGELOG.md`
+  baseline. A deliberate trade records the new baseline and reason in the same commit.
+- **One run is not a result.** Run the set repeatedly and record the pass rate; a case that
+  passes intermittently is failing.
+
+## 5a. Observability and cost
+
+- **One correlation id per turn, propagated into every tool call.** Without it a wrong answer
+  cannot be traced to the tool that produced it, and debugging by reading the final reply is
+  guesswork.
+- **Record per turn**: tools called and in what order, tokens in and out, per-tool and total
+  latency. Routing defects show up here long before a user reports one.
+- **Cap what can run away** — tools per turn, retries per tool, total turn latency — in
+  configuration, not instructions. A routing loop between two tools is a cost incident, and a
+  model asked politely to stop will not.
+- **Tool output is logged at DEBUG, never INFO.**
+- Alert on refusal rate, empty-tool-result rate and per-tool error rate.
 
 ---
 
@@ -193,3 +244,9 @@ per-environment id (§3a).
 There is no shared-controller path: a supervisor is not a DAB resource, so nothing is
 deployed by the bundle controller. If that changes, the wrapper changes and `supervisor/` +
 `deploy.py` do not.
+
+---
+
+## Conformance
+
+The audit checklist for this guideline lives beside it, in [`conformance/agent.md`](conformance/agent.md) — one file, one source of truth, loaded by whoever is auditing rather than by everyone who edits a file.

@@ -96,17 +96,21 @@ PYTHON_TYPES = tuple(t for t in ALL_TYPES if t != "fe")
 
 
 def _conformance_for(src_rel, dest):
-    """The ``<name>.conformance.md`` sibling of a guideline, if it has one (STANDARD.md §1.2).
+    """The ``conformance/<name>.md`` checklist of a guideline, if it has one (STANDARD.md §1.2).
 
-    Derived from the tree rather than listed: a guideline that gains a sibling starts
+    Derived from the tree rather than listed: a guideline that gains a sheet starts
     shipping it with no edit here, which is the same rule obligation 1 puts on adapters.
+
+    The generated repo gets a flat ``docs/<NAME>_CONFORMANCE.md`` rather than a mirrored
+    directory — a use-case repo carries one or two of these, so a folder holding a single
+    file would be structure for its own sake.
     """
     if not src_rel.startswith("guidelines:"):
         return []
     name = src_rel.split(":", 1)[1][:-3]
-    if not os.path.isfile(os.path.join(GUIDELINES, f"{name}.conformance.md")):
+    if not os.path.isfile(os.path.join(GUIDELINES, "conformance", f"{name}.md")):
         return []
-    return [(f"guidelines:{name}.conformance.md", f"docs/{dest[:-3]}_CONFORMANCE.md")]
+    return [(f"guidelines:conformance/{name}.md", f"docs/{dest[:-3]}_CONFORMANCE.md")]
 
 
 # Tool caches a formatter/linter may have dropped in a template dir.

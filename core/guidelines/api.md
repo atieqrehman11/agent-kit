@@ -411,10 +411,52 @@ The OpenAPI spec is the contract. Frontend integration should start after the re
 
 ---
 
+## 12. AI-Backed Endpoints
+
+Rules for any endpoint whose response depends on a model call. **How the call itself is made —
+prompt loading, redaction, retries, structured output, caching, logging and the eval gate — is
+[`python-llm`](./python-llm.md).** This section is only what changes at the *API boundary*, where a
+non-deterministic component sits behind a contract that must stay deterministic.
+
+**The contract is stable even when the content is not.**
+
+- The response schema is fixed and documented in OpenAPI like any other. Model free text goes in a
+  **field**; it never becomes the shape of the response. An endpoint whose keys vary with what the
+  model returned has no contract.
+- Model output is validated against the response model before returning. A parse failure is a
+  `502`-class dependency error, not a `200` carrying malformed content.
+- **Never return the prompt, system instructions, or raw provider payloads.**
+
+**The caller must be able to tell a grounded answer from a guess.**
+
+- An answer derived from retrieved context carries its **sources** — document ids, table names or
+  record keys. An answer with no verifiable provenance is a liability the caller cannot assess.
+- **"Insufficient context" is a documented success state**, not an error and not a blank. An
+  endpoint with no way to say "I could not ground this" fabricates instead.
+- Expose a confidence or relevance score where one gated the answer; the threshold itself is
+  configuration, per [`service-structure`](./service-structure.md).
+
+**Model calls fail and cost money, so bound them at the boundary.**
+
+- Every model call has an explicit timeout, shorter than the client's. Report the model endpoint's
+  state in `GET /v1/health` — that is what `model_endpoint` in §4 is for.
+- **Cap per request** from configuration: max input size, max output tokens, max model calls, max
+  retrieval depth. An unbounded request is an unbounded bill.
+- **Rate limit per client**, not just per service — one caller in a retry loop must not exhaust
+  the provider quota for everyone.
+- Generation that can exceed a few seconds uses the async job pattern in §9. Token streaming is
+  conversational — see [`chat-api`](./chat-api.md).
+- A retried `POST` must not re-spend: accept an idempotency key where the model call is expensive
+  and return the stored result.
+- Per-call logs are correlated by `request_id` and carry the **prompt version** — without it a
+  latency or quality shift cannot be attributed to the change that caused it.
+
+---
+
 *API Standards v1.0 | Gen AI Platform*
 
 ---
 
 ## Conformance
 
-The audit checklist for this guideline lives beside it, in [`api.conformance.md`](api.conformance.md) — one file, one source of truth, loaded by whoever is auditing rather than by everyone who edits a file.
+The audit checklist for this guideline lives beside it, in [`conformance/api.md`](conformance/api.md) — one file, one source of truth, loaded by whoever is auditing rather than by everyone who edits a file.

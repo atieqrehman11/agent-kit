@@ -201,4 +201,4 @@ Rules:
 
 ## Conformance
 
-The audit checklist for this guideline lives beside it, in [`service-structure.conformance.md`](service-structure.conformance.md) — one file, one source of truth, loaded by whoever is auditing rather than by everyone who edits a file.
+The audit checklist for this guideline lives beside it, in [`conformance/service-structure.md`](conformance/service-structure.md) — one file, one source of truth, loaded by whoever is auditing rather than by everyone who edits a file.

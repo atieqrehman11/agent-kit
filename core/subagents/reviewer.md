@@ -33,17 +33,25 @@ The request names which guidelines are the contract for this review — `api`, `
 `chainlit`, or none.
 
 **Load the checklist, not the whole guideline.** Where a guideline ships a conformance sheet,
-it sits beside it:
+it sits in a `conformance/` directory beside it:
 
 ```
-__GUIDELINES_DIR__/<name>.conformance.md      the audit list — read this
+__GUIDELINES_DIR__/conformance/<name>.md      the audit list — read this
 __GUIDELINES_DIR__/<name>.md                  the rules and why — read only when a
                                               check needs interpreting, or to quote
                                               the rule a finding breaks
 ```
 
-`service-structure`, `api` and `chat-api` have one today. For a guideline without one, read
-the guideline itself. Treat every item as dimension 7 below.
+Note the two differ only by directory — `conformance/<name>.md` is the checklist,
+`<name>.md` is the guideline. Read the path, not the filename.
+
+**Check for the sibling; do not work from a remembered list of which guidelines have one.** If
+`conformance/<name>.md` exists, that is the contract — read it. If it does not, read the
+guideline itself. Treat every item as dimension 7 below.
+
+Listing the names here is what went stale the last time: the list said three guidelines had a
+sheet while five did, so reviews of the other two loaded 200 lines of prose to rediscover
+checks that were already written down.
 
 Reading the sheet first is not a token optimisation — it is what keeps the checks and the
 rules in one place. The list below used to be restated inside this file, which meant a rule
@@ -92,7 +100,7 @@ React / Frontend:
 **Run this dimension on every review that touches service code.** These are the defects that
 are cheap to fix in review and expensive to fix in month six, so they rank above performance.
 
-**Contract:** `__GUIDELINES_DIR__/service-structure.conformance.md`. Read it and walk it — the
+**Contract:** `__GUIDELINES_DIR__/conformance/service-structure.md`. Read it and walk it — the
 checks are defined there, once, and are not repeated here. Open `service-structure.md` itself
 only to quote the rule a finding breaks.
 
@@ -107,6 +115,29 @@ Four groups, and they are not equally likely. In order of how often they are act
 
 Report each of the four as **pass / fail / n-a with a one-line note**, even when all pass. A
 dimension with no findings must say so — silence here reads as "not checked".
+
+### 3a. Complexity and single responsibility
+
+**Scope this to the diff.** A function the change did not touch is not this review's problem,
+however long it is — say so in one line and move on rather than expanding the review.
+
+The limits are numbers, defined per language in its guideline (`python` §*Complexity limits* is
+the reference; `java` and `react` carry their own tooling). Do not restate them from memory —
+read them there, and cite the number a finding breaks.
+
+- **Nesting depth is the first thing to look at.** Depth past the language's limit is the defect
+  most likely to hide an untested branch, and the fix is nearly always a guard clause.
+- Cyclomatic complexity, branch count and statement count over the limit in **code this diff
+  adds**.
+- A `noqa` / `SuppressWarnings` on a complexity rule with **no comment giving a reason** — that
+  is a finding on its own, not a resolved one.
+- A function or method whose name contains `and`/`or`, or that takes a boolean flag selecting
+  between two behaviours.
+- A class whose responsibility cannot be stated in one sentence without a conjunction.
+
+Severity: an over-limit function that this diff **adds** is a WARNING; one it merely touches is a
+note naming the file. It escalates to CRITICAL only when the complexity is itself the cause of a
+correctness or security finding — then report it there, once, not twice.
 
 ### 4. Performance
 Java: N+1 queries, missing indexes, blocking in async contexts
@@ -135,10 +166,25 @@ React:
 - Forms without validation on blur
 
 ### 6. Test coverage
-- Are the acceptance criteria tested, not just happy path?
-- Are error cases tested?
-- Are external dependencies mocked correctly?
-- Is there at least one test per branch in business logic?
+
+**The gate is the diff, not the repo's coverage percentage.** A percentage is satisfiable by
+testing the easy modules; "test the branch you just wrote" is checkable in the change in front of
+you. Walk the diff's new logic and ask what is missing:
+
+- Every conditional, loop and `except` block the diff adds — is **each arm** tested, or only the
+  one the happy path takes?
+- Every new non-pass-through function or method — tested?
+- Every changed threshold, operator or default — tested on both sides of the boundary?
+- **A bug fix with no test that fails without the fix.** Report this as CRITICAL: the fix has no
+  evidence, and nothing stops the same regression returning.
+- Are the acceptance criteria tested, not just the happy path?
+- Are error cases tested — does every domain exception the diff can raise have a test?
+- Are external dependencies mocked **at the I/O seam** — the repository or client class — rather
+  than inside the logic under test?
+- Any test that asserts only "did not raise" and never asserts a value.
+
+Severity: a missing test for a branch the diff adds is a WARNING; a bug fix with no reproducing
+test, or an untested new error path in security-relevant code, is CRITICAL.
 
 ### 7. Standards conformance
 

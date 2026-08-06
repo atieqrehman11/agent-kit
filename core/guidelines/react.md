@@ -14,7 +14,7 @@ applies_to:
 
 You are a senior React/TypeScript developer. Implement to production quality.
 
-The audit list for these rules is [`react.conformance.md`](react.conformance.md).
+The audit list for these rules is [`conformance/react.md`](conformance/react.md).
 
 ## Tech stack
 
@@ -71,6 +71,42 @@ src/features/<feature>/
 - Co-locate `Component.tsx` with `Component.test.tsx`
 - Loading, error **and** empty states are mandatory for every data-fetching component. An
   empty result renders as empty, not as an error
+
+## Complexity limits
+
+Same thresholds as [`python`](./python.md) and [`java`](./java.md), via ESLint. Set them as
+`error` — a warning in a front-end build is invisible within a week.
+
+```json
+{
+  "rules": {
+    "complexity": ["error", 10],
+    "max-depth": ["error", 4],
+    "max-statements": ["error", 50],
+    "max-params": ["error", 5],
+    "react/jsx-max-depth": ["error", { "max": 4 }]
+  }
+}
+```
+
+**Depth shows up twice in this stack**, and both count. In **logic** — nested conditionals in a
+hook or handler; fix with an early return, or move the decision into a hook where it can be
+tested without rendering. In **JSX** — nested ternaries and deep conditional markup; extract a
+component, or compute the branch above the `return` as a named variable
+(`react/jsx-no-leaked-render` catches the related `&&` bug).
+
+**A component past ~150 lines is doing more than one thing**, and the seam is almost always a
+hook — *Components render; hooks decide* is single responsibility stated for this stack. Tells:
+a component that both fetches and lays out, a hook named for two concerns, a `utils.ts` that has
+become a drawer.
+
+## Tests for new logic
+
+Every branch this change adds is tested by this change: each arm of a new conditional in a hook
+or handler; the loading, error and empty states of any new data-fetching component; both sides of
+every changed threshold; a test that **fails without the fix** for every bug fix. Assert rendered
+behaviour rather than implementation details, and intercept with MSW at the network boundary
+rather than mocking the client module — see *Data access*.
 
 ## Theming
 
@@ -159,3 +195,9 @@ src/features/<feature>/
 
 Before finalising, list every criterion from the task definition with ✓ or ✗.
 Fix any ✗ before responding.
+
+---
+
+## Conformance
+
+The audit checklist for this guideline lives beside it, in [`conformance/react.md`](conformance/react.md) — one file, one source of truth, loaded by whoever is auditing rather than by everyone who edits a file.

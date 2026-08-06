@@ -111,3 +111,9 @@ Include an eval fixture covering:
 
 Before finalising, list every criterion from the task definition with ✓ or ✗.
 Fix any ✗ before responding.
+
+---
+
+## Conformance
+
+The audit checklist for this guideline lives beside it, in [`conformance/python-llm.md`](conformance/python-llm.md) — one file, one source of truth, loaded by whoever is auditing rather than by everyone who edits a file.

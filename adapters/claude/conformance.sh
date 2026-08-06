@@ -119,42 +119,46 @@ sys.exit(1 if bad else 0)
 PY
 r $? "rendered frontmatter parses as YAML with string-typed values"
 
-# 10 §1.2: every conformance sibling in core/ was installed beside its guideline, and none
-# of them became an entry point. The failure this guards is a sibling discovered as a
-# guideline in its own right — it would register a phantom skill named
-# "service-structure.conformance" and validate against frontmatter it does not have.
+# 10 §1.2: every conformance sheet in core/guidelines/conformance/ was installed to the
+# mirrored path, each names a guideline that exists, and the directory itself never leaked
+# into a registration tree. Under the earlier flat layout this check had to guard a derived
+# name — "service-structure.conformance.md" discovered as an artifact would register a
+# phantom skill "service-structure.conformance" with frontmatter it does not have. The
+# subdirectory removes that hazard structurally (a directory is not a ".md"), so what is
+# left to assert is the directory, not the name — sheets now share their guideline's name
+# by design.
 python3 - "$KIT" "$T" <<'PY'
 import os, sys
 kit, t = sys.argv[1], sys.argv[2]
 src = os.path.join(kit, "core", "guidelines")
-sibs = [f for f in os.listdir(src) if f.endswith(".conformance.md")]
+cdir = os.path.join(src, "conformance")
+sheets = sorted(f for f in os.listdir(cdir) if f.endswith(".md")) if os.path.isdir(cdir) else []
 bad = []
-if not sibs:
-    print("no conformance siblings in core/ — this check proves nothing"); sys.exit(1)
-for f in sibs:
-    name = f[: -len(".conformance.md")]
-    if not os.path.isfile(os.path.join(t, "guidelines", f)):
-        bad.append(f"{f}: not installed beside its guideline")
+if not sheets:
+    print("no conformance sheets in core/ — this check proves nothing"); sys.exit(1)
+for f in sheets:
+    name = f[:-3]
+    if not os.path.isfile(os.path.join(t, "guidelines", "conformance", f)):
+        bad.append(f"{f}: not installed to guidelines/conformance/")
     if not os.path.isfile(os.path.join(src, f"{name}.md")):
-        bad.append(f"{f}: orphan — no {name}.md in core/")
-    if os.path.exists(os.path.join(t, "skills", f"{name}.conformance")):
-        bad.append(f"{f}: registered as a skill")
-    if os.path.exists(os.path.join(t, "commands", f"{name}.conformance")):
-        bad.append(f"{f}: registered as a command")
+        bad.append(f"{f}: orphan — no {name}.md in core/guidelines/")
+for sub in ("skills", "commands"):
+    if os.path.exists(os.path.join(t, sub, "conformance")):
+        bad.append(f"conformance/ registered under {sub}/")
 for b in bad:
     print(b)
 sys.exit(1 if bad else 0)
 PY
-r $? "conformance siblings installed as payload, none registered (§1.2)"
+r $? "conformance sheets installed as payload, none registered (§1.2)"
 
-# 11 an orphan sibling is a failed install, not a warning — same class as a dangling
+# 11 an orphan sheet is a failed install, not a warning — same class as a dangling
 # {{cmd:…}}. Written as a property: drop one in, assert the installer refuses.
-cp "$KIT/core/guidelines/api.conformance.md" "$KIT/core/guidelines/zzz-nonexistent.conformance.md"
+cp "$KIT/core/guidelines/conformance/api.md" "$KIT/core/guidelines/conformance/zzz-nonexistent.md"
 python3 "$KIT/adapters/claude/install.py" "$W/t2/.claude" >"$W/orphan.log" 2>&1
 orphan_rc=$?
-rm -f "$KIT/core/guidelines/zzz-nonexistent.conformance.md"
-[ $orphan_rc -ne 0 ] && grep -qi "conformance sibling with no guideline" "$W/orphan.log"
-r $? "a conformance sibling with no guideline fails the install"
+rm -f "$KIT/core/guidelines/conformance/zzz-nonexistent.md"
+[ $orphan_rc -ne 0 ] && grep -qi "conformance sheet with no guideline" "$W/orphan.log"
+r $? "a conformance sheet with no guideline fails the install"
 
 # 12 §1.6: marker verification must be a general scan, not a list of remembered names.
 # Property test — invent a token nobody has ever heard of and assert the install refuses.

@@ -214,3 +214,64 @@ environments, since the repo stores no per-environment id (§4).
 - Keep `CHANGELOG.md`: version → date → eval baseline → what changed, one row per deploy.
 - The loop: **edit `genie-space/` → deploy → run `evaluation/` → record the baseline**.
   Scaffold the eval area with `{{cmd:eval:new}}` and point the spec at the deployed space.
+
+---
+
+## 11. Benchmark coverage — the accuracy gate
+
+A Genie space has no unit tests, so **the benchmark set is the test suite**. Without one there is
+no way to tell a tuning improvement from a regression, and every change in this repo is a
+behaviour change to a non-deterministic system.
+
+**Minimum, for any space that anyone else will query:**
+
+- **A handful of held-out cases.** Example queries (§6) are *training* signal sent to the space;
+  benchmark questions are evaluation. A question used as an example query must not also be a
+  benchmark case — grading a space on what you taught it measures nothing.
+- **At least one negative case.** A question about data the space does not hold must be declined,
+  not answered from a plausible-looking wrong table. An unanswerable question that returns a
+  confident number is this system's most expensive failure mode, because nothing downstream
+  flags it.
+- **Grade on the answer, not on SQL text.** Two correct queries differ textually; assert on the
+  result set or the value a caller would read.
+
+**Before it serves real users, add:**
+
+- Coverage of the shapes users actually ask: a filter, an aggregation, a group-by-and-rank, a
+  period-over-period comparison, a multi-table join, and a question needing a business definition
+  from `instructions.md`.
+- An **expected answer with a source** per case — a validated query or known-good report. A case
+  whose expected value nobody can source gets edited to match whatever the space returned.
+- **Repeated runs, recorded as a pass rate.** One run of a non-deterministic system is not a
+  result; a case that passes intermittently is failing.
+- **The gate:** a change to `instructions.md`, `description.md`, `example_queries.yml`,
+  `data_sources` or a backing view requires a fresh run before merge, and the pass rate must not
+  fall below the `CHANGELOG.md` baseline. A deliberate drop records the new baseline and the
+  reason in the same commit. A wording tidy needs no rerun.
+
+---
+
+## 12. Safety and data handling
+
+- **Instructions are not an access control.** "Do not show salary data" is advisory to a model and
+  bypassable by a rephrased question. If a column must not be readable, keep it out of
+  `data_sources` — a UC grant, row filter or column mask on the underlying table, or a view that
+  omits it (§5).
+- **Text columns are untrusted input.** A document body or free-text field surfaced through a data
+  source can contain instructions. `instructions.md` must state that column *content* is data to
+  report, never an instruction to follow.
+- **Be explicit about whose permissions apply.** Querying as the asking user or as the space's
+  principal decides whether row-level security is real. Record which; never assume the narrower.
+- **PII stays out unless the use case needs it.** Masking at the view is cheaper than a policy
+  asking users not to ask.
+- **Business definitions live in `instructions.md`, once.** "Active customer", "churn" — an
+  unwritten definition is one the space invents per question, and two users get two numbers for
+  the same word.
+- State the refusal behaviour: what the space says when it cannot answer. An unstated refusal is
+  improvised differently every time.
+
+---
+
+## Conformance
+
+The audit checklist for this guideline lives beside it, in [`conformance/genie.md`](conformance/genie.md) — one file, one source of truth, loaded by whoever is auditing rather than by everyone who edits a file.

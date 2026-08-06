@@ -148,3 +148,9 @@ SELECT ai_prep_search(ai_parse_document(content, map('version', '2.0')))
 | VS index | `<catalog>.pipeline.<TABLE_PREFIX>_chunks_index` |
 
 `TABLE_PREFIX` is set per use case (e.g. `aeo_disc`) to avoid naming collisions when multiple use cases share the same catalog.
+
+---
+
+## Conformance
+
+The audit checklist for this guideline lives beside it, in [`conformance/pipeline.md`](conformance/pipeline.md) — one file, one source of truth, loaded by whoever is auditing rather than by everyone who edits a file.

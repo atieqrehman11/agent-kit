@@ -104,3 +104,9 @@ code runs unchanged in dev, stg, and prod.
 If the job produces data or scores an agent/model consumes, scaffold `evaluation/` with
 `{{cmd:eval:new}}` and point the spec at the gold table or endpoint the job feeds. Record
 the eval baseline in the repo when the job's output logic changes materially.
+
+---
+
+## Conformance
+
+The audit checklist for this guideline lives beside it, in [`conformance/job.md`](conformance/job.md) — one file, one source of truth, loaded by whoever is auditing rather than by everyone who edits a file.

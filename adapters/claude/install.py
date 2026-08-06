@@ -108,7 +108,7 @@ def parse(path):
     return fm, body
 
 
-CONFORMANCE_SUFFIX = ".conformance.md"
+CONFORMANCE_DIR = "conformance"
 
 # Any unresolved marker, not an enumeration of the ones we remember. §1.6: "an install with
 # any surviving token is a failed install". Lowercase dunders (__init__, __file__) do not
@@ -117,19 +117,28 @@ MARKER_RE = re.compile(r"__[A-Z][A-Z0-9_]*__|\{\{cmd:[^}]*\}\}|\{\{args\}\}")
 
 
 def conformance_src(name):
-    """§1.2: the optional checklist sibling of a guideline. Payload, not an artifact."""
-    p = f"{CORE}/guidelines/{name}{CONFORMANCE_SUFFIX}"
+    """§1.2: the optional checklist for a guideline. Payload, not an artifact."""
+    p = f"{CORE}/guidelines/{CONFORMANCE_DIR}/{name}.md"
     return p if os.path.isfile(p) else None
+
+
+def conformance_names():
+    """Every checklist in core/, named for the guideline it pairs with."""
+    d = f"{CORE}/guidelines/{CONFORMANCE_DIR}"
+    if not os.path.isdir(d):
+        return []
+    return sorted(f[:-3] for f in os.listdir(d) if f.endswith(".md"))
 
 
 def discover():
     arts = []
     for name in sorted(os.listdir(f"{CORE}/guidelines")):
-        # A sibling is payload of the guideline beside it (§1.2). Discovering it as an
-        # artifact would derive the name "service-structure.conformance", which matches
-        # no frontmatter and no registration — obligation 2 would reject the install.
-        if name.endswith(CONFORMANCE_SUFFIX):
-            continue
+        # §1.2: checklists live in guidelines/conformance/ and are payload, not artifacts.
+        # They are skipped structurally — a directory is not a ".md" — rather than by a
+        # suffix test. That is the point of the subdirectory: under the earlier flat layout
+        # the test was load-bearing, because "service-structure.conformance.md" would
+        # otherwise derive the artifact name "service-structure.conformance", match no
+        # frontmatter, and be rejected by obligation 2.
         if name.endswith(".md"):
             arts.append(("guideline", name[:-3], f"{CORE}/guidelines/{name}"))
     for name in sorted(os.listdir(f"{CORE}/skills")):
@@ -172,12 +181,15 @@ def check_fm(path, fm, name, kind, errs):
 
 def validate(arts):
     errs, entries = [], {}
-    # §1.2: a sibling with no guideline beside it is a failed install, not a stray file —
-    # same class as a dangling {{cmd:…}}: user-facing text pointing at nothing.
+    # §1.2: a checklist naming no guideline is a failed install, not a stray file — same
+    # class as a dangling {{cmd:…}}: user-facing text pointing at nothing.
     have = {n for k, n, _ in arts if k == "guideline"}
-    for f in sorted(os.listdir(f"{CORE}/guidelines")):
-        if f.endswith(CONFORMANCE_SUFFIX) and f[: -len(CONFORMANCE_SUFFIX)] not in have:
-            errs.append(f"{CORE}/guidelines/{f}: conformance sibling with no guideline")
+    for n in conformance_names():
+        if n not in have:
+            errs.append(
+                f"{CORE}/guidelines/{CONFORMANCE_DIR}/{n}.md: "
+                f"conformance sheet with no guideline"
+            )
     for kind, name, path in arts:
         fm, _ = parse(path)
         check_fm(path, fm, name, kind, errs)
@@ -401,12 +413,14 @@ def install(target, dry_run):
                 sub(open(path, encoding="utf-8").read()),
             )
             written["guidelines"].append(name)
-            # Obligation 4: the checklist sibling travels with the guideline as payload —
-            # copied beside it so a reviewer can read it by path, never registered (§1.2).
+            # Obligation 4: the checklist travels with the guideline as payload — copied
+            # into guidelines/conformance/ so a reviewer can read it by path (§1.2). The
+            # installed tree mirrors core/, so the path a reviewer is told to read is the
+            # path a maintainer edits.
             csrc = conformance_src(name)
             if csrc:
                 write(
-                    os.path.join(guide_dir, f"{name}{CONFORMANCE_SUFFIX}"),
+                    os.path.join(guide_dir, CONFORMANCE_DIR, f"{name}.md"),
                     sub(open(csrc, encoding="utf-8").read()),
                 )
                 written["conformance"].append(name)
@@ -482,14 +496,18 @@ def verify(target, written, arts, profile_before, dry_run):
         )
         if got != declared:
             fails.append(f"registered {got} entry points, declared {declared}")
-        # §2.4: every sibling installed, and none of them registered anywhere.
+        # §2.4: every sheet installed, and the directory registered nowhere. A sheet now
+        # shares its guideline's name, so this cannot check for a name — it checks that
+        # conformance/ did not leak into a registration tree. A sheet that did register
+        # would also break the declared/got count above.
         for n in written["conformance"]:
             if not os.path.isfile(
-                os.path.join(target, "guidelines", f"{n}{CONFORMANCE_SUFFIX}")
+                os.path.join(target, "guidelines", CONFORMANCE_DIR, f"{n}.md")
             ):
-                fails.append(f"conformance sibling not installed: {n}")
-            if os.path.exists(os.path.join(target, "skills", f"{n}.conformance")):
-                fails.append(f"conformance sibling registered as a skill: {n}")
+                fails.append(f"conformance sheet not installed: {n}")
+        for sub_ in ("skills", "commands"):
+            if os.path.exists(os.path.join(target, sub_, CONFORMANCE_DIR)):
+                fails.append(f"conformance/ registered under {sub_}/")
         # Scan ONLY what this installer wrote. The target is also the kit data dir, full of
         # the user's transcripts and history — the first version walked all of it and
         # "found" unresolved markers inside a session log of someone discussing the markers.
@@ -547,9 +565,9 @@ def uninstall(target, dry_run):
     r = json.load(open(rp))
 
     paths = [os.path.join(target, "guidelines", f"{n}.md") for n in r["guidelines"]]
-    # Receipts written before conformance siblings existed have no such key.
+    # Receipts written before conformance sheets existed have no such key.
     paths += [
-        os.path.join(target, "guidelines", f"{n}{CONFORMANCE_SUFFIX}")
+        os.path.join(target, "guidelines", CONFORMANCE_DIR, f"{n}.md")
         for n in r.get("conformance", [])
     ]
     paths += [os.path.join(target, "skills", n) for n in r["skills"]]

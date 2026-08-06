@@ -54,6 +54,38 @@ other language. What follows is only how those rules are spelled in Spring Boot.
 9. Unit tests (JUnit 5 + Mockito)
 10. docker-compose addition (if new infra needed)
 
+## Complexity limits
+
+Same thresholds as [`python`](./python.md), different tool.
+
+| Metric | Limit | Checkstyle rule |
+|---|---|---|
+| Cyclomatic complexity per method | **10** | `CyclomaticComplexity` |
+| Nesting depth (`if` / `try` / loops) | **4** | `NestedIfDepth`, `NestedTryDepth` |
+| Statements per method | **50** | `MethodLength` |
+| Parameters per method | **5** | `ParameterNumber` |
+
+Wire Checkstyle (or PMD) into the Maven/Gradle `verify` phase and **fail the build**. A rule that
+only warns is one the pipeline teaches everyone to ignore. **Do not add `ReturnCount`** — early
+return is the fix this section asks for, so capping returns contradicts it.
+
+**Nested conditionals first** — invert and return early, combine with `&&`, extract the inner
+block into a named private method, or replace an `if/else if` chain over a value with a switch or
+a strategy map. A `@SuppressWarnings` on a complexity rule needs a comment saying why the method
+is irreducible.
+
+## Single responsibility
+
+As [`python`](./python.md): "one reason to change", same tells — a method name containing
+`and`/`or`, a boolean flag selecting behaviour, a class needing a conjunction to describe. Where a
+responsibility may *live* is [`service-structure`](./service-structure.md).
+
+## Tests for new logic
+
+Every branch this change adds is tested by this change — each arm of a new conditional, loop or
+`catch`; both sides of every changed threshold; a test that **fails without the fix** for every
+bug fix. Assert values, not just that nothing threw, and mock at the repository seam.
+
 ## Quality rules
 
 - Zero TODOs — implement fully or flag explicitly with reason

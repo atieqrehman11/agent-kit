@@ -1,6 +1,6 @@
 # Service Structure — conformance checklist
 
-The audit list for [`service-structure`](service-structure.md). Walked by a reviewer, by the delivery gates, and by anyone auditing an existing service.
+The audit list for [`service-structure`](../service-structure.md). Walked by a reviewer, by the delivery gates, and by anyone auditing an existing service.
 
 This is payload, not a guideline: it carries no frontmatter and is never invocable. It lives apart from the rules so that whoever is *writing* code loads the rules without the checklist, and whoever is *auditing* loads the checklist without the rules. Every item below is defined in `service-structure.md` — read it there when a check needs interpreting.
 

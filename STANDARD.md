@@ -47,14 +47,27 @@ A capability that fails all three is a skill. A skill nobody deliberately invoke
 ## 1.2 Guideline layout
 
 ```
-core/guidelines/<name>.md              REQUIRED   frontmatter + body. The rules, and why.
-core/guidelines/<name>.conformance.md  optional   PAYLOAD — the checklist someone walks to
-                                                  audit a change. Never registered.
+core/guidelines/<name>.md                    REQUIRED   frontmatter + body. The rules, and why.
+core/guidelines/conformance/<name>.md        optional   PAYLOAD — the checklist someone walks
+                                                        to audit a change. Never registered.
 ```
 
-**The sibling exists because a guideline has two readers with opposite needs.** Someone
+**The split exists because a guideline has two readers with opposite needs.** Someone
 *writing* code needs the rules and the reasoning; someone *reviewing* it needs a list of
 checks. One file serves both by making each load the other's half.
+
+**Why a subdirectory rather than a `<name>.conformance.md` sibling.** The sheets carry no
+frontmatter, so under a flat layout the *only* thing separating payload from artifact was a
+filename suffix, and discovery had to test for it — miss the test and
+`service-structure.conformance.md` derives the artifact name
+`service-structure.conformance`, matches no frontmatter, and fails obligation 2. A
+subdirectory makes that unrepresentable: discovery enumerates depth-1 `*.md`, and a directory
+is not one. Same reasoning as §1.4's allowlist — structure the rule so the failure cannot be
+expressed, rather than string-matching for it.
+
+The cost is that a sheet and its guideline now share a filename, distinguished only by
+directory. That is deliberate: it is what makes the pairing exact and the orphan check a
+plain set comparison.
 
 Measured on this repo before the split: a single edit to an API router loaded `python`,
 `api` and `service-structure` — about 5,650 tokens, of which **884 were conformance
@@ -64,18 +77,24 @@ coupling; both paid for it.
 
 Rules:
 
-- The sibling is **payload**: installed alongside the guideline, never registered, never
+- The sheet is **payload**: installed under `guidelines/conformance/`, never registered, never
   invocable. It has **no frontmatter** — it is not an entry point, and §1.5 does not apply.
-- `<name>` must match a guideline that exists. A sibling with no guideline is a failed
+- `<name>` must match a guideline that exists. A sheet naming no guideline is a failed
   install, the same class of error as a dangling `{{cmd:…}}`.
-- **The checklist lives in the sibling and nowhere else.** A guideline that both ships a
-  sibling and keeps its own checklist has two sources of truth, which is the condition this
-  split exists to remove.
+- **The installed tree mirrors `core/`.** The path a reviewer is told to read is the path a
+  maintainer edits; an adapter that flattens or relocates the directory breaks every
+  cross-reference written into the sheets.
+- **The checklist lives in the sheet and nowhere else.** A guideline that both ships a sheet
+  and keeps its own checklist has two sources of truth, which is the condition this split
+  exists to remove.
+- **Every check must be defined in the guideline.** A sheet states rules in binary form; it
+  never introduces one. A check with no rule behind it makes the sheet the source of truth,
+  and then whoever is writing the code has no way to learn the rule exists.
 - Add one only where a reviewer genuinely walks a checklist independently of the prose. An
   "acceptance criteria check" that tells the *implementer* to tick their own criteria is part
   of the guideline body — it has one reader, so splitting it buys nothing and costs a file.
 
-Anything that needs to audit a change reads the sibling directly, by path, via
+Anything that needs to audit a change reads the sheet directly, by path, via
 `__GUIDELINES_DIR__` (§1.6) — it does not load the guideline to get at it.
 
 ## 1.3 Skill layout
@@ -119,9 +138,9 @@ core/skills/<name>/commands/*.md     → one user-invoked entry each  (depth 1 o
 *by* a skill; `README.md` and `docs/**` document the skill for its maintainers. Neither is ever
 invocable, at any depth, and an adapter installs payload but not documentation.
 
-`core/guidelines/<name>.conformance.md` (§1.2) is payload too, and the same sentence covers it:
-installed, never registered. A guideline is registered from `<name>.md` alone, so a sibling can
-never become a phantom entry point named `service-structure.conformance`.
+`core/guidelines/conformance/<name>.md` (§1.2) is payload too, and the same sentence covers it:
+installed, never registered. A guideline is registered from a **depth-1** `<name>.md` alone, so
+nothing inside `conformance/` can become a phantom entry point.
 
 This is an **allowlist, and that is the point.** The predecessor to this standard used a
 denylist — "register every `.md`, except the `README.md` at the skill root" — and a denylist
@@ -355,10 +374,10 @@ An adapter MUST:
 
 | # | Obligation | Detail |
 |---|---|---|
-| 1 | **Discover** | Enumerate `core/guidelines`, `core/skills`, `core/subagents`. Read frontmatter. Derive everything from the tree — never from a hardcoded list of names. A `<name>.conformance.md` is payload of its guideline, not an artifact of its own (§1.2). |
+| 1 | **Discover** | Enumerate `core/guidelines`, `core/skills`, `core/subagents`. Read frontmatter. Derive everything from the tree — never from a hardcoded list of names. Everything under `core/guidelines/conformance/` is payload of the guideline it names, not an artifact of its own (§1.2). |
 | 2 | **Validate before writing** | Reject missing or malformed frontmatter, a `name` that disagrees with its path, or a `description` that is not prose. Fail before the first byte is written, so a bad artifact cannot half-install. |
 | 3 | **Render by kind** | Map each kind onto the tool's native form (§2.2). |
-| 4 | **Register only entry points** | `SKILL.md` and `commands/*.md` at depth 1. Payload is copied, never registered — including every `<name>.conformance.md`. |
+| 4 | **Register only entry points** | `SKILL.md` and `commands/*.md` at depth 1. Payload is copied, never registered — including every `conformance/<name>.md`. |
 | 5 | **Resolve tokens and command references** | Rewrite every `__SKILL_DIR__`, `__KIT_DATA_DIR__` and `{{cmd:…}}`; verify zero remain. A `{{cmd:…}}` naming a skill or verb that does not exist is a **failed install**, not a warning. |
 | 6 | **Replace, do not merge** | Per artifact: remove the installed copy, then write. A file deleted from `core/` must not linger as a stale command. |
 | 7 | **Preserve user data** | Never overwrite anything the user filled in — the profile sheet above all. Offer a flag to skip regeneration and default to preserving. |
@@ -407,8 +426,8 @@ wrong trade.
 - [ ] Every artifact has valid frontmatter; every `name` matches its path
 - [ ] Every `description` is prose, not a path or a filename
 - [ ] **Registered entry-point count equals declared entry-point count** — zero payload registered
-- [ ] Every `<name>.conformance.md` was installed, and none was registered as an entry point
-- [ ] Every `<name>.conformance.md` has a `<name>.md` beside it — a sibling with no guideline fails the install
+- [ ] Every `conformance/<name>.md` was installed, and none was registered as an entry point
+- [ ] Every `conformance/<name>.md` names a guideline that exists — a sheet with no guideline fails the install
 - [ ] Zero surviving markers — scanned as **any** `__[A-Z][A-Z0-9_]*__`, `{{cmd:…}}` or `{{args}}`, never as a list of known names (§1.6)
 - [ ] Every `{{cmd:…}}` resolved to a skill and verb that exist
 - [ ] The kit data dir exists, and its contents are byte-identical to before the install
