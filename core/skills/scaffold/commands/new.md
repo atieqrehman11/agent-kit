@@ -206,9 +206,11 @@ checklist.
   `app.yml` (single source of truth — the app resource in `resources/api.app.yml` no longer
   duplicates them).
 - **Controller types (`api`/`etl`/`job`)** — remind the user to fill the `TODO_SET_*` values
-  in `databricks.yml` (stg/prod hosts, service principals, policy ids) and `team_config.yaml`
-  (repo url, service principals) before the first cloud deploy, and to set
-  `CONTROLLER_TRIGGER_TOKEN` in GitLab CI/CD variables. Local dev testing: `./run_local.sh deploy`.
+  in `databricks.yml` (stg/prod hosts, service principals, policy ids) before the first
+  cloud deploy. Registration with the platform team is a **prerequisite**, not something
+  the scaffold produces: the bundle name + uuid must already be in the team registry and
+  the stg/prod service principals already created, or the controller's governance stage
+  rejects the deploy. GitLab setup is `gitlab/setup-group.sh` then `gitlab/setup-repo.sh`. Local dev testing: `./run_local.sh deploy`.
 - **api** also: set `TODO_SET_WAREHOUSE_ID` / `TODO_SET_CHAT_GATEWAY_URL` in `app.yml`
   (the runtime env), and register the domain with the shared chat gateway service
   (its `domain_configs/`).

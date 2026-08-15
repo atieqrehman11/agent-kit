@@ -16,7 +16,7 @@ including repos the scaffold never created. Two aspects are choosable:
 
 | Aspect | What the repo gains | Repo types |
 |---|---|---|
-| `deploy` | How the repo deploys, independent of CI provider: `databricks.yml` + `resources/` + `run_local.sh` + `team_config.yaml` + `run_resources.yml` + `.bundleignore`. `fe` ships a committed `dist/` and a sync block that keeps `package.json` out of the app root. `genie`/`agent` are not bundles: they get `run_local.sh` + `src/validate.py` + `src/deploy.py` and no descriptor. A `job` repo also gets `config/{DEV,STG,PROD}/task_config.yaml`. | `api` `etl` `job` `fe` `genie` `agent` |
+| `deploy` | How the repo deploys, independent of CI provider: `databricks.yml` + `resources/` + `run_local.sh` + `run_resources.yml` + `.bundleignore`. `fe` ships a committed `dist/` and a sync block that keeps `package.json` out of the app root. `genie`/`agent` are not bundles: they get `run_local.sh` + `src/validate.py` + `src/deploy.py` and no descriptor. A `job` repo also gets `config/{DEV,STG,PROD}/task_config.yaml`. | `api` `etl` `job` `fe` `genie` `agent` |
 | `gitlab` | The GitLab pipeline: `.gitlab-ci.yml`. Bundle types trigger the shared DAB controller on merge to `stg`/`prod`; `genie`/`agent` validate their declaration, then run their own deploy script. The GitLab project setup it needs is `gitlab/setup-group.sh` (once per group) and `gitlab/setup-repo.sh` (per repo) — kit tooling, not repo files. | `api` `etl` `job` `fe` `genie` `agent` |
 | `api` | The use case API surface: `routers/platform.py` + `config.py` — `GET /v1/health` and `GET /v1/info`, the two endpoints every use case API must expose (API_STANDARDS §3–4). | `api` |
 
@@ -101,7 +101,7 @@ the repo's own files > the install profile > a `TODO_SET_*` placeholder**:
   `resources/*.{app,pipeline,job}.yml`, an inline `resources: apps:|pipelines:|jobs:` in
   `databricks.yml`, `app.yml`/`app.yaml`/`app.py`, `pipeline/`, then the repo-name suffix.
 - **bundle name + uuid** — read from the repo's existing `databricks.yml`, so
-  `team_config.yaml` and `BUNDLE_TAG` agree with the bundle that is already deployed. When
+  `BUNDLE_TAG` agrees with the bundle that is already deployed. When
   the repo has no bundle file, a name and uuid are generated **and reported as a heads-up** —
   the same uuid must then go into `databricks.yml`, and must never change after the first deploy.
 - **slug** — from the repo folder name (`ai-`/`ai-prototype-` prefix and `-<type>` suffix stripped).
@@ -132,7 +132,7 @@ half-filled sheet, it only appends the placeholders the new files brought in.
            deploy MISSING · gitlab MISSING · api N/A · (auto) gitignore, config-sheet
 → [picker] Add the CI/CD pipeline?   Proceed / Cancel
 ✓ Proceed → add.py --repo <path> --aspect deploy --aspect gitlab
-   added .gitlab-ci.yml, team_config.yaml, .bundleignore, run_resources.yml,
+   added .gitlab-ci.yml, .bundleignore, run_resources.yml,
          config/{DEV,STG,PROD}/task_config.yaml, .gitignore
    CONFIG.md — 20 placeholders outstanding → fill it, then {{cmd:scaffold:configure}}
    wiring: set CONTROLLER_TRIGGER_TOKEN in GitLab CI/CD variables; confirm BUNDLE_TAG

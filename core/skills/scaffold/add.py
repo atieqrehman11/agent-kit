@@ -4,8 +4,7 @@
 ``new.py`` creates a whole repo. This adds a single slice to a repo you already
 have, including repos this tool never created. Two aspects are choosable:
 
-    deploy the deploy config — databricks.yml + resources/ + run_local.sh +
-           team_config.yaml
+    deploy the deploy config — databricks.yml + resources/ + run_local.sh
     gitlab the GitLab pipeline — .gitlab-ci.yml +
            run_resources.yml + .bundleignore, and on a job repo the
            config/{DEV,STG,PROD} it reads per target
@@ -312,9 +311,9 @@ def _build_vars(args, repo, rtype, bundle_name, bundle_uuid, keys=()):
         prefix_us = prefix_raw = "TODO_SET_TABLE_PREFIX"
 
     # A bundle repo already has a name + uuid in databricks.yml; reuse them so
-    # team_config.yaml and .gitlab-ci.yml agree with it. Only invent them when the
+    # the pipeline's BUNDLE_TAG agree with it. Only invent them when the
     # repo has no bundle file at all, and say so.
-    # Only the deploy aspect writes the bundle identity into a file (team_config.yaml,
+    # Only the deploy aspect writes the bundle identity into a file (databricks.yml,
     # BUNDLE_TAG), so only it needs to hear about a missing databricks.yml.
     bundle_matters = "deploy" in keys and rtype in aspects.BUNDLE_TYPES
     if not bundle_name:

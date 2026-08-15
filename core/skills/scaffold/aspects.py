@@ -149,12 +149,13 @@ def run_resources_yaml(vars_) -> str:
 
 # ── deploy aspect ────────────────────────────────────────────────────────────
 _DEPLOY_WIRING = [
-    "Confirm bundle.name in databricks.yml matches team_config.yaml's bundle_name "
-    "and BUNDLE_TAG in the pipeline. A mismatch fails the controller's governance "
-    "stage, not your own pipeline.",
-    "Submit team_config.yaml to the platform team, including the service principal "
-    "ids. The controller reads run_as out of databricks.yml per target and fails "
-    "governance when it is missing on stg/prod.",
+    "Registration is a prerequisite, not an output: the platform team must already "
+    "hold this bundle_name + uuid in the team registry, and must have created the "
+    "stg/prod service principals. Confirm bundle.name and bundle.uuid here match "
+    "what was registered, and that BUNDLE_TAG in the pipeline matches too — a "
+    "mismatch fails the controller's governance stage, not your own pipeline.",
+    "Set run_as on stg and prod to the registered service principal ids. The "
+    "controller reads them out of databricks.yml and fails governance without them.",
     "`./run_local.sh` runs the repo locally; `./run_local.sh deploy` deploys to dev. "
     "stg and prod are the controller's — never `bundle deploy -t stg|prod` by hand.",
 ]
@@ -270,20 +271,17 @@ ASPECTS = {
         "selectable": True,
         "files": {
             "api": [
-                ("deploy/team_config.yaml", "team_config.yaml"),
                 ("deploy/bundleignore", ".bundleignore"),
                 ("deploy/api/databricks.yml", "databricks.yml"),
                 ("deploy/api/app.yml", "app.yml"),
                 ("deploy/api/run_local.sh", "run_local.sh"),
             ],
             "etl": [
-                ("deploy/team_config.yaml", "team_config.yaml"),
                 ("deploy/bundleignore", ".bundleignore"),
                 ("deploy/etl/databricks.yml", "databricks.yml"),
                 ("deploy/etl/run_local.sh", "run_local.sh"),
             ],
             "job": [
-                ("deploy/team_config.yaml", "team_config.yaml"),
                 ("deploy/bundleignore", ".bundleignore"),
                 ("deploy/job/databricks.yml", "databricks.yml"),
                 ("deploy/job/run_local.sh", "run_local.sh"),
@@ -292,7 +290,6 @@ ASPECTS = {
             # environment cannot resolve registry.npmjs.org, so nothing installs
             # or builds there. See deploy/fe/databricks.yml.
             "fe": [
-                ("deploy/team_config.yaml", "team_config.yaml"),
                 ("deploy/fe/databricks.yml", "databricks.yml"),
                 ("deploy/fe/run_local.sh", "run_local.sh"),
             ],

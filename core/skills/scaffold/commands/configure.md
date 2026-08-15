@@ -66,7 +66,7 @@ files to the repo.
 - **The sheet is not read at deploy time.** It only drives this step. Once every value is
   applied you may keep `CONFIG.md` as a record or delete it.
 - **Where values land:** `databricks.yml` (workspace hosts, service principals),
-  `team_config.yaml` (repo url, SP ids, policy id), `app.yml` (runtime env — an `api`'s
+  `app.yml` (runtime env — an `api`'s
   warehouse, chat gateway and genie space; an `fe`'s backend API url), and any other file
   containing a matching token.
 - **An `fe` repo's brand colour is deliberately not a placeholder.** It lives in

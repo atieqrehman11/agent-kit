@@ -103,8 +103,8 @@ field contributed by a newly installed skill appears in a profile older than it.
   this file too, which is how this bullet once read "`Acme ` in the installed
   guidelines".)
 - **Where values land in a scaffolded repo:** `databricks.yml` (workspace project folder,
-  prod admin), the app resource (developers group), `.gitlab-ci.yml` + `team_config.yaml`
-  (runner, controller project id + repo URL, CI image, team), and the docs' brand title.
+  prod admin), the app resource (developers group), `.gitlab-ci.yml` (runner,
+  controller project id, CI image, team), and the docs' brand title.
 - **`output_dir` is special:** it is *not* baked into a repo and never becomes a
   `TODO_SET_*` placeholder — it only tells `new.py` where to create the repo folder.
   Resolution: `--output-dir` > `$SCAFFOLD_OUTPUT_DIR` > profile `output_dir` > current dir
