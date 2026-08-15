@@ -19,7 +19,11 @@ description: >
 
 ## Payload
 
-- `templates/` — one directory per repo type, plus the `*_STANDARDS.md` documents
+- `templates/<type>/` — application code only, one directory per repo type
+- `templates/deploy/` — how a repo deploys: bundle descriptor, resources, `run_local.sh`
+- `templates/gitlab/` — the GitLab pipeline
+- `gitlab/setup-group.sh` · `gitlab/setup-repo.sh` — GitLab project setup, kit tooling
+  rather than repo files: they configure the GitLab project, so one copy serves every repo
 - `new.py` · `add.py` · `configure.py` · `aspects.py` · `config_tokens.py` · `profile.py`
 
 Types: `api` · `etl` · `job` · `fe` · `agent` · `genie`. `api` and `fe` are both

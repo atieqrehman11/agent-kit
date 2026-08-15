@@ -1,6 +1,29 @@
 #!/bin/bash
 set -euo pipefail
 
+# ── Modes ───────────────────────────────────────────────────────────────────
+#   ./run_local.sh            validate the bundle (a pipeline has no local run)
+#   ./run_local.sh deploy     deploy to the DEV workspace
+#
+# deploy targets dev only. stg and prod go through the CI/CD controller, on
+# merge to the stg / prod branch.
+MODE="${1:-run}"
+case "$MODE" in
+  deploy) shift || true ;;
+  run)    shift || true ;;
+  -h|--help) sed -n '/^# ── Modes/,/^$/p' "$0"; exit 0 ;;
+  *) echo "usage: $0 [run|deploy]" >&2; exit 2 ;;
+esac
+
+if [[ "$MODE" != "deploy" ]]; then
+  echo "A Lakeflow pipeline has no local run — its tasks execute on Databricks."
+  echo "Validating the bundle instead; use \`$0 deploy\` to run it on dev."
+  exec databricks bundle validate -t dev
+  exit $?
+fi
+
+
+
 # ==============================================================================
 # LOCAL DEV-LOOP deploy — deploys this bundle to the DEV workspace only.
 #

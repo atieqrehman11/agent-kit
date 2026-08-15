@@ -4,7 +4,7 @@ An *aspect* is a named, self-contained piece of a scaffolded repo: its CI/CD
 pipeline, its standards docs, its per-environment config, the platform endpoints
 every API must expose. ``new.py`` applies several when it creates a repo from
 scratch; ``add.py`` applies one to a repo that **already exists**. Both go
-through :func:`apply` here, so "the cicd aspect" means exactly the same set of
+through :func:`apply` here, so "the deploy aspect" means exactly the same set of
 files in a brand-new repo and in a five-year-old one.
 
 Each entry is::
@@ -64,12 +64,10 @@ def _strip_frontmatter(text):
 
 
 # Repo types, mirrored from new.py (kept here so add.py needs only this module).
-# Bundle types deploy with `databricks bundle deploy`; of those, the controller
-# types hand stg/prod to the shared DAB CI/CD controller. `fe` is a bundle type
-# that is NOT a controller type: what it deploys is a build artifact (dist/), the
-# controller deploys from a git checkout and runs no Node build, and dist/ must
-# not be committed — so building and deploying have to happen in one job, which
-# is the job in the repo's own pipeline.
+# Bundle types deploy with `databricks bundle deploy`, and all of them hand
+# stg/prod to the shared DAB CI/CD controller. `fe` differs only in payload: it
+# ships a committed dist/ rather than source, because the Apps build environment
+# cannot reach the npm registry.
 BUNDLE_TYPES = ("api", "etl", "job", "fe")
 CONTROLLER_TYPES = ("api", "etl", "job", "fe")
 API_TYPES = ("genie", "agent")
@@ -145,42 +143,77 @@ def run_resources_yaml(vars_) -> str:
 # Wiring notes are *manual* steps: things a file copy provably cannot do, such as
 # editing a databricks.yml or an app.py the repo already owns. They are printed
 # after an apply and are the honest boundary of what the script did.
-_CICD_WIRING = [
-    "Run cicd/setup-gitlab-project.sh --group <id> to create dev/stg/prod, set "
-    "branch protection and the default branch, add the controller to the "
-    "job-token allowlist, and put CONTROLLER_TRIGGER_TOKEN on the group. It is a "
-    "dry run until --apply. stg and prod must stay PROTECTED branches or the "
-    "trigger silently receives an empty token.",
-    "Confirm BUNDLE_TAG in .gitlab-ci.yml matches bundle.name in databricks.yml, "
-    "and that team_config.yaml's bundle_name + uuid match it too. A mismatch "
-    "fails the controller's governance stage, not your pipeline.",
-    "Submit team_config.yaml to the platform team, including the service "
-    "principal ids. The controller reads run_as out of databricks.yml and fails "
-    "governance if it is missing on stg/prod.",
+# Wiring notes are *manual* steps: things a file copy provably cannot do, such as
+# editing a databricks.yml the repo already owns. They are printed after an apply
+# and are the honest boundary of what the script did.
+
+# ── deploy aspect ────────────────────────────────────────────────────────────
+_DEPLOY_WIRING = [
+    "Confirm bundle.name in databricks.yml matches team_config.yaml's bundle_name "
+    "and BUNDLE_TAG in the pipeline. A mismatch fails the controller's governance "
+    "stage, not your own pipeline.",
+    "Submit team_config.yaml to the platform team, including the service principal "
+    "ids. The controller reads run_as out of databricks.yml per target and fails "
+    "governance when it is missing on stg/prod.",
+    "`./run_local.sh` runs the repo locally; `./run_local.sh deploy` deploys to dev. "
+    "stg and prod are the controller's — never `bundle deploy -t stg|prod` by hand.",
 ]
 
-# genie/agent deploy through a management API, so they need workspace credentials
-# rather than a controller token. Per-branch scoping is what separates stg from prod.
-_API_TYPE_CICD_WIRING = [
-    "Set DATABRICKS_HOST + DATABRICKS_TOKEN in GitLab > Settings > CI/CD > "
-    "Variables (masked), scoped to the `stg` and `prod` branches separately — the "
-    "deploy job authenticates with them, and the workspace is what separates the "
-    "environments.",
-    "Push the `stg` / `prod` branches — the deploy job is manual on each.",
+# genie/agent reconcile a declaration through a management API rather than a
+# bundle, so they have no descriptor and no registry entry.
+_API_TYPE_DEPLOY_WIRING = [
+    "`./run_local.sh` validates the declaration and needs no credentials; "
+    "`./run_local.sh deploy` reconciles it against dev.",
 ]
 
-# fe deploys through the controller like the other bundle types. What is
-# different is what it ships: a prebuilt dist/ rather than source, because the
-# Apps build environment cannot resolve registry.npmjs.org.
-_FE_CICD_WIRING = [
-    "Commit dist/. `./run_local.sh deploy` builds it; the controller deploys from "
-    "a fresh clone, so an uncommitted dist/ means `validate_bundle` fails with "
+_FE_DEPLOY_WIRING = [
+    "Commit dist/. `./run_local.sh deploy` builds it; the controller deploys from a "
+    "fresh clone, so an uncommitted dist/ fails validate_bundle with "
     "`stat dist: no such file or directory`.",
-    "Rebuild and commit dist/ whenever src/ changes. Nothing enforces this — a "
-    "stale dist/ deploys green and serves the previous bundle.",
-    "Confirm resources/fe.app.yml keeps package.json out of the app root. If it "
-    "reaches the workspace the platform runs an install, which fails with "
+    "Rebuild and commit dist/ whenever src/ changes. Nothing enforces this — a stale "
+    "dist/ deploys green and serves the previous bundle.",
+    "Keep package.json out of the app root (the sync block in databricks.yml). If it "
+    "reaches the workspace the platform attempts an install, which fails with "
     "`EAI_AGAIN registry.npmjs.org`.",
+]
+
+_GENIE_DEPLOY_WIRING = [
+    "A repo that predates this usually fails validation on one thing: a `space_id:` "
+    "left in genie-space/space.yml. Delete it. The space is resolved by title, so a "
+    "committed id is deploy state the repo must not hold.",
+    "If the repo already had a deploy_genie.py at its root, delete it — src/deploy.py "
+    "replaces it, and two deploy scripts means two answers to which space this repo "
+    "owns.",
+]
+
+_AGENT_DEPLOY_WIRING = [
+    "A repo that predates this usually fails validation on one thing: a "
+    "`supervisor_agent_id:` left in supervisor/supervisor.yml. Delete it. The "
+    "supervisor is resolved by name, so a committed id is deploy state the repo must "
+    "not hold.",
+]
+
+# ── gitlab aspect ────────────────────────────────────────────────────────────
+# The setup scripts are kit tooling, not repo files: they configure the GitLab
+# PROJECT, so shipping them into every repo would be N copies of one procedure.
+_GITLAB_WIRING = [
+    "Run the kit's gitlab/setup-group.sh --group <id> once per group: the "
+    "CONTROLLER_TRIGGER_TOKEN variable and the Databricks service account, both "
+    "inherited by every project including ones added later.",
+    "Run gitlab/setup-repo.sh --project <id> per repo: dev/stg/prod branches, branch "
+    "protection, the default branch, and the controller in the job-token allowlist. "
+    "Both scripts are a dry run until --apply.",
+    "stg and prod must stay PROTECTED branches. CONTROLLER_TRIGGER_TOKEN is a "
+    "protected variable, so an unprotected branch receives an empty one and the "
+    "trigger posts nothing while the job still goes green.",
+]
+
+_GITLAB_TOKEN_WIRING = [
+    "Set DATABRICKS_HOST + DATABRICKS_TOKEN in GitLab > Settings > CI/CD > Variables "
+    "(masked), scoped to the `stg` and `prod` branches separately — the deploy job "
+    "authenticates with them, and the workspace is what separates the environments. "
+    "There is no controller token here: neither type is a DAB bundle.",
+    "Run gitlab/setup-repo.sh --project <id> for the branches and protection.",
 ]
 
 _ENV_CONFIG_WIRING = [
@@ -226,79 +259,63 @@ _API_PLATFORM_WIRING = [
 
 ASPECTS = {
     # ── The two aspects a user picks ─────────────────────────────────────────
-    "cicd": {
-        "label": "CI/CD pipeline",
+    "deploy": {
+        "label": "Deploy config",
         "summary": (
-            "The whole deploy story: bundle descriptor, resource definitions, pipeline "
-            "and registry entry. api/etl/job/fe deploy through the shared DAB "
-            "controller (+ the per-environment config a job reads); genie/agent "
-            "validate their declaration, then run their own deploy script"
+            "How this repo deploys, independent of CI provider: bundle descriptor, "
+            "resource definitions, the run_local.sh entrypoint, and the registry entry "
+            "the DAB controller reads"
         ),
         "applies_to": ALL_TYPES,
         "selectable": True,
-        # This aspect owns the whole deploy story: the bundle descriptor, the
-        # resource definitions, the pipeline and the registry entry. The type
-        # skeletons ship application code only, so `new` cannot produce a repo
-        # whose deploy config disagrees with its pipeline.
         "files": {
             "api": [
-                ("cicd/gitlab-ci.controller.yml", ".gitlab-ci.yml"),
-                ("cicd/team_config.yaml", "team_config.yaml"),
-                ("cicd/bundleignore", ".bundleignore"),
-                ("cicd/api/databricks.yml", "databricks.yml"),
-                ("cicd/api/app.yml", "app.yml"),
-                ("cicd/api/bundle.sh", "bundle.sh"),
+                ("deploy/team_config.yaml", "team_config.yaml"),
+                ("deploy/bundleignore", ".bundleignore"),
+                ("deploy/api/databricks.yml", "databricks.yml"),
+                ("deploy/api/app.yml", "app.yml"),
+                ("deploy/api/run_local.sh", "run_local.sh"),
             ],
             "etl": [
-                ("cicd/gitlab-ci.controller.yml", ".gitlab-ci.yml"),
-                ("cicd/team_config.yaml", "team_config.yaml"),
-                ("cicd/bundleignore", ".bundleignore"),
-                ("cicd/etl/databricks.yml", "databricks.yml"),
-                ("cicd/etl/bundle.sh", "bundle.sh"),
+                ("deploy/team_config.yaml", "team_config.yaml"),
+                ("deploy/bundleignore", ".bundleignore"),
+                ("deploy/etl/databricks.yml", "databricks.yml"),
+                ("deploy/etl/run_local.sh", "run_local.sh"),
             ],
             "job": [
-                ("cicd/gitlab-ci.controller.yml", ".gitlab-ci.yml"),
-                ("cicd/team_config.yaml", "team_config.yaml"),
-                ("cicd/bundleignore", ".bundleignore"),
-                ("cicd/job/databricks.yml", "databricks.yml"),
-                ("cicd/job/bundle.sh", "bundle.sh"),
+                ("deploy/team_config.yaml", "team_config.yaml"),
+                ("deploy/bundleignore", ".bundleignore"),
+                ("deploy/job/databricks.yml", "databricks.yml"),
+                ("deploy/job/run_local.sh", "run_local.sh"),
             ],
-            # fe deploys through the controller like the others. It ships a
-            # prebuilt dist/ rather than source, because the Apps build
-            # environment cannot reach the npm registry — see cicd/fe/databricks.yml.
+            # fe ships a prebuilt dist/ rather than source: the Apps build
+            # environment cannot resolve registry.npmjs.org, so nothing installs
+            # or builds there. See deploy/fe/databricks.yml.
             "fe": [
-                ("cicd/gitlab-ci.controller.yml", ".gitlab-ci.yml"),
-                ("cicd/team_config.yaml", "team_config.yaml"),
-                ("cicd/fe/databricks.yml", "databricks.yml"),
-                ("cicd/fe/run_local.sh", "run_local.sh"),
+                ("deploy/team_config.yaml", "team_config.yaml"),
+                ("deploy/fe/databricks.yml", "databricks.yml"),
+                ("deploy/fe/run_local.sh", "run_local.sh"),
             ],
-            # Neither is a DAB resource, so neither triggers the controller. Their
-            # jobs invoke src/validate.py and src/deploy.py, so the aspect ships
-            # those too — otherwise `add` installs a pipeline pointing at missing
-            # files.
+            # Neither is a DAB bundle: no descriptor, no registry entry. They
+            # reconcile a declaration through a management API instead.
             "genie": [
-                ("cicd/genie/.gitlab-ci.yml", ".gitlab-ci.yml"),
-                ("cicd/genie/deploy.sh", "deploy.sh"),
-                ("cicd/genie/src/validate.py", "src/validate.py"),
-                ("cicd/genie/src/deploy.py", "src/deploy.py"),
+                ("deploy/genie/run_local.sh", "run_local.sh"),
+                ("deploy/genie/src/validate.py", "src/validate.py"),
+                ("deploy/genie/src/deploy.py", "src/deploy.py"),
             ],
             "agent": [
-                ("cicd/agent/.gitlab-ci.yml", ".gitlab-ci.yml"),
-                ("cicd/agent/deploy.sh", "deploy.sh"),
-                ("cicd/agent/src/validate.py", "src/validate.py"),
-                ("cicd/agent/src/deploy.py", "src/deploy.py"),
+                ("deploy/agent/run_local.sh", "run_local.sh"),
+                ("deploy/agent/src/validate.py", "src/validate.py"),
+                ("deploy/agent/src/deploy.py", "src/deploy.py"),
             ],
         },
-        # config/{DEV,STG,PROD} is part of the deploy story, not a thing to choose
-        # separately: the DEV/STG/PROD split exists *because* the controller deploys
-        # per target. Only `job` reads it (${var.config_dir}/task_config.yaml) — api
-        # serves env from app.yml and etl bakes the catalog into its tasks, so
-        # shipping config/ for them would be dead weight.
+        # config/{DEV,STG,PROD} exists because the controller deploys per target.
+        # Only `job` reads it (${var.config_dir}/task_config.yaml).
         "dirs": {
-            "api": [("cicd/api/resources", "resources")],
-            "etl": [("cicd/etl/resources", "resources")],
-            "job": [("cicd/job/resources", "resources"), ("cicd/config", "config")],
-            "fe": [("cicd/fe/resources", "resources")],
+            "api": [("deploy/api/resources", "resources")],
+            "etl": [("deploy/etl/resources", "resources")],
+            "job": [("deploy/job/resources", "resources"), ("deploy/config", "config")],
+            "fe": [("deploy/fe/resources", "resources")],
             "*": [],
         },
         # run_resources.yml tells the CONTROLLER what to run after deploy, so it
@@ -309,29 +326,33 @@ ASPECTS = {
             "agent": [],
         },
         "wiring": {
-            "*": _CICD_WIRING,
-            "job": _CICD_WIRING + _ENV_CONFIG_WIRING,
-            "fe": _FE_CICD_WIRING,
-            "genie": _API_TYPE_CICD_WIRING
-            + [
-                "Run `python src/validate.py` before pushing — it is exactly what the "
-                "pipeline's first stage runs, and it needs no credentials. A repo that "
-                "predates this pipeline usually fails on one thing: a `space_id:` left "
-                "in genie-space/space.yml. Delete it. The space is resolved by title, "
-                "so a committed id is deploy state the repo must not hold.",
-                "If the repo already had a deploy_genie.py at its root, delete it — "
-                "src/deploy.py replaces it, and two deploy scripts means two answers "
-                "to which space this repo owns.",
-            ],
-            "agent": _API_TYPE_CICD_WIRING
-            + [
-                "Run `python src/validate.py` before pushing — it is exactly what the "
-                "pipeline's first stage runs, and it needs no credentials. A repo that "
-                "predates this pipeline usually fails on one thing: a "
-                "`supervisor_agent_id:` left in supervisor/supervisor.yml. Delete it. "
-                "The supervisor is resolved by name, so a committed id is deploy state "
-                "the repo must not hold.",
-            ],
+            "*": _DEPLOY_WIRING,
+            "job": _DEPLOY_WIRING + _ENV_CONFIG_WIRING,
+            "fe": _DEPLOY_WIRING + _FE_DEPLOY_WIRING,
+            "genie": _API_TYPE_DEPLOY_WIRING + _GENIE_DEPLOY_WIRING,
+            "agent": _API_TYPE_DEPLOY_WIRING + _AGENT_DEPLOY_WIRING,
+        },
+    },
+    "gitlab": {
+        "label": "GitLab CI/CD",
+        "summary": (
+            "The GitLab pipeline and the project setup it needs — bundle types trigger "
+            "the shared DAB controller on merge to stg/prod; genie/agent validate their "
+            "declaration, then run their own deploy script"
+        ),
+        "applies_to": ALL_TYPES,
+        "selectable": True,
+        "files": {
+            "*": [("gitlab/gitlab-ci.controller.yml", ".gitlab-ci.yml")],
+            "genie": [("gitlab/genie-gitlab-ci.yml", ".gitlab-ci.yml")],
+            "agent": [("gitlab/agent-gitlab-ci.yml", ".gitlab-ci.yml")],
+        },
+        "dirs": {"*": []},
+        "generated": {"*": []},
+        "wiring": {
+            "*": _GITLAB_WIRING,
+            "genie": _GITLAB_TOKEN_WIRING,
+            "agent": _GITLAB_TOKEN_WIRING,
         },
     },
     "api": {
@@ -450,7 +471,7 @@ ASPECTS = {
 
 # Apply order. config-sheet is last on purpose: it must see the tokens the other
 # aspects bring in.
-ORDER = ["cicd", "api", "standards", "gitignore", "specs", "config-sheet"]
+ORDER = ["deploy", "gitlab", "api", "standards", "gitignore", "specs", "config-sheet"]
 
 # What a user chooses between. Everything else in ASPECTS is applied for them.
 SELECTABLE = [k for k in ORDER if ASPECTS[k].get("selectable")]
@@ -470,7 +491,7 @@ AUTO = ["standards", "gitignore", "specs", "config-sheet"]
 # Keys that are not choices, mapped to where that work lives now — so anyone who
 # reaches for one gets a pointer instead of "unknown aspect".
 MERGED = {
-    "env-config": "config/{DEV,STG,PROD} now ships with the `cicd` aspect on job repos.",
+    "env-config": "config/{DEV,STG,PROD} now ships with the `deploy` aspect on job repos.",
     "api-platform": "it is now called `api`.",
     "standards": "standards docs ship with {{cmd:scaffold:new}}, per repo type.",
     "gitignore": ".gitignore is applied automatically wherever it is missing.",
@@ -480,7 +501,8 @@ MERGED = {
 
 # The **standard set** per type: what a repo of this type gets from `new`, and so
 # what `add --aspect all` restores in a repo that predates the scaffold. Notes:
-#   cicd  — controller types get the controller pipeline (job also gets config/).
+#   deploy — bundle descriptor + resources + run_local.sh (job also gets config/).
+#   gitlab — the pipeline, and the project setup it needs.
 #           fe, genie and agent each ship their own .gitlab-ci.yml inside their
 #           template dir, so `new` does not layer the aspect on top; `add` still
 #           can, for a repo that predates it.
@@ -488,12 +510,12 @@ MERGED = {
 #           aspect exists for FastAPI repos that were never scaffolded.
 # README.md ships inside each template dir (tokens patched by new.py's _patch_tree).
 DEFAULT_BY_TYPE = {
-    "api": ("cicd", "standards", "gitignore", "specs"),
-    "etl": ("cicd", "standards", "gitignore", "specs"),
-    "job": ("cicd", "standards", "gitignore", "specs"),
-    "fe": ("cicd", "standards", "gitignore", "specs"),
-    "agent": ("cicd", "standards", "gitignore", "specs"),
-    "genie": ("cicd", "standards", "gitignore", "specs"),
+    "api": ("deploy", "gitlab", "standards", "gitignore", "specs"),
+    "etl": ("deploy", "gitlab", "standards", "gitignore", "specs"),
+    "job": ("deploy", "gitlab", "standards", "gitignore", "specs"),
+    "fe": ("deploy", "gitlab", "standards", "gitignore", "specs"),
+    "agent": ("deploy", "gitlab", "standards", "gitignore", "specs"),
+    "genie": ("deploy", "gitlab", "standards", "gitignore", "specs"),
 }
 
 

@@ -1,6 +1,30 @@
 #!/bin/bash
 set -euo pipefail
 
+# ── Modes ───────────────────────────────────────────────────────────────────
+#   ./run_local.sh            serve the API on :8000 with reload
+#   ./run_local.sh deploy     deploy to the DEV workspace
+#
+# deploy targets dev only. stg and prod go through the CI/CD controller, on
+# merge to the stg / prod branch.
+MODE="${1:-run}"
+case "$MODE" in
+  deploy) shift || true ;;
+  run)    shift || true ;;
+  -h|--help) sed -n '/^# ── Modes/,/^$/p' "$0"; exit 0 ;;
+  *) echo "usage: $0 [run|deploy]" >&2; exit 2 ;;
+esac
+
+if [[ "$MODE" != "deploy" ]]; then
+  cd "$(dirname "$0")"
+  [[ -d .venv ]] || python3 -m venv .venv
+  ./.venv/bin/pip install -q -r requirements.txt
+  exec ./.venv/bin/uvicorn app:app --reload --port "${PORT:-8000}"
+  exit $?
+fi
+
+
+
 # ==============================================================================
 # LOCAL DEV-LOOP deploy — deploys this app bundle to the DEV workspace only.
 #

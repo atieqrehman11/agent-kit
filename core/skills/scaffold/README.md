@@ -16,7 +16,7 @@ documentation rather than payload, it is never installed (STANDARD.md §1.3). Ed
 |---|---|---|
 | [`{{cmd:scaffold:profile}}`](commands/profile.md) | Set up the org/project values shared by every repo (branding, team, CI/CD, cluster policies) — once per scope. | `scaffold-profile.md` |
 | [`{{cmd:scaffold:new}}`](commands/new.md) | Scaffold a new repo (type-driven wizard: `api` · `etl` · `job` · `fe` · `agent` · `genie`). | templates → new repo |
-| [`{{cmd:scaffold:add}}`](commands/add.md) | Add **one aspect** — the `cicd` deploy pipeline or the `api` surface — to a repo that already exists. | templates → existing repo |
+| [`{{cmd:scaffold:add}}`](commands/add.md) | Add **one aspect** — the `deploy` config, the `gitlab` pipeline, or the `api` surface — to a repo that already exists. | templates → existing repo |
 | [`{{cmd:scaffold:configure}}`](commands/configure.md) | Fill the per-repo `TODO_SET_*` placeholders a scaffolded repo ships with. | `CONFIG.md` → repo |
 
 ## The two-level config model
@@ -47,7 +47,7 @@ edit <repo>/CONFIG.md                  # fill the per-repo placeholders
 {{cmd:scaffold:configure}}                    # apply them across the repo tree
 
 # for a repo that already exists (including one this tool never made)
-{{cmd:scaffold:add}}                          # pick an aspect → cicd (deploy pipeline) or api
+{{cmd:scaffold:add}}                          # pick an aspect → deploy, gitlab, or api
 {{cmd:scaffold:configure}}                    # apply the placeholders the new files brought in
 ```
 
@@ -62,8 +62,8 @@ not the tech inside it:
 | `etl` | `resources.pipelines` — Lakeflow declarative pipeline | `bundle deploy` | enterprise controller |
 | `job` | `resources.jobs` — scheduled Databricks Job | `bundle deploy` | enterprise controller |
 | `fe` | `resources.apps` — React Databricks App | `bundle deploy` (after a build) | own pipeline: verify → build → deploy |
-| `agent` | Agent Bricks Multi-Agent Supervisor | `supervisor_agents` SDK (`./deploy.sh`) | validate → deploy |
-| `genie` | Genie space | Genie management API (`./deploy.sh`) | validate → apply DDL → deploy |
+| `agent` | Agent Bricks Multi-Agent Supervisor | `supervisor_agents` SDK (`./run_local.sh deploy`) | validate → deploy |
+| `genie` | Genie space | Genie management API (`./run_local.sh deploy`) | validate → apply DDL → deploy |
 
 `agent` and `genie` have no DAB bundle — `src/deploy.py` calls a management API instead, and
 neither repo stores an id: the resource is resolved by name, `"<display_name|title> [ENV]"`,
@@ -114,12 +114,13 @@ missing, rather than booting and 500-ing on first use.
 
 A repo is not monolithic: it is a type skeleton plus a few **aspects**. Each aspect is one
 named slice, defined once in [`aspects.py`](aspects.py) and applied through one function, so
-*"the cicd aspect"* means the identical set of files whether it lands in a brand-new repo or a
+*"the deploy aspect"* means the identical set of files whether it lands in a brand-new repo or a
 five-year-old one. Two are choosable:
 
 | Aspect | Adds | Types |
 |---|---|---|
-| `cicd` | `.gitlab-ci.yml` + `team_config.yaml` + `run_resources.yml` + `.bundleignore` (genie/agent: their declaration-validating pipeline; `fe`: its build-then-deploy pipeline and the inverted `.bundleignore` that keeps `dist/`); on a `job` repo also `config/{DEV,STG,PROD}/task_config.yaml` | `api` `etl` `job` `fe` `genie` `agent` |
+| `deploy` | How the repo deploys, independent of CI provider: `databricks.yml` + `resources/` + `run_local.sh` + `team_config.yaml` + `run_resources.yml` + `.bundleignore`. `fe` ships a committed `dist/` and a sync block that keeps `package.json` out of the app root. `genie`/`agent` are not bundles: they get `run_local.sh` + `src/validate.py` + `src/deploy.py` and no descriptor. A `job` repo also gets `config/{DEV,STG,PROD}/task_config.yaml`. | `api` `etl` `job` `fe` `genie` `agent` |
+| `gitlab` | The GitLab pipeline: `.gitlab-ci.yml`. Bundle types trigger the shared DAB controller on merge to `stg`/`prod`; `genie`/`agent` validate their declaration, then run their own deploy script. The GitLab project setup it needs is `gitlab/setup-group.sh` (once per group) and `gitlab/setup-repo.sh` (per repo) — kit tooling, not repo files. | `api` `etl` `job` `fe` `genie` `agent` |
 | `api` | `routers/platform.py` (`GET /v1/health` + `GET /v1/info`) plus the service spine those endpoints need: `core/` (validated settings, one logging setup, one exception hierarchy behind one handler layer, request-id middleware), `schema/`, `services/`, `repositories/` | `api` |
 
 The rest are **not decisions**, so they are never offered: the standards docs for the repo's
@@ -140,7 +141,7 @@ The standards ship with `add`, not only with `new`, because the code an aspect d
 `docs/SERVICE_STRUCTURE_STANDARDS.md`. Without them you get a repo with no `docs/` and ten
 pointers into nothing.
 
-Per-environment config is deliberately *inside* `cicd` rather than beside it: the DEV/STG/PROD
+Per-environment config is deliberately *inside* `deploy` rather than beside it: the DEV/STG/PROD
 split exists because the controller deploys per target, so it is part of the deploy story, not
 a separate thing to choose. Only `job` reads it (`${var.config_dir}/task_config.yaml`) — `api`
 and `fe` serve env from `app.yml` and `etl` bakes the catalog into its tasks.
@@ -175,7 +176,7 @@ scaffold/
   config_tokens.py                   TODO_SET_* token registry (group / label / example)
   templates/                         PAYLOAD — one dir per type
     api-skeleton/  etl-bundle/  job-bundle/  fe/  agent/  genie/
-    cicd/  common/                   shared CI/CD + gitignore fragments
+    deploy/  gitlab/  common/        deploy config, GitLab pipeline, shared fragments
   README.md                          DOCUMENTATION — this file. Never installed
   docs/                              DOCUMENTATION — the workflow diagram. Never installed
 ```

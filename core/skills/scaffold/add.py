@@ -4,14 +4,16 @@
 ``new.py`` creates a whole repo. This adds a single slice to a repo you already
 have, including repos this tool never created. Two aspects are choosable:
 
-    cicd   the deploy pipeline — .gitlab-ci.yml + team_config.yaml +
+    deploy the deploy config — databricks.yml + resources/ + run_local.sh +
+           team_config.yaml
+    gitlab the GitLab pipeline — .gitlab-ci.yml +
            run_resources.yml + .bundleignore, and on a job repo the
            config/{DEV,STG,PROD} it reads per target
     api    the use case API surface — GET /v1/health + GET /v1/info
 
 Usage:
     python3 add.py --repo <path> --detect
-    python3 add.py --repo <path> --aspect cicd [--aspect api]
+    python3 add.py --repo <path> --aspect deploy [--aspect gitlab] [--aspect api]
     python3 add.py --repo <path> --aspect all --dry-run
     python3 add.py --list
 
@@ -312,9 +314,9 @@ def _build_vars(args, repo, rtype, bundle_name, bundle_uuid, keys=()):
     # A bundle repo already has a name + uuid in databricks.yml; reuse them so
     # team_config.yaml and .gitlab-ci.yml agree with it. Only invent them when the
     # repo has no bundle file at all, and say so.
-    # Only the cicd aspect writes the bundle identity into a file (team_config.yaml,
+    # Only the deploy aspect writes the bundle identity into a file (team_config.yaml,
     # BUNDLE_TAG), so only it needs to hear about a missing databricks.yml.
-    bundle_matters = "cicd" in keys and rtype in aspects.BUNDLE_TYPES
+    bundle_matters = "deploy" in keys and rtype in aspects.BUNDLE_TYPES
     if not bundle_name:
         bundle_name = f"{resource_key}_{rtype}"
         if bundle_matters:

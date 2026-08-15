@@ -2,9 +2,10 @@
 #
 # Run TPLVAR_SLUG locally, or deploy it to the DEV workspace.
 #
+# ── Modes ───────────────────────────────────────────────────────────────────
 #   ./run_local.sh            Vite dev server on :5173 — HMR, no build
 #   ./run_local.sh prod       build, then server.mjs on :8000 — what deploys
-#   ./run_local.sh deploy     verify, build, then deploy to DEV as an App
+#   ./run_local.sh deploy     deploy to the DEV workspace
 #
 # `deploy` targets dev only. stg and prod belong to the CI/CD controller, which
 # deploys the committed dist/ from a fresh clone.
@@ -23,13 +24,13 @@ cd "$(dirname "$0")"
 # Must match the resource key in resources/fe.app.yml.
 APP_KEY="TPLVAR_RESOURCE_KEY"
 
-MODE="${1:-dev}"
+MODE="${1:-run}"
 case "$MODE" in
-  dev)    PORT="${PORT:-5173}" ;;
+  run)    PORT="${PORT:-5173}" ;;
   prod)   PORT="${PORT:-8000}" ;;
   deploy) ;;
-  -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
-  *) echo "usage: $0 [dev|prod|deploy]" >&2; exit 2 ;;
+  -h|--help) sed -n '/^# ── Modes/,/^$/p' "$0"; exit 0 ;;
+  *) echo "usage: $0 [run|prod|deploy]" >&2; exit 2 ;;
 esac
 
 # ── Deploy to the dev workspace ─────────────────────────────────────────────
@@ -120,7 +121,7 @@ echo "port     : $PORT"
 echo "upstream : $BACKEND_API_UPSTREAM"
 echo
 
-if [[ "$MODE" == "dev" ]]; then
+if [[ "$MODE" == "run" ]]; then
   exec npx vite --port "$PORT" --strictPort
 else
   npm run build

@@ -16,7 +16,8 @@ including repos the scaffold never created. Two aspects are choosable:
 
 | Aspect | What the repo gains | Repo types |
 |---|---|---|
-| `cicd` | The deploy pipeline: `.gitlab-ci.yml` + `team_config.yaml` + `run_resources.yml` + `.bundleignore` — controller types (`api` `etl` `job`) trigger the shared DAB controller on merge to `stg`/`prod`. `genie` and `agent` get a declaration-validating pipeline instead, which runs their own deploy script with `--env <branch>` (no bundle, no controller, no `team_config.yaml`). `fe` gets a verify → build → `bundle deploy` pipeline it runs itself, plus an **inverted `.bundleignore`** that keeps `dist/` and drops `src/` and `node_modules/` (no controller, no `team_config.yaml`, no `run_resources.yml`). A `job` repo also gets the `config/{DEV,STG,PROD}/task_config.yaml` it reads per target. | `api` `etl` `job` `fe` `genie` `agent` |
+| `deploy` | How the repo deploys, independent of CI provider: `databricks.yml` + `resources/` + `run_local.sh` + `team_config.yaml` + `run_resources.yml` + `.bundleignore`. `fe` ships a committed `dist/` and a sync block that keeps `package.json` out of the app root. `genie`/`agent` are not bundles: they get `run_local.sh` + `src/validate.py` + `src/deploy.py` and no descriptor. A `job` repo also gets `config/{DEV,STG,PROD}/task_config.yaml`. | `api` `etl` `job` `fe` `genie` `agent` |
+| `gitlab` | The GitLab pipeline: `.gitlab-ci.yml`. Bundle types trigger the shared DAB controller on merge to `stg`/`prod`; `genie`/`agent` validate their declaration, then run their own deploy script. The GitLab project setup it needs is `gitlab/setup-group.sh` (once per group) and `gitlab/setup-repo.sh` (per repo) — kit tooling, not repo files. | `api` `etl` `job` `fe` `genie` `agent` |
 | `api` | The use case API surface: `routers/platform.py` + `config.py` — `GET /v1/health` and `GET /v1/info`, the two endpoints every use case API must expose (API_STANDARDS §3–4). | `api` |
 
 **Not choices** — these come with any add, wherever they are missing, and are never asked
@@ -85,7 +86,7 @@ Prefer showing a `--dry-run` first when the repo is not a fresh scaffold.
 ```bash
 python3 __SKILL_DIR__/add.py \
   --repo "<path to the existing repo>" \
-  --aspect <cicd|api|all> \
+  --aspect <deploy|gitlab|api|all> \
   [--aspect <the other>] \              # repeatable
   [--type <api|etl|job|fe|genie|agent>] \  # only if detection failed or is wrong
   [--force] [--dry-run] [--no-config-sheet]
@@ -128,9 +129,9 @@ half-filled sheet, it only appends the placeholders the new files brought in.
 ```
 {{cmd:scaffold:add}}
 → (detect) ai-cable-health-job · type job (from resources/job.job.yml) · bundle cable_health_job
-           cicd MISSING · api N/A · (auto) gitignore, config-sheet
+           deploy MISSING · gitlab MISSING · api N/A · (auto) gitignore, config-sheet
 → [picker] Add the CI/CD pipeline?   Proceed / Cancel
-✓ Proceed → add.py --repo <path> --aspect cicd
+✓ Proceed → add.py --repo <path> --aspect deploy --aspect gitlab
    added .gitlab-ci.yml, team_config.yaml, .bundleignore, run_resources.yml,
          config/{DEV,STG,PROD}/task_config.yaml, .gitignore
    CONFIG.md — 20 placeholders outstanding → fill it, then {{cmd:scaffold:configure}}
