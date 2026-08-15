@@ -24,9 +24,9 @@ description: >
 
 Types: `api` · `etl` · `job` · `fe` · `agent` · `genie`. `api` and `fe` are both
 `resources.apps` Databricks Apps — the backend and the front end of one product, scaffolded
-as two repos. `fe` is the only type that is not a Python repo, and the only bundle type that
-deploys itself rather than through the shared DAB controller (it ships a build artifact the
-controller's git checkout would not contain).
+as two repos. `fe` is the only type that is not a Python repo. It deploys through the shared DAB
+controller like the other bundle types, but ships a committed `dist/` rather than source:
+the Apps build environment cannot reach the npm registry, so nothing can be built there.
 
 Org-wide values (branding, team, CI/CD, cluster policies) come from the profile sheet,
 which is never committed. Everything else is per-repo.

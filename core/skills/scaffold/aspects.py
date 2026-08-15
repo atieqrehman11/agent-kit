@@ -71,7 +71,7 @@ def _strip_frontmatter(text):
 # not be committed — so building and deploying have to happen in one job, which
 # is the job in the repo's own pipeline.
 BUNDLE_TYPES = ("api", "etl", "job", "fe")
-CONTROLLER_TYPES = ("api", "etl", "job")
+CONTROLLER_TYPES = ("api", "etl", "job", "fe")
 API_TYPES = ("genie", "agent")
 ALL_TYPES = BUNDLE_TYPES + API_TYPES
 
@@ -146,11 +146,17 @@ def run_resources_yaml(vars_) -> str:
 # editing a databricks.yml or an app.py the repo already owns. They are printed
 # after an apply and are the honest boundary of what the script did.
 _CICD_WIRING = [
-    "Set CONTROLLER_TRIGGER_TOKEN in GitLab > Settings > CI/CD > Variables "
-    "(masked) before the first stg/prod deploy.",
+    "Run cicd/setup-gitlab-project.sh --group <id> to create dev/stg/prod, set "
+    "branch protection and the default branch, add the controller to the "
+    "job-token allowlist, and put CONTROLLER_TRIGGER_TOKEN on the group. It is a "
+    "dry run until --apply. stg and prod must stay PROTECTED branches or the "
+    "trigger silently receives an empty token.",
     "Confirm BUNDLE_TAG in .gitlab-ci.yml matches bundle.name in databricks.yml, "
-    "and that team_config.yaml's bundle_name + uuid match it too.",
-    "Push the `stg` / `prod` branches — the pipeline fires on merge to each.",
+    "and that team_config.yaml's bundle_name + uuid match it too. A mismatch "
+    "fails the controller's governance stage, not your pipeline.",
+    "Submit team_config.yaml to the platform team, including the service "
+    "principal ids. The controller reads run_as out of databricks.yml and fails "
+    "governance if it is missing on stg/prod.",
 ]
 
 # genie/agent deploy through a management API, so they need workspace credentials
@@ -163,24 +169,18 @@ _API_TYPE_CICD_WIRING = [
     "Push the `stg` / `prod` branches — the deploy job is manual on each.",
 ]
 
-# fe deploys a DAB bundle but not through the controller: the controller deploys
-# from a git checkout and runs no Node build, so it would deploy a repo with no
-# dist/ in it. Build and deploy therefore happen in one job, which needs a
-# workspace token of its own rather than a controller trigger token.
+# fe deploys through the controller like the other bundle types. What is
+# different is what it ships: a prebuilt dist/ rather than source, because the
+# Apps build environment cannot resolve registry.npmjs.org.
 _FE_CICD_WIRING = [
-    "Set DATABRICKS_TOKEN in GitLab > Settings > CI/CD > Variables (masked), "
-    "scoped to the `stg` and `prod` branches separately. The HOST is deliberately "
-    "not a CI variable — it comes from the matching target in databricks.yml, so "
-    "there is one answer to which workspace is stg.",
-    "Confirm .nvmrc and the CI image agree on a Node version — the pipeline runs "
-    "`npm ci` and will fail on a runtime older than the engines field in package.json.",
-    "Push the `stg` / `prod` branches — the deploy job is manual on each. It runs "
-    "`npm run build` and then `databricks bundle deploy`, in that order and in the "
-    "same job: splitting them means passing dist/ between jobs and hoping both ran "
-    "on the same commit.",
-    "If your DAB controller later gains a Node build stage, replace the deploy jobs "
-    "with the controller-trigger form the other bundle types use. Nothing else in "
-    "the repo has to change.",
+    "Commit dist/. `./run_local.sh deploy` builds it; the controller deploys from "
+    "a fresh clone, so an uncommitted dist/ means `validate_bundle` fails with "
+    "`stat dist: no such file or directory`.",
+    "Rebuild and commit dist/ whenever src/ changes. Nothing enforces this — a "
+    "stale dist/ deploys green and serves the previous bundle.",
+    "Confirm resources/fe.app.yml keeps package.json out of the app root. If it "
+    "reaches the workspace the platform runs an install, which fails with "
+    "`EAI_AGAIN registry.npmjs.org`.",
 ]
 
 _ENV_CONFIG_WIRING = [
@@ -229,39 +229,64 @@ ASPECTS = {
     "cicd": {
         "label": "CI/CD pipeline",
         "summary": (
-            "GitLab pipeline that deploys this repo to stg/prod — controller types via "
-            "the shared DAB controller (+ the per-environment config a job reads); "
-            "fe builds and deploys its own bundle; genie/agent validate their "
-            "declaration, then run their own deploy script with --env <branch>"
+            "The whole deploy story: bundle descriptor, resource definitions, pipeline "
+            "and registry entry. api/etl/job/fe deploy through the shared DAB "
+            "controller (+ the per-environment config a job reads); genie/agent "
+            "validate their declaration, then run their own deploy script"
         ),
         "applies_to": ALL_TYPES,
         "selectable": True,
+        # This aspect owns the whole deploy story: the bundle descriptor, the
+        # resource definitions, the pipeline and the registry entry. The type
+        # skeletons ship application code only, so `new` cannot produce a repo
+        # whose deploy config disagrees with its pipeline.
         "files": {
-            "*": [
+            "api": [
                 ("cicd/gitlab-ci.controller.yml", ".gitlab-ci.yml"),
                 ("cicd/team_config.yaml", "team_config.yaml"),
                 ("cicd/bundleignore", ".bundleignore"),
+                ("cicd/api/databricks.yml", "databricks.yml"),
+                ("cicd/api/app.yml", "app.yml"),
+                ("cicd/api/bundle.sh", "bundle.sh"),
             ],
-            # No team_config.yaml and no controller bundleignore: neither goes
-            # near the controller. The .bundleignore here is the inverse of the
-            # shared one — it keeps dist/ and drops src/ and node_modules/.
+            "etl": [
+                ("cicd/gitlab-ci.controller.yml", ".gitlab-ci.yml"),
+                ("cicd/team_config.yaml", "team_config.yaml"),
+                ("cicd/bundleignore", ".bundleignore"),
+                ("cicd/etl/databricks.yml", "databricks.yml"),
+                ("cicd/etl/bundle.sh", "bundle.sh"),
+            ],
+            "job": [
+                ("cicd/gitlab-ci.controller.yml", ".gitlab-ci.yml"),
+                ("cicd/team_config.yaml", "team_config.yaml"),
+                ("cicd/bundleignore", ".bundleignore"),
+                ("cicd/job/databricks.yml", "databricks.yml"),
+                ("cicd/job/bundle.sh", "bundle.sh"),
+            ],
+            # fe deploys through the controller like the others. It ships a
+            # prebuilt dist/ rather than source, because the Apps build
+            # environment cannot reach the npm registry — see cicd/fe/databricks.yml.
             "fe": [
-                ("fe/.gitlab-ci.yml", ".gitlab-ci.yml"),
-                ("fe/.bundleignore", ".bundleignore"),
+                ("cicd/gitlab-ci.controller.yml", ".gitlab-ci.yml"),
+                ("cicd/team_config.yaml", "team_config.yaml"),
+                ("cicd/fe/databricks.yml", "databricks.yml"),
+                ("cicd/fe/run_local.sh", "run_local.sh"),
             ],
             # Neither is a DAB resource, so neither triggers the controller. Their
             # jobs invoke src/validate.py and src/deploy.py, so the aspect ships
             # those too — otherwise `add` installs a pipeline pointing at missing
-            # files. _emit skips what exists, so this is a no-op on a scaffolded repo.
+            # files.
             "genie": [
-                ("genie/.gitlab-ci.yml", ".gitlab-ci.yml"),
-                ("genie/src/validate.py", "src/validate.py"),
-                ("genie/src/deploy.py", "src/deploy.py"),
+                ("cicd/genie/.gitlab-ci.yml", ".gitlab-ci.yml"),
+                ("cicd/genie/deploy.sh", "deploy.sh"),
+                ("cicd/genie/src/validate.py", "src/validate.py"),
+                ("cicd/genie/src/deploy.py", "src/deploy.py"),
             ],
             "agent": [
-                ("agent/.gitlab-ci.yml", ".gitlab-ci.yml"),
-                ("agent/src/validate.py", "src/validate.py"),
-                ("agent/src/deploy.py", "src/deploy.py"),
+                ("cicd/agent/.gitlab-ci.yml", ".gitlab-ci.yml"),
+                ("cicd/agent/deploy.sh", "deploy.sh"),
+                ("cicd/agent/src/validate.py", "src/validate.py"),
+                ("cicd/agent/src/deploy.py", "src/deploy.py"),
             ],
         },
         # config/{DEV,STG,PROD} is part of the deploy story, not a thing to choose
@@ -269,12 +294,17 @@ ASPECTS = {
         # per target. Only `job` reads it (${var.config_dir}/task_config.yaml) — api
         # serves env from app.yml and etl bakes the catalog into its tasks, so
         # shipping config/ for them would be dead weight.
-        "dirs": {"job": [("cicd/config", "config")], "*": []},
+        "dirs": {
+            "api": [("cicd/api/resources", "resources")],
+            "etl": [("cicd/etl/resources", "resources")],
+            "job": [("cicd/job/resources", "resources"), ("cicd/config", "config")],
+            "fe": [("cicd/fe/resources", "resources")],
+            "*": [],
+        },
         # run_resources.yml tells the CONTROLLER what to run after deploy, so it
         # is meaningless in a repo that does not use the controller.
         "generated": {
             "*": [("run_resources.yml", run_resources_yaml)],
-            "fe": [],
             "genie": [],
             "agent": [],
         },
@@ -461,9 +491,9 @@ DEFAULT_BY_TYPE = {
     "api": ("cicd", "standards", "gitignore", "specs"),
     "etl": ("cicd", "standards", "gitignore", "specs"),
     "job": ("cicd", "standards", "gitignore", "specs"),
-    "fe": ("standards", "gitignore", "specs"),
-    "agent": ("standards", "gitignore", "specs"),
-    "genie": ("standards", "gitignore", "specs"),
+    "fe": ("cicd", "standards", "gitignore", "specs"),
+    "agent": ("cicd", "standards", "gitignore", "specs"),
+    "genie": ("cicd", "standards", "gitignore", "specs"),
 }
 
 
@@ -576,6 +606,10 @@ def apply(key, repo_dir, rtype, vars_, force=False, dry_run=False):
             text = _read(src)
         with open(dest, "w", encoding="utf-8") as f:
             f.write(substitute(text, vars_))
+        # Entrypoints are aspect-owned now, and a fresh file is 0644 — a
+        # run_local.sh nobody can run is a scaffold that does not work.
+        if dest_rel.endswith(".sh"):
+            os.chmod(dest, 0o755)
         written.append(dest_rel)
 
     for src_rel, dest_rel in _for_type(ASPECTS[key].get("files"), rtype):

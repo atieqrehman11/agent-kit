@@ -224,11 +224,12 @@ checklist.
   so the one thing to get right is granting that principal `CAN_USE` on the `api` App:
   `TODO_SET_FRONTEND_SP_ID` in the api repo's app resource. Forwarding the signed-in user's
   token instead (`obo`) is implemented and commented ready in `resources/fe.app.yml` — tell
-  the user it is the intended direction, but only once the backend authorizes per user. Cloud deploy needs `DATABRICKS_TOKEN` in GitLab CI/CD variables scoped per
-  branch — **not** `CONTROLLER_TRIGGER_TOKEN`; this repo deploys itself, because the
-  controller runs no Node build and would deploy a checkout with no `dist/` in it. Tell the
-  user that `npm run verify` (format → lint → types → tests → build → bundle budget) is
-  exactly what CI and `./bundle.sh` run. Full guidance: `docs/REACT_STANDARDS.md`.
+  the user it is the intended direction, but only once the backend authorizes per user. Cloud deploy goes through the DAB controller like the other bundle
+  types, so it needs `CONTROLLER_TRIGGER_TOKEN` (group-level) — not a workspace token. What
+  differs is the payload: `dist/` is **committed**, because the Apps build environment cannot
+  resolve `registry.npmjs.org` and the controller deploys from a fresh clone. Tell the user
+  to rebuild and commit `dist/` whenever `src/` changes — a stale one deploys green and
+  serves the previous bundle — and that `npm run verify` is what `./run_local.sh deploy` runs. Full guidance: `docs/REACT_STANDARDS.md`.
 - **agent** — no bundle: a Multi-Agent Supervisor deployed by script. Write the routing
   guidance in `supervisor/instructions.md`, set `display_name`/`description` and the `tools`
   list (each: `id`, `type`, `description` + its id) in `supervisor/supervisor.yml`, then

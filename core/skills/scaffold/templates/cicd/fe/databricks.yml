@@ -1,0 +1,119 @@
+# TPLVAR_SLUG — a React front end deployed as a Databricks App.
+# stg and prod belong to the DAB CI/CD controller — never deploy them by hand.
+
+bundle:
+  name: TPLVAR_BUNDLE_NAME
+  # Unique across all teams; do not change after the first deploy.
+  uuid: TPLVAR_BUNDLE_UUID
+
+include:
+  - resources/*.yml
+
+# api_* become the App's env (see resources/fe.app.yml). The rest exist only
+# because the controller passes them and deploy errors on an undeclared --var.
+variables:
+  backend_api_url:
+    description: "Use case API this front end proxies to"
+    default: "TODO_SET_BACKEND_API_URL"
+
+  backend_api_auth:
+    description: "sp | obo | none — how the proxy authenticates to that API"
+    default: "sp"
+
+  log_level:
+    description: "info | debug — debug logs one line per proxied request"
+    default: "info"
+
+  config_dir:
+    description: "Unused — no job tasks."
+    default: ""
+
+  policy_id:
+    description: "Unused — no job clusters."
+    default: ""
+
+  team_tag:
+    default: "TPLVAR_TEAM_TAG"
+
+  project_tag:
+    default: "TPLVAR_PROJECT_TAG"
+
+  commit_sha:
+    default: "local"
+
+# Every target ships prebuilt dist/ + server.mjs only: package.json must not
+# reach the app root, or the Apps platform runs an install. That install needs
+# registry.npmjs.org, which the Apps build environment cannot resolve
+# (getaddrinfo EAI_AGAIN). dist/ is committed so the controller's fresh clone
+# has it — see .gitignore.
+#
+# run_as is required by the controller on stg/prod. dev has none — Apps reject a
+# run_as that differs from the deploying identity, and you deploy dev yourself.
+#
+# root_path: dev is shared so the team manages one app; stg/prod use the
+# principal's own folder, as /Workspace/Shared is writable by every user.
+targets:
+  # `mode: development` would reject the shared root_path.
+  dev:
+    default: true
+
+    sync:
+      paths:
+        - ./dist
+        - ./server.mjs
+      exclude:
+        - node_modules/**
+
+    workspace:
+      host: TPLVAR_WORKSPACE_URL
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
+
+    permissions:
+      - group_name: TODO_SET_DEVELOPERS_GROUP
+        level: CAN_MANAGE
+
+  stg:
+    sync:
+      paths:
+        - ./dist
+        - ./server.mjs
+      exclude:
+        - node_modules/**
+
+    workspace:
+      host: TODO_SET_STG_WORKSPACE_HOST
+      root_path: /Workspace/Users/TODO_SET_STG_SERVICE_PRINCIPAL/.bundle/${bundle.name}/${bundle.target}
+
+    run_as:
+      service_principal_name: "TODO_SET_STG_SERVICE_PRINCIPAL"
+
+    variables:
+      backend_api_url: "TODO_SET_STG_BACKEND_API_URL"
+
+    permissions:
+      - group_name: TODO_SET_STG_DEVELOPERS_GROUP
+        level: CAN_MANAGE
+
+  prod:
+    mode: production
+
+    sync:
+      paths:
+        - ./dist
+        - ./server.mjs
+      exclude:
+        - node_modules/**
+
+    workspace:
+      host: TODO_SET_PROD_WORKSPACE_HOST
+      root_path: /Workspace/Users/TODO_SET_PROD_SERVICE_PRINCIPAL/.bundle/${bundle.name}/${bundle.target}
+
+    run_as:
+      service_principal_name: "TODO_SET_PROD_SERVICE_PRINCIPAL"
+
+    variables:
+      backend_api_url: "TODO_SET_PROD_BACKEND_API_URL"
+
+    permissions:
+      - group_name: TODO_SET_PROD_DEVELOPERS_GROUP
+        level: CAN_RUN

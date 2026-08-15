@@ -40,46 +40,63 @@ validate:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH
 
-# ── STG deploy (cloud) — triggered on merge to stg ───────────────────────────
-trigger_deploy_stg:
+# ── Trigger the controller ───────────────────────────────────────────────────
+# ref=prod is the CONTROLLER's release branch, not our target env.
+#
+# No `image:` — the databricks-ci image has no CA bundle at the path its curl
+# expects, so a trigger run there dies with `curl: (77)`. The runner default has
+# a working curl.
+#
+# Two failure modes are checked separately: curl's own exit code (DNS, TLS,
+# connection) and the HTTP status — curl exits 0 on 4xx/5xx, so a rejected
+# trigger would otherwise be a green job that deployed nothing.
+# Green means ACCEPTED; the deploy runs in the controller's pipeline.
+.trigger-controller:
   stage: trigger-deploy
   tags:
     - $GITLAB_RUNNER
   script:
     - |-
-      curl -X POST \
-        -F token=$CONTROLLER_TRIGGER_TOKEN \
+      rc=0
+      response=$(curl -sS -X POST \
+        -F "token=$CONTROLLER_TRIGGER_TOKEN" \
         -F ref=prod \
         -F "variables[PROJECT_REPO_URL]=$CI_PROJECT_URL" \
         -F "variables[PROJECT_REPO_REF]=$CI_COMMIT_REF_NAME" \
         -F "variables[PROJECT_REPO_SHA]=$CI_COMMIT_SHA" \
-        -F "variables[TARGET_ENV]=stg" \
+        -F "variables[TARGET_ENV]=$TARGET_ENV" \
         -F "variables[BUNDLE_TAG]=$BUNDLE_TAG" \
         -F "variables[TEAM_TAG]=$TEAM_TAG" \
         -F "variables[TEAM_TRIGGER_TOKEN]=$CONTROLLER_TRIGGER_TOKEN" \
-        "https://gitlab.com/api/v4/projects/$CONTROLLER_PROJECT_ID/trigger/pipeline"
+        -w '\n%{http_code}' \
+        "https://gitlab.com/api/v4/projects/$CONTROLLER_PROJECT_ID/trigger/pipeline") || rc=$?
+      if [ "$rc" -ne 0 ]; then
+        echo "ERROR: curl could not reach the controller API (exit $rc)."
+        echo "Exit 77 means a missing CA bundle — check this job's image."
+        exit 1
+      fi
+      status=$(printf '%s' "$response" | tail -n1)
+      printf '%s\n' "$response" | sed '$d'
+      # `case`, not a numeric test: an arithmetic comparison on an empty status
+      # errors, and `if` reads that as false — passing the job.
+      case "$status" in
+        2??) echo "✓ Controller pipeline triggered for $TARGET_ENV (HTTP $status)" ;;
+        *)   echo "ERROR: controller trigger failed — HTTP '$status'"
+             echo "Check CONTROLLER_TRIGGER_TOKEN is set and this branch is protected."
+             exit 1 ;;
+      esac
+
+trigger_deploy_stg:
+  extends: .trigger-controller
+  variables:
+    TARGET_ENV: stg
   rules:
     - if: $CI_COMMIT_BRANCH == "stg"
-      when: manual
 
-# ── PROD deploy (cloud) — triggered on merge to prod ─────────────────────────
 trigger_deploy_prod:
-  stage: trigger-deploy
-  tags:
-    - $GITLAB_RUNNER
-  script:
-    - |-
-      curl -X POST \
-        -F token=$CONTROLLER_TRIGGER_TOKEN \
-        -F ref=prod \
-        -F "variables[PROJECT_REPO_URL]=$CI_PROJECT_URL" \
-        -F "variables[PROJECT_REPO_REF]=$CI_COMMIT_REF_NAME" \
-        -F "variables[PROJECT_REPO_SHA]=$CI_COMMIT_SHA" \
-        -F "variables[TARGET_ENV]=prod" \
-        -F "variables[BUNDLE_TAG]=$BUNDLE_TAG" \
-        -F "variables[TEAM_TAG]=$TEAM_TAG" \
-        -F "variables[TEAM_TRIGGER_TOKEN]=$CONTROLLER_TRIGGER_TOKEN" \
-        "https://gitlab.com/api/v4/projects/$CONTROLLER_PROJECT_ID/trigger/pipeline"
+  extends: .trigger-controller
+  variables:
+    TARGET_ENV: prod
   rules:
     - if: $CI_COMMIT_BRANCH == "prod"
       when: manual   # keep manual for production safety

@@ -3,10 +3,10 @@ node_modules/
 .npm/
 
 # ── Build output ────────────────────────────────────────────────────────────
-# dist/ is what the Databricks App serves, and it is still not committed: it is
-# rebuilt by ./bundle.sh and by the deploy job, from the commit being deployed.
-# A committed build is a second answer to "what is running".
-dist/
+# dist/ IS committed. The Apps build environment cannot resolve
+# registry.npmjs.org, so nothing can be installed or built there, and the
+# controller deploys from a fresh clone. Rebuild and commit it whenever src/
+# changes, or stg deploys green and serves a stale bundle.
 .vite/
 *.tsbuildinfo
 
