@@ -5,15 +5,16 @@ description: >
   Standards for Genie spaces: views, functions, instructions and benchmark coverage. Applies
   when building or reviewing a Genie space.
 applies_to:
-  - "**/genie-space/**"
+  - "**/resources/*.genie.yml"
   - "**/docs/GENIE_STANDARDS.md"
 ---
 
 # Genie Standards — __ORG_PREFIX__Genie Space Reference
 
-Standard for the `genie` repo type: a Databricks **Genie space** deployed via the Genie
-**management API** (`createspace` / `updatespace`). There is no DAB bundle for Genie —
-`src/deploy.py` assembles the payload from the repo files and calls the API.
+Standard for the `genie` repo type: a Databricks **Genie space** deployed as an Asset
+Bundle. DAB exposes a `genie_spaces` resource (CLI 1.3.0+, `engine: direct`), so a space
+deploys through the shared CI/CD controller like every other bundle — no deploy script, no
+workspace token in CI.
 
 The **repo is authoritative**: the space is (re)deployed *from* these files. All
 answer-quality tuning (description, instructions, example queries, backing view) lives here.
@@ -23,93 +24,108 @@ answer-quality tuning (description, instructions, example queries, backing view)
 ## 1. Canonical layout
 
 ```
-genie-space/
-├── space.yml            the DEFINITION — title, warehouse_id, data_sources,
-│                         sample_questions, + pointers to the prose / example files
-├── description.md        the space Description as PROSE (pointed to by space.yml)
-├── instructions.md       the space Instructions as PROSE (pointed to by space.yml)
-├── example_queries.yml   OPTIONAL curated question -> SQL pairs (few-shot). Ships as a
-│                         commented TEMPLATE with an empty list — nothing sent until filled
-├── views/                EMPTY by default — add a bespoke backing-view .sql only if needed
-└── functions/            EMPTY by default — UC-function DDL to attach to the space
-CHANGELOG.md              version → date → eval baseline → what changed
-src/validate.py           check space.yml — no credentials, no network
-src/deploy.py             assemble serialized_space + reconcile via the API
-deploy.sh                 local one-shot: pip install + apply DDL + deploy (dev)
-.gitlab-ci.yml            two jobs, each one line: run validate.py, run deploy.py
-GENIE_STANDARDS.md        this file
+src/                     what the space is made of
+├── instructions.md        how Genie should answer — prose, sent verbatim
+├── example_queries.yml    curated question -> SQL pairs, each with an id
+├── data_sources.yml       tables + per-column tuning
+├── sql_functions.yml      UC functions to attach
+├── space.yml              the instruction id
+├── views/                 backing-view DDL, only if an existing table will not do
+└── functions/             UC-function DDL
+scripts/
+├── run_local.sh           build + validate; `deploy` also deploys to dev
+├── build_space.py         assembles src/ into the artifact
+└── validate.py            refuses what would deploy and be wrong
+generated/               built, committed, never hand-edited
+└── space.{dev,stg,prod}.json
+resources/genie.yml      the DAB resource — title, warehouse_id, description, file_path
+databricks.yml           targets, run_as, per-environment values
+run_resources.yml        empty — a space is live as soon as it deploys
+docs/GENIE_STANDARDS.md  this file
 ```
 
-> **CI holds no logic of its own** — each stage runs one of these scripts, so every check
-> that gates a deploy also runs on a laptop. `deploy.py` calls the same `validate.check()`
-> before touching a workspace.
+**The artifact is committed.** The controller clones the repo fresh and runs no project
+scripts, so anything not in the commit does not exist to it.
+
+**One artifact per environment.** DAB resolves `${var.*}` inside an inline
+`serialized_space` but reads a `file_path` target verbatim, so the catalog is baked in at
+build time and `${bundle.target}` selects the file.
 
 > **No dummy content is scaffolded.** `views/` and `functions/` start empty and
-> `example_queries.yml` / `sample_questions` ship as commented templates. A Genie space
-> points at *curated tables you already own*; you supply the data sources and examples.
+> `example_queries.yml` ships as a commented template. A Genie space points at *curated
+> tables you already own*; you supply the data sources and examples.
 
 ---
 
-## 2. Definition vs prose — keep them apart
+## 2. One file per kind of content
 
-**Structured wiring lives in `space.yml`; long text lives in the files it points to.**
-The Genie Description and Instructions are multi-paragraph prose; inlining them as YAML
-strings is painful to write and review, and a formatter can reflow them. So:
+Structured wiring and long prose are separate files, and each names one kind of thing:
 
-- `space.yml` holds machine-readable fields only: `title`, `warehouse_id`,
-  `data_sources`, `sample_questions`, and the `*_file` pointers.
-- `description.md`, `instructions.md`, and `example_queries.yml` hold the content.
-  `src/deploy.py` reads them and folds them into the payload.
+| File | Holds |
+|---|---|
+| `data_sources.yml` | the tables and their per-column tuning |
+| `sql_functions.yml` | the UC functions to attach |
+| `example_queries.yml` | question → SQL pairs |
+| `instructions.md` | the instruction prose, sent byte-verbatim |
+| `resources/genie.yml` | `description`, `title`, `warehouse_id` — DAB fields, not payload |
+
+Prose is sent byte-for-byte: a reflowed paragraph or an added trailing newline is a content
+change. Keep it in `.md`, and do not let a formatter touch it.
 
 ---
 
 ## 3. The `serialized_space` payload
 
-`src/deploy.py` maps the repo files to the API's `serialized_space` (version 2):
+`build_space.py` maps `src/` to the API's `serialized_space` (version 2), written to
+`generated/space.<env>.json`:
 
-| Payload field | Source | Notes |
-|---|---|---|
-| `title` | `space.yml: title` | |
-| `description` | contents of `description.md` | verbatim |
-| `instructions` | contents of `instructions.md` | verbatim |
-| `data_sources` | `space.yml: data_sources` | tables + metric_views |
-| `sample_questions` | `space.yml: sample_questions` | each gets a 32-char hex id |
-| `example_queries` | `example_queries.yml` | **only if entries present** — see §6 |
+| Payload field | Source |
+|---|---|
+| `data_sources` | `data_sources.yml` |
+| `instructions.text_instructions` | `instructions.md` + the id in `space.yml` |
+| `instructions.example_question_sqls` | `example_queries.yml` |
+| `instructions.sql_functions` | `sql_functions.yml` |
 
-The example-queries field name is a **Public-Preview API detail** — confirm it for your
-workspace version and adjust the mapping in `src/deploy.py` if it differs.
+`title` and `description` are **not** in the payload — the API takes them as separate
+fields, so they live in `resources/genie.yml`.
+
+### Ids are authored here
+
+Every instruction, example and function carries a 32-hex id (lowercase, no hyphens). A
+create is **rejected** without one:
+
+```
+example_question_sql.id must be provided and non-empty.
+Expected lowercase 32-hex UUID without hyphens.
+```
+
+The platform stores whatever it is sent, so ids are minted in the repo and committed —
+that is what makes a redeploy edit each entry in place rather than drop and re-add it.
+`build_space.py` mints any that are missing and writes them back into the source file.
 
 ---
 
-## 4. Identity and environments — declare, don't record
+## 4. Identity and environments
 
-**The repo stores no id for the deployed space.** `space.yml` declares what should exist; it
-does not record what does. Identity is two axes together:
+DAB owns identity. The resource key in `resources/genie.yml` is what the bundle tracks;
+renaming it destroys and recreates the space, losing its `space_id` — which is its URL, and
+what an App binds to via `genie_space.space_id`. Do not rename it once deployed.
 
-| Axis | Source |
+**Every per-environment value lives in `databricks.yml`, and nowhere else:**
+
+| | Where |
 |---|---|
-| Which workspace | `DATABRICKS_HOST` / the CLI profile the deploy authenticated with |
-| Which space in it | the title `"<title> [ENV]"`, from config + `--env` |
+| Which workspace | `targets.<env>.workspace.host` |
+| Which title | `${var.space_title}`, overridden per target |
+| Which warehouse | `${var.warehouse_id}`, overridden per target |
+| Which catalog | `${var.catalog}` — read by the build, baked into the artifact |
 
-`src/deploy.py` lists the workspace's spaces and matches that title: one match → **update**;
-none → **create**; more than one → **fail**. Every environment is suffixed, prod included —
-one rule, no exception, so the title is derivable from `(config, env)` alone in CI as on a
-laptop.
+`build_space.py` reads `catalog` and `schema` from the target in `databricks.yml`,
+resolving overrides over defaults exactly as DAB does, so the artifact is built from the
+same values the deploy will use.
 
-**Why not store the id?** CI cannot hold it. A runner checks out fresh, reads an empty id,
-creates a *new* space, and discards the write-back — one more per pipeline run. A field per
-environment does not help: the id is an output of a deploy, and CI's only place to put an
-output is a commit, which is a race.
-
-Two consequences:
-
-- **`title` is the identity.** Renaming it does not rename the deployed space; the next
-  deploy creates a new one under the new title. Clean up the old one yourself.
-- **Duplicate titles are a hard error** — deploy refuses rather than silently retargeting
-  someone else's resource.
-
-Same model as a DAB target: declarative identity plus a per-target workspace, no deploy state
-in git. `agent` repos follow it by supervisor name; see `AGENT_STANDARDS.md`.
+`run_as` is required on `stg` and `prod` — the controller extracts it and fails governance
+without it. `dev` has none, because you deploy it yourself.
 
 ---
 
@@ -127,8 +143,9 @@ A Genie space answers questions **over curated tables you already own** — norm
   existing tables already fit — do not add a view for its own sake.
 - **UC functions** the space uses live under `functions/` as `CREATE OR REPLACE FUNCTION`
   DDL and are listed in `space.yml: uc_functions`.
-- **DDL is applied before the space is created/updated** (`deploy.sh` / CI run with
-  `--apply-ddl`), so anything under `views/` and `functions/` exists first.
+- **The bundle does not deploy the DDL.** DAB has no resource for arbitrary SQL, so
+  everything under `views/` and `functions/` must be applied to the catalog separately and
+  must exist before the space is deployed — the space attaches to them by name.
 
 ---
 
@@ -139,7 +156,7 @@ your data needs. They are the single most effective tuning knob for a space, and
 **optional** — the space works without them, but accuracy improves sharply with a handful of
 good ones.
 
-- The scaffold ships `genie-space/example_queries.yml` as a **commented template** with an
+- The scaffold ships `src/example_queries.yml` as a **commented template** with an
   empty `example_queries: []` list, so nothing is sent until you add entries.
 - Each entry pairs one natural-language `question` with the exact single-statement `sql`
   that answers it against this space's `data_sources`:
@@ -158,17 +175,15 @@ good ones.
 - Guidance: cover the questions users actually ask; make every query **run and return the
   right answer** (paste from a validated notebook); reference only tables in `data_sources`;
   prefer 5–15 high-quality pairs over many low-quality ones.
-- `src/deploy.py` reads the file via `space.yml: example_queries_file` and includes any
+- `build_space.py` reads `src/example_queries.yml` and includes any
   entries in the payload. Leaving the list empty is fine and sends nothing.
 
 ---
 
 ## 7. Sample questions
 
-`space.yml: sample_questions` are the starter chips shown in the Genie UI. Ship them as
-real, answerable questions (the scaffold lists a `TODO` placeholder plus commented examples).
-These are display prompts only — they do **not** carry SQL; that is what §6 example queries
-are for.
+The `serialized_space` v2 schema has **no field** for them, so they cannot be deployed from
+the repo. Anything set in the UI is display-only and is not tracked here.
 
 ---
 
@@ -185,9 +200,9 @@ The scaffold is a skeleton. To turn it into a working space:
 5. **Set `sample_questions`** to real starter questions (§7).
 6. **Fill config** — `warehouse_id` (and `catalog`, if referenced) via `CONFIG.md` →
    `{{cmd:scaffold:configure}}`.
-7. **Check it** — `python src/validate.py`. Same check CI runs first and `deploy.py` runs
-   before touching a workspace; it needs no credentials.
-8. **Deploy** — `./deploy.sh` locally (dev), or merge to `stg` / `prod` for CI.
+7. **Build and check it** — `./scripts/run_local.sh`. Builds every artifact and validates
+   the bundle; needs no credentials for the build itself.
+8. **Deploy** — `./scripts/run_local.sh deploy` for dev, or merge to `stg` / `prod`.
 
 ---
 
@@ -195,13 +210,15 @@ The scaffold is a skeleton. To turn it into a working space:
 
 | Target | How |
 |---|---|
-| **local (dev)** | `./deploy.sh` — pip install, apply DDL, then reconcile the space |
-| **stg / prod** | merge to the `stg` / `prod` branch — CI runs `src/deploy.py --env <branch>` |
+| **local (dev)** | `./scripts/run_local.sh deploy` — build, validate, `bundle deploy -t dev` |
+| **stg / prod** | merge to the `stg` / `prod` branch — the pipeline triggers the DAB controller |
 
-Auth uses the default Databricks SDK chain (`DATABRICKS_HOST` + token, or a CLI profile)
-plus a `warehouse_id` in `space.yml`. For stg / prod those two variables are set **per
-branch** in GitLab CI/CD settings — the workspace they point at is what separates the
-environments, since the repo stores no per-environment id (§4).
+Local deploys use your CLI profile. stg and prod use the controller's service principal —
+there is no workspace token in CI, only `CONTROLLER_TRIGGER_TOKEN`. The workspace comes
+from `targets.<env>.workspace.host` (§4).
+
+`warehouse_id` is **required** by the API to create a space and cannot be left unset; it is
+optional only on an update.
 
 > The Genie management API is **Public Preview**. Confirm the `serialized_space` field names
 > for your workspace version before the first deploy.
@@ -212,7 +229,7 @@ environments, since the repo stores no per-environment id (§4).
 ## 10. Versioning & the eval loop
 
 - Keep `CHANGELOG.md`: version → date → eval baseline → what changed, one row per deploy.
-- The loop: **edit `genie-space/` → deploy → run `evaluation/` → record the baseline**.
+- The loop: **edit `src/` → build → deploy → run `evaluation/` → record the baseline**.
   Scaffold the eval area with `{{cmd:eval:new}}` and point the spec at the deployed space.
 
 ---
