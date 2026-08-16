@@ -32,10 +32,10 @@ src/                     what the space is made of
 ├── space.yml              the instruction id
 ├── views/                 backing-view DDL, only if an existing table will not do
 └── functions/             UC-function DDL
-scripts/
-├── run_local.sh           build + validate; `deploy` also deploys to dev
+python/
 ├── build_space.py         assembles src/ into the artifact
 └── validate.py            refuses what would deploy and be wrong
+run_local.sh             build + validate; `deploy` also deploys to dev
 generated/               built, committed, never hand-edited
 └── space.{dev,stg,prod}.json
 resources/genie.yml      the DAB resource — title, warehouse_id, description, file_path
@@ -200,9 +200,9 @@ The scaffold is a skeleton. To turn it into a working space:
 5. **Set `sample_questions`** to real starter questions (§7).
 6. **Fill config** — `warehouse_id` (and `catalog`, if referenced) via `CONFIG.md` →
    `{{cmd:scaffold:configure}}`.
-7. **Build and check it** — `./scripts/run_local.sh`. Builds every artifact and validates
+7. **Build and check it** — `./run_local.sh`. Builds every artifact and validates
    the bundle; needs no credentials for the build itself.
-8. **Deploy** — `./scripts/run_local.sh deploy` for dev, or merge to `stg` / `prod`.
+8. **Deploy** — `./run_local.sh deploy` for dev, or merge to `stg` / `prod`.
 
 ---
 
@@ -210,7 +210,7 @@ The scaffold is a skeleton. To turn it into a working space:
 
 | Target | How |
 |---|---|
-| **local (dev)** | `./scripts/run_local.sh deploy` — build, validate, `bundle deploy -t dev` |
+| **local (dev)** | `./run_local.sh deploy` — build, validate, `bundle deploy -t dev` |
 | **stg / prod** | merge to the `stg` / `prod` branch — the pipeline triggers the DAB controller |
 
 Local deploys use your CLI profile. stg and prod use the controller's service principal —
