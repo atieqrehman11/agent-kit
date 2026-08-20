@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Export a .drawio file to PNG so it can be looked at before it is delivered.
 
-    python3 render.py <file.drawio> [--output <file.png>] [--scale 1.5] [--page 0]
+    python3 render.py <file.drawio> [--output <file.png>] [--scale 1.5] [--page 1]
     python3 render.py --which          # print the draw.io binary that would be used
 
 The draw.io binary is resolved at run time — nothing is hardcoded to one machine:
@@ -205,7 +205,10 @@ def main(argv=None):
         "--output", default="", help="PNG path (default: alongside the source)"
     )
     p.add_argument("--scale", default="1.5", help="export scale (default: 1.5)")
-    p.add_argument("--page", default="0", help="page index (default: 0)")
+    # 1-based: draw.io numbered --page-index from 0 before v27.0.2 and from 1
+    # after it. Defaulting to 0 made every render of a single-page file fail with
+    # "Invalid page index" against a current binary.
+    p.add_argument("--page", default="1", help="page number, 1-based (default: 1)")
     p.add_argument(
         "--bin", default="", help="draw.io binary (overrides env/profile/PATH)"
     )

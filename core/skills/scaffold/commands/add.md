@@ -18,7 +18,7 @@ including repos the scaffold never created. Two aspects are choosable:
 |---|---|---|
 | `deploy` | How the repo deploys: `databricks.yml` + `resources/` + `run_local.sh` + `run_resources.yml` (+ `.bundleignore` where it applies). Every type gets a bundle descriptor; which descriptor and resource it resolves differs per type. `fe` also gets the sync block that keeps `package.json` out of the app root; `genie` gets `python/build_space.py`; `agent` gets the reconciler under `python/`. | `api` `etl` `job` `fe` `genie` `agent` |
 | `gitlab` | The GitLab pipeline: `.gitlab-ci.yml`. Bundle types trigger the shared DAB controller on merge to `stg`/`prod`; `genie`/`agent` validate their declaration, then run their own deploy script. The GitLab project setup it needs is `gitlab/setup-group.sh` (once per group) and `gitlab/setup-repo.sh` (per repo) — kit tooling, not repo files. | `api` `etl` `job` `fe` `genie` `agent` |
-| `api` | The use case API surface: `routers/platform.py` + `config.py` — `GET /v1/health` and `GET /v1/info`, the two endpoints every use case API must expose (api guideline §3–4). | `api` |
+| `api` | The use case API surface: `routers/platform.py` + `config.py` — `GET /v1/health` and `GET /v1/info`, the two endpoints every use case API must expose. | `api` |
 
 **Not choices** — these come with any add, wherever they are missing, and are never asked
 about: the **`.gitignore`** for the repo's type (Node on an `fe` repo, Python / Databricks

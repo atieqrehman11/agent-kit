@@ -33,11 +33,13 @@ you scaffold anything.
 | repo type | `api` `chat-api` `pipeline` `job` `agent` `genie` |
 | practice | `design` `service-structure` |
 
-Three of them — `api`, `chat-api`, `service-structure` — ship a `<name>.conformance.md`
-beside them: the audit list, split out so whoever is *writing* code loads the rules and
-whoever is *auditing* loads the checklist. See [`STANDARD.md`](STANDARD.md) §1.2.
+Ten of them ship an audit list at `conformance/<name>.md` — split out so whoever is
+*writing* code loads the rules and whoever is *auditing* loads the checklist. A count is
+the thing that goes stale here, so derive it: `ls core/guidelines/conformance/`. See
+[`STANDARD.md`](STANDARD.md) §1.2 for why it is a subdirectory and not a
+`<name>.conformance.md` sibling.
 
-**5 skills** — procedures you deliberately run, each with scripts behind it.
+**6 skills** — procedures you deliberately run, each with scripts behind it.
 
 | | |
 |---|---|
@@ -45,6 +47,7 @@ whoever is *auditing* loads the checklist. See [`STANDARD.md`](STANDARD.md) §1.
 | `/deliver:spec` `:feature` | one requirement through nine gates — spec first (approved document by document), then reviewed, tested code and a report |
 | `/diagram:build` `/diagram:review` | draw.io diagrams, verified by rendering and reading them before they are shown |
 | `/scaffold:new` `:add` `:configure` `:profile` | Databricks repos by type, and their config |
+| `/review:mr` | a pushed change reviewed against the standards its changed files trigger |
 | `/eval:new` | an evaluation spec in the repo that owns it |
 
 **3 subagents** — independent workers with their own context.
@@ -135,12 +138,21 @@ rather than a refactor.
 
 ```
 core/            tool-agnostic — the actual content
-  guidelines/    skills/    subagents/
+  guidelines/    the constraints, plus conformance/ — the audit list beside each
+  skills/        deliver · diagram · eval · plan · review · scaffold
+  subagents/     critic · reviewer · qa
 adapters/
   claude/        install.py · hooks/ · workflows/ — the reference implementation
+docs/            COMMANDS.md — real captured output for every command
 STANDARD.md      the artifact format, and the adapter contract
 install.sh       dispatcher: --target <tool>
 ```
+
+**A scaffolded repo does not get a copy of the guidelines.** They are read from the
+installed tree, so one edit here is the rule in every repo at once. Copying them per repo
+was tried and measured: six repos built from one scaffold carried six different subsets,
+every copy drifted from source, and nothing read them. See
+[`core/skills/scaffold/README.md`](core/skills/scaffold/README.md).
 
 Edit the repo and re-run the installer. Anything hand-edited inside an installed copy is
 replaced on the next install.

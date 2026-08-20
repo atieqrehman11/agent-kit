@@ -121,14 +121,17 @@ def _decode_diagram(node):
         return None
 
 
-def load(path, page=0):
-    """Return (page_name, {id: Cell}) for one page of a .drawio file."""
+def load(path, page=1):
+    """Return (page_name, {id: Cell}) for one page of a .drawio file.
+
+    ``page`` is 1-based, matching render.py and draw.io itself.
+    """
     root = ET.parse(path).getroot()
     pages = root.findall("diagram") if root.tag == "mxfile" else []
     if pages:
-        if page >= len(pages):
+        if not 1 <= page <= len(pages):
             raise ValueError(f"page {page} not found — the file has {len(pages)}")
-        node = pages[page]
+        node = pages[page - 1]
         name = node.get("name", f"page {page}")
         model = _decode_diagram(node)
         if model is None:
@@ -417,7 +420,9 @@ def report(path, page_name, errors, warnings, stats, quiet=False):
 def main(argv=None):
     p = argparse.ArgumentParser(description="Lint a .drawio file for layout faults.")
     p.add_argument("file", help="the .drawio file to check")
-    p.add_argument("--page", type=int, default=0, help="page index (default: 0)")
+    # 1-based, to match render.py — two tools over one file disagreeing on how to
+    # name its pages is its own bug.
+    p.add_argument("--page", type=int, default=1, help="page number, 1-based (default: 1)")
     p.add_argument(
         "--min-gap",
         type=float,

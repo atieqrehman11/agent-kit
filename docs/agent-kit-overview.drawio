@@ -4,144 +4,144 @@
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
-                <mxCell id="c1" value="agent-kit — one source, any tool" style="text;html=1;align=left;verticalAlign=middle;fontSize=17;fontStyle=1;fontColor=#16202A;fontFamily=Helvetica;strokeColor=none;fillColor=none;" parent="1" vertex="1">
+                <mxCell id="c1" value="agent-kit — one source, any tool" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#16202A;fontFamily=Helvetica;strokeColor=none;fillColor=none;" parent="1" vertex="1">
                     <mxGeometry x="40" y="22" width="1150" height="28" as="geometry"/>
                 </mxCell>
-                <mxCell id="c2" value="core/ is tool-agnostic. An adapter renders it into one tool&#39;s layout. Adding a tool means adding an adapter, never editing core/." style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#5A6672;fontFamily=Helvetica;strokeColor=none;fillColor=none;" parent="1" vertex="1">
+                <mxCell id="c2" value="core/ is tool-agnostic. An adapter renders it into one tool&#39;s layout. Adding a tool means adding an adapter, never editing core/." style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor=#5A6672;fontFamily=Helvetica;strokeColor=none;fillColor=none;" parent="1" vertex="1">
                     <mxGeometry x="40" y="48" width="1150" height="20" as="geometry"/>
                 </mxCell>
-                <mxCell id="c3" value="①  SOURCE — core/" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;fillColor=#E9F0F7;strokeColor=#7FA8C9;verticalAlign=top;align=left;spacingLeft=16;spacingTop=6;fontColor=#1F3A52;fontStyle=1;fontSize=13;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
+                <mxCell id="c3" value="①  SOURCE — core/" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;fillColor=#E9F0F7;strokeColor=#7FA8C9;verticalAlign=top;align=left;spacingLeft=16;spacingTop=6;fontColor=#1F3A52;fontStyle=1;fontSize=15;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
                     <mxGeometry x="40" y="100" width="270" height="470" as="geometry"/>
                 </mxCell>
-                <mxCell id="c7" value="14 guidelines&lt;br&gt;constraints — apply from context" style="shape=mxgraph.flowchart.multi-document;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c3" vertex="1">
+                <mxCell id="c7" value="14 guidelines&lt;br&gt;constraints — apply from context" style="shape=mxgraph.flowchart.multi-document;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=13;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c3" vertex="1">
                     <mxGeometry x="19.636363636363637" y="46" width="230.72727272727275" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="c8" value="3 conformance siblings&lt;br&gt;&amp;lt;name&amp;gt;.conformance.md — payload" style="shape=mxgraph.flowchart.document;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c3" vertex="1">
+                <mxCell id="c8" value="10 conformance sheets&lt;br&gt;conformance/&amp;lt;name&amp;gt;.md — payload" style="shape=mxgraph.flowchart.document;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=13;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c3" vertex="1">
                     <mxGeometry x="19.636363636363637" y="152" width="230.72727272727275" height="74" as="geometry"/>
                 </mxCell>
-                <mxCell id="c9" value="5 skills&lt;br&gt;procedures you run, + payload" style="shape=mxgraph.flowchart.multi-document;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c3" vertex="1">
+                <mxCell id="c9" value="6 skills&lt;br&gt;procedures you run, + payload" style="shape=mxgraph.flowchart.multi-document;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=13;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c3" vertex="1">
                     <mxGeometry x="19.636363636363637" y="252" width="230.72727272727275" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="c10" value="2 subagents&lt;br&gt;reviewer · qa" style="shape=mxgraph.flowchart.document;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c3" vertex="1">
+                <mxCell id="c10" value="3 subagents&lt;br&gt;critic · reviewer · qa" style="shape=mxgraph.flowchart.document;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=13;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c3" vertex="1">
                     <mxGeometry x="19.636363636363637" y="358" width="230.72727272727275" height="74" as="geometry"/>
                 </mxCell>
-                <mxCell id="c4" value="②  ADAPTER — adapters/&amp;lt;tool&amp;gt;" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;fillColor=#EEF0F2;strokeColor=#9AA5AF;verticalAlign=top;align=left;spacingLeft=16;spacingTop=6;fontColor=#333333;fontStyle=1;fontSize=13;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
+                <mxCell id="c4" value="②  ADAPTER — adapters/&amp;lt;tool&amp;gt;" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;fillColor=#EEF0F2;strokeColor=#9AA5AF;verticalAlign=top;align=left;spacingLeft=16;spacingTop=6;fontColor=#333333;fontStyle=1;fontSize=15;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
                     <mxGeometry x="410" y="100" width="270" height="470" as="geometry"/>
                 </mxCell>
-                <mxCell id="c11" value="1 · Discover&lt;br&gt;enumerate the tree" style="shape=mxgraph.flowchart.predefined_process;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c4" vertex="1">
+                <mxCell id="c11" value="1 · Discover&lt;br&gt;enumerate the tree" style="shape=mxgraph.flowchart.predefined_process;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=13;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c4" vertex="1">
                     <mxGeometry x="20" y="46" width="230" height="74" as="geometry"/>
                 </mxCell>
-                <mxCell id="c12" value="2 · Validate&lt;br&gt;nothing written until this passes" style="shape=mxgraph.flowchart.predefined_process;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c4" vertex="1">
+                <mxCell id="c12" value="2 · Validate&lt;br&gt;nothing written until this passes" style="shape=mxgraph.flowchart.predefined_process;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=13;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c4" vertex="1">
                     <mxGeometry x="20" y="146" width="230" height="74" as="geometry"/>
                 </mxCell>
-                <mxCell id="c13" value="3 · Render by kind&lt;br&gt;resolve every __TOKEN__" style="shape=mxgraph.flowchart.predefined_process;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c4" vertex="1">
+                <mxCell id="c13" value="3 · Render by kind&lt;br&gt;resolve every __TOKEN__" style="shape=mxgraph.flowchart.predefined_process;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=13;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c4" vertex="1">
                     <mxGeometry x="20" y="246" width="230" height="74" as="geometry"/>
                 </mxCell>
-                <mxCell id="c14" value="4 · Verify&lt;br&gt;entry points = declared&lt;br&gt;zero payload registered" style="shape=mxgraph.flowchart.predefined_process;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c4" vertex="1">
+                <mxCell id="c14" value="4 · Verify&lt;br&gt;entry points = declared&lt;br&gt;zero payload registered" style="shape=mxgraph.flowchart.predefined_process;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=13;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c4" vertex="1">
                     <mxGeometry x="20" y="346" width="230" height="86" as="geometry"/>
                 </mxCell>
-                <mxCell id="c5" value="③  INSTALLED TREE" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;fillColor=#E4F1EF;strokeColor=#7FB3AB;verticalAlign=top;align=left;spacingLeft=16;spacingTop=6;fontColor=#12433D;fontStyle=1;fontSize=13;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
+                <mxCell id="c5" value="③  INSTALLED TREE" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;fillColor=#E4F1EF;strokeColor=#7FB3AB;verticalAlign=top;align=left;spacingLeft=16;spacingTop=6;fontColor=#12433D;fontStyle=1;fontSize=15;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
                     <mxGeometry x="760" y="100" width="290" height="470" as="geometry"/>
                 </mxCell>
-                <mxCell id="c15" value="guidelines/&lt;br&gt;canonical + conformance sheets" style="shape=folder;tabWidth=70;tabHeight=16;tabPosition=left;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#8FB8B1;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacingTop=10;" parent="c5" vertex="1">
+                <mxCell id="c15" value="guidelines/&lt;br&gt;canonical + conformance sheets" style="shape=folder;tabWidth=70;tabHeight=16;tabPosition=left;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#8FB8B1;fontColor=#333333;fontSize=13;fontFamily=Helvetica;verticalAlign=middle;align=center;spacingTop=10;" parent="c5" vertex="1">
                     <mxGeometry x="21.09090909090909" y="46" width="247.8181818181818" height="74" as="geometry"/>
                 </mxCell>
-                <mxCell id="c16" value="skills/&lt;br&gt;SKILL.md + payload" style="shape=folder;tabWidth=70;tabHeight=16;tabPosition=left;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#8FB8B1;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacingTop=10;" parent="c5" vertex="1">
+                <mxCell id="c16" value="skills/&lt;br&gt;SKILL.md + payload" style="shape=folder;tabWidth=70;tabHeight=16;tabPosition=left;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#8FB8B1;fontColor=#333333;fontSize=13;fontFamily=Helvetica;verticalAlign=middle;align=center;spacingTop=10;" parent="c5" vertex="1">
                     <mxGeometry x="21.09090909090909" y="146" width="247.8181818181818" height="74" as="geometry"/>
                 </mxCell>
-                <mxCell id="c17" value="commands/&lt;br&gt;one file per verb" style="shape=folder;tabWidth=70;tabHeight=16;tabPosition=left;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#8FB8B1;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacingTop=10;" parent="c5" vertex="1">
+                <mxCell id="c17" value="commands/&lt;br&gt;one file per verb" style="shape=folder;tabWidth=70;tabHeight=16;tabPosition=left;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#8FB8B1;fontColor=#333333;fontSize=13;fontFamily=Helvetica;verticalAlign=middle;align=center;spacingTop=10;" parent="c5" vertex="1">
                     <mxGeometry x="21.09090909090909" y="246" width="247.8181818181818" height="74" as="geometry"/>
                 </mxCell>
-                <mxCell id="c18" value="agents/&lt;br&gt;reviewer · qa" style="shape=folder;tabWidth=70;tabHeight=16;tabPosition=left;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#8FB8B1;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacingTop=10;" parent="c5" vertex="1">
+                <mxCell id="c18" value="agents/&lt;br&gt;critic · reviewer · qa" style="shape=folder;tabWidth=70;tabHeight=16;tabPosition=left;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#8FB8B1;fontColor=#333333;fontSize=13;fontFamily=Helvetica;verticalAlign=middle;align=center;spacingTop=10;" parent="c5" vertex="1">
                     <mxGeometry x="21.09090909090909" y="346" width="247.8181818181818" height="74" as="geometry"/>
                 </mxCell>
-                <mxCell id="c6" value="④  WHO READS IT" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;fillColor=#EBF2E6;strokeColor=#86A97A;verticalAlign=top;align=left;spacingLeft=16;spacingTop=6;fontColor=#2C4321;fontStyle=1;fontSize=13;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
+                <mxCell id="c6" value="④  WHO READS IT" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;fillColor=#EBF2E6;strokeColor=#86A97A;verticalAlign=top;align=left;spacingLeft=16;spacingTop=6;fontColor=#2C4321;fontStyle=1;fontSize=15;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
                     <mxGeometry x="1140" y="100" width="340" height="470" as="geometry"/>
                 </mxCell>
-                <mxCell id="c19" value="The model, from context&lt;br&gt;A guideline loads when its applies_to&lt;br&gt;glob matches what you are editing" style="shape=mxgraph.flowchart.document;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c6" vertex="1">
+                <mxCell id="c19" value="The model, from context&lt;br&gt;A guideline loads when its applies_to&lt;br&gt;glob matches what you are editing" style="shape=mxgraph.flowchart.document;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=13;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c6" vertex="1">
                     <mxGeometry x="24.41025641025641" y="40" width="291.1794871794872" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="c20" value="You, by name&lt;br&gt;/scaffold:new · /deliver:feature&lt;br&gt;/plan:release · /diagram:build" style="shape=mxgraph.flowchart.document;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c6" vertex="1">
+                <mxCell id="c20" value="You, by name&lt;br&gt;/scaffold:new · /review:mr&lt;br&gt;/deliver:feature · /plan:release" style="shape=mxgraph.flowchart.document;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=13;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c6" vertex="1">
                     <mxGeometry x="24.41025641025641" y="140" width="291.1794871794872" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="c21" value="An orchestrator&lt;br&gt;Dispatches reviewer / qa into&lt;br&gt;their own context" style="shape=mxgraph.flowchart.document;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c6" vertex="1">
+                <mxCell id="c21" value="An orchestrator&lt;br&gt;Dispatches critic / reviewer / qa&lt;br&gt;into their own context" style="shape=mxgraph.flowchart.document;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=13;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c6" vertex="1">
                     <mxGeometry x="24.41025641025641" y="250" width="291.1794871794872" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="c22" value="A guideline is never a slash command — a constraint is not something you run." style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#5A6672;fontFamily=Helvetica;" parent="c6" vertex="1">
+                <mxCell id="c22" value="A guideline is never a slash command — a constraint is not something you run." style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=12;fontColor=#5A6672;fontFamily=Helvetica;" parent="c6" vertex="1">
                     <mxGeometry x="24.41025641025641" y="350" width="291.1794871794872" height="70" as="geometry"/>
                 </mxCell>
-                <mxCell id="c23" value="KIT DATA DIR — exempt from every install" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;fillColor=#FBEFDD;strokeColor=#C99A4F;verticalAlign=top;align=left;spacingLeft=16;spacingTop=6;fontColor=#7A4713;fontStyle=1;fontSize=13;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
+                <mxCell id="c23" value="KIT DATA DIR — exempt from every install" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;fillColor=#FBEFDD;strokeColor=#C99A4F;verticalAlign=top;align=left;spacingLeft=16;spacingTop=6;fontColor=#7A4713;fontStyle=1;fontSize=15;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
                     <mxGeometry x="40" y="630" width="640" height="210" as="geometry"/>
                 </mxCell>
-                <mxCell id="c24" value="scaffold-profile.md / .json&lt;br&gt;your org-wide values" style="shape=mxgraph.flowchart.database;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c23" vertex="1">
+                <mxCell id="c24" value="scaffold-profile.md / .json&lt;br&gt;your org-wide values" style="shape=mxgraph.flowchart.database;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=13;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c23" vertex="1">
                     <mxGeometry x="30" y="70" width="286" height="64" as="geometry"/>
                 </mxCell>
-                <mxCell id="c25" value=".agent-kit-install.json&lt;br&gt;the receipt" style="shape=mxgraph.flowchart.database;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=11;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c23" vertex="1">
+                <mxCell id="c25" value=".agent-kit-install.json&lt;br&gt;the receipt" style="shape=mxgraph.flowchart.database;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFC8D0;fontColor=#333333;fontSize=13;fontFamily=Helvetica;verticalAlign=middle;align=center;spacing=4;" parent="c23" vertex="1">
                     <mxGeometry x="340" y="70" width="282" height="64" as="geometry"/>
                 </mxCell>
-                <mxCell id="c26" value="Only guidelines/, skills/, commands/ and agents/ are ever replaced. Everything else in the target is untouched — which is what makes it safe to install into the directory that already holds your own state." style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#5A6672;fontFamily=Helvetica;" parent="c23" vertex="1">
+                <mxCell id="c26" value="Only guidelines/, skills/, commands/ and agents/ are ever replaced. Everything else in the target is untouched — which is what makes it safe to install into the directory that already holds your own state." style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=12;fontColor=#5A6672;fontFamily=Helvetica;" parent="c23" vertex="1">
                     <mxGeometry x="30" y="150" width="592" height="70" as="geometry"/>
                 </mxCell>
-                <mxCell id="c27" value="UNINSTALL" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;fillColor=#EEF0F2;strokeColor=#9AA5AF;verticalAlign=top;align=left;spacingLeft=16;spacingTop=6;fontColor=#333333;fontStyle=1;fontSize=13;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
+                <mxCell id="c27" value="UNINSTALL" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;dashPattern=8 4;fillColor=#EEF0F2;strokeColor=#9AA5AF;verticalAlign=top;align=left;spacingLeft=16;spacingTop=6;fontColor=#333333;fontStyle=1;fontSize=15;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
                     <mxGeometry x="720" y="630" width="330" height="210" as="geometry"/>
                 </mxCell>
-                <mxCell id="c28" value="Driven by the &lt;b&gt;receipt&lt;/b&gt;, not by re-scanning core/.&lt;br&gt;&lt;br&gt;So an artifact deleted from core/ since you installed is still removed, and a file you added by hand is still left alone.&lt;br&gt;&lt;br&gt;Directories are removed only once empty. The kit data dir is never removed." style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#5A6672;fontFamily=Helvetica;" parent="c27" vertex="1">
+                <mxCell id="c28" value="Driven by the &lt;b&gt;receipt&lt;/b&gt;, not by re-scanning core/.&lt;br&gt;&lt;br&gt;So an artifact deleted from core/ since you installed is still removed, and a file you added by hand is still left alone.&lt;br&gt;&lt;br&gt;Directories are removed only once empty. The kit data dir is never removed." style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=12;fontColor=#5A6672;fontFamily=Helvetica;" parent="c27" vertex="1">
                     <mxGeometry x="20" y="52" width="292" height="150" as="geometry"/>
                 </mxCell>
-                <mxCell id="c29" value="Legend" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D3DAE0;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;fontColor=#5A6672;fontStyle=1;fontSize=11;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
+                <mxCell id="c29" value="Legend" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D3DAE0;verticalAlign=top;align=left;spacingLeft=12;spacingTop=6;fontColor=#5A6672;fontStyle=1;fontSize=13;fontFamily=Helvetica;container=1;collapsible=0;" parent="1" vertex="1">
                     <mxGeometry x="1090" y="630" width="390" height="210" as="geometry"/>
                 </mxCell>
                 <mxCell id="c30" value="" style="rounded=1;arcSize=20;html=1;fillColor=#E9F0F7;strokeColor=#7FA8C9;" parent="c29" vertex="1">
                     <mxGeometry x="12" y="30" width="26" height="15" as="geometry"/>
                 </mxCell>
-                <mxCell id="c31" value="source artifact — tool-agnostic" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#5A6672;fontFamily=Helvetica;" parent="c29" vertex="1">
+                <mxCell id="c31" value="source artifact — tool-agnostic" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=12;fontColor=#5A6672;fontFamily=Helvetica;" parent="c29" vertex="1">
                     <mxGeometry x="46" y="29" width="332" height="17" as="geometry"/>
                 </mxCell>
                 <mxCell id="c32" value="" style="rounded=1;arcSize=20;html=1;fillColor=#EEF0F2;strokeColor=#9AA5AF;" parent="c29" vertex="1">
                     <mxGeometry x="12" y="66" width="26" height="15" as="geometry"/>
                 </mxCell>
-                <mxCell id="c33" value="adapter machinery — one per tool" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#5A6672;fontFamily=Helvetica;" parent="c29" vertex="1">
+                <mxCell id="c33" value="adapter machinery — one per tool" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=12;fontColor=#5A6672;fontFamily=Helvetica;" parent="c29" vertex="1">
                     <mxGeometry x="46" y="65" width="332" height="17" as="geometry"/>
                 </mxCell>
                 <mxCell id="c34" value="" style="rounded=1;arcSize=20;html=1;fillColor=#E4F1EF;strokeColor=#7FB3AB;" parent="c29" vertex="1">
                     <mxGeometry x="12" y="102" width="26" height="15" as="geometry"/>
                 </mxCell>
-                <mxCell id="c35" value="installed, replaced every run" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#5A6672;fontFamily=Helvetica;" parent="c29" vertex="1">
+                <mxCell id="c35" value="installed, replaced every run" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=12;fontColor=#5A6672;fontFamily=Helvetica;" parent="c29" vertex="1">
                     <mxGeometry x="46" y="101" width="332" height="17" as="geometry"/>
                 </mxCell>
                 <mxCell id="c36" value="" style="rounded=1;arcSize=20;html=1;fillColor=#FBEFDD;strokeColor=#C99A4F;" parent="c29" vertex="1">
                     <mxGeometry x="12" y="138" width="26" height="15" as="geometry"/>
                 </mxCell>
-                <mxCell id="c37" value="user state — never overwritten" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#5A6672;fontFamily=Helvetica;" parent="c29" vertex="1">
+                <mxCell id="c37" value="user state — never overwritten" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=12;fontColor=#5A6672;fontFamily=Helvetica;" parent="c29" vertex="1">
                     <mxGeometry x="46" y="137" width="332" height="17" as="geometry"/>
                 </mxCell>
                 <mxCell id="c38" value="" style="rounded=1;arcSize=20;html=1;fillColor=#EBF2E6;strokeColor=#86A97A;" parent="c29" vertex="1">
                     <mxGeometry x="12" y="174" width="26" height="15" as="geometry"/>
                 </mxCell>
-                <mxCell id="c39" value="consumer of the installed kit" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#5A6672;fontFamily=Helvetica;" parent="c29" vertex="1">
+                <mxCell id="c39" value="consumer of the installed kit" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=12;fontColor=#5A6672;fontFamily=Helvetica;" parent="c29" vertex="1">
                     <mxGeometry x="46" y="173" width="332" height="17" as="geometry"/>
                 </mxCell>
-                <mxCell id="e40" value="discovered&amp;nbsp;&lt;div&gt;from the tree&lt;/div&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#7C8A99;fontColor=#5A6672;fontSize=10;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;" parent="1" source="c3" target="c4" edge="1">
+                <mxCell id="e40" value="discovered&amp;nbsp;&lt;div&gt;from the tree&lt;/div&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#7C8A99;fontColor=#5A6672;fontSize=12;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;" parent="1" source="c3" target="c4" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint y="-13" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e41" value="rendered by kind" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#7C8A99;fontColor=#5A6672;fontSize=10;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;" parent="1" source="c4" target="c5" edge="1">
+                <mxCell id="e41" value="rendered by kind" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#7C8A99;fontColor=#5A6672;fontSize=12;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;" parent="1" source="c4" target="c5" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint y="-13" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e42" value="loaded on demand" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#7C8A99;fontColor=#5A6672;fontSize=10;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;" parent="1" source="c5" target="c6" edge="1">
+                <mxCell id="e42" value="loaded on demand" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#7C8A99;fontColor=#5A6672;fontSize=12;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;" parent="1" source="c5" target="c6" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint y="-13" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e43" value="hashes the profile — a change fails the install" style="html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C98A3F;fontColor=#5A6672;fontSize=10;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;dashed=1;dashPattern=6 4;" parent="1" source="c14" target="c24" edge="1">
+                <mxCell id="e43" value="hashes the profile — a change fails the install" style="html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#C98A3F;fontColor=#5A6672;fontSize=12;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;dashed=1;dashPattern=6 4;" parent="1" source="c14" target="c24" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint y="-13" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e44" value="read by" style="html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#7C8A99;fontColor=#5A6672;fontSize=10;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;" parent="1" source="c25" target="c27" edge="1">
+                <mxCell id="e44" value="read by" style="html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#7C8A99;fontColor=#5A6672;fontSize=12;fontStyle=2;fontFamily=Helvetica;labelBackgroundColor=#FFFFFF;verticalAlign=middle;" parent="1" source="c25" target="c27" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint y="-13" as="offset"/>
                     </mxGeometry>

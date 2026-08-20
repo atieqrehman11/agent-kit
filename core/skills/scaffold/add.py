@@ -397,6 +397,8 @@ def _print_list():
     hint = {
         "gitignore": ".gitignore    the ignore file for this repo type (Node for fe, "
         "Python / Databricks otherwise)",
+        "editorconfig": ".editorconfig  line endings, indent width, and the two prose files "
+        "that must NOT be trailing-newline-normalised (Genie instructions, an agent's prompt)",
         "specs": "docs/specs/   the per-feature spec convention {{cmd:deliver:spec}} reads and writes",
         "config-sheet": "CONFIG.md     regenerated, keeping any value already filled in",
     }

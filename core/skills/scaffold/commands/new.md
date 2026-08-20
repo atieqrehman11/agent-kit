@@ -50,7 +50,7 @@ What differs between the types is the **payload**:
 > through its resource key in `resources/genie.yml` — renaming that key destroys and
 > recreates the space, losing every conversation in it. The agent is resolved by
 > `display_name`, set per target, so renaming it points the next deploy at a *different*
-> agent. See the `agent` guideline §3a / the `genie` guideline.
+> agent. See the `agent` and `genie` guidelines.
 
 ## Choosing the type
 
@@ -189,9 +189,10 @@ checklist.
 ## After scaffolding
 
 - Report the full path of the created repo and the printed next-steps.
-- **Standards are not copied into the repo.** The guidelines live in agent-kit and install to
-  `~/.claude/guidelines/<name>.md`; the repo's code cites them by name (`api guideline §7`) and
-  its `README.md` names the ones that govern it — `python` plus the per-type guideline, or
+- **Standards are not copied into the repo, and its code cites none.** The guidelines live in
+  agent-kit and install to `~/.claude/guidelines/<name>.md`; the repo's comments state their
+  rules directly, and only its `README.md` names the guidelines that govern it — `python`
+  plus the per-type guideline, or
   `react` alone for an **`fe`** repo, which is TypeScript end to end, `server.mjs` included.
   Point the user at `~/.claude/guidelines/`, and say that without agent-kit installed they do
   not have the standards.

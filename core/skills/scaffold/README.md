@@ -137,20 +137,25 @@ folders.
 ## Standards are not a repo file
 
 There is no `standards` aspect, and no `docs/*_STANDARDS.md`. The guidelines live in
-`core/guidelines/` and install to `~/.claude/guidelines/`; a scaffolded repo cites them by
-name — the `api` aspect alone writes ten `api guideline §N` / `service-structure guideline §N`
-references — and each README says which ones govern the repo and where to read them.
+`core/guidelines/` and install to `~/.claude/guidelines/`. A scaffolded repo's own README
+names the ones that govern it; nothing else in the repo points at them.
 
 It used to copy them in. Measured across six repos built from this scaffold: six *different*
 subsets of the docs, and every copy drifted from source — 25 to 106 differing lines, with
 `PYTHON_STANDARDS.md` identically stale in all three repos that had it. The copy was a
 snapshot of whichever commit each repo was scaffolded from, and `review` never read it anyway:
 the reviewer resolves `core/guidelines/conformance/<name>.md` directly. A stale rule that
-looks authoritative is worse than a pointer to a current one, so now there is only the
-pointer.
+looks authoritative is worse than no rule in the repo at all.
 
-`GUIDELINE_NAMES` is what maps a repo type to its guideline names. It carries names, never
-paths into a repo, so adding a guideline does not add a file to anything.
+**Template code cites nothing — not even a guideline name.** The first attempt kept the
+citations and only changed their form, so `docs/API_STANDARDS.md §7` became `api guideline §7`.
+That is the same bug one level down: a section number goes stale the moment a guideline is
+renumbered, and there were about forty of them. Each comment now states its rule instead —
+`# An allowlist from configuration. Never ["*"].` The rule is the part a reader needs at the
+callsite; the reasoning is what the guideline is for.
+
+`GUIDELINE_NAMES` maps a repo type to its guideline names, for the README pointer only. It
+carries names, never paths into a repo, so adding a guideline does not add a file to anything.
 
 Per-environment config is deliberately *inside* `deploy` rather than beside it: the
 dev/stg/prod split exists because the controller deploys per target, so it is part of the

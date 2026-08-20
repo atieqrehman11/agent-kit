@@ -187,19 +187,19 @@ $ python3 adapters/claude/install.py ~/.claude
 
   [3/4]  Rendering
          ✓  14 guideline(s)
-         ✓  19 skill artifact(s)
-         ✓  10 command(s)
+         ✓  20 skill artifact(s)
+         ✓  11 command(s)
          ✓   3 subagent(s)
          ·  guidelines render twice: canonical for the guidelines dir, plus a model-invocable copy
 
   [4/4]  Verifying
-         ✓  29 entry points registered, zero payload
+         ✓  31 entry points registered, zero payload
          ✓  no unresolved markers
          ✓  profile sheet untouched
          ·  receipt: .agent-kit-install.json
 
   ──────────────────────────────────────────────────────────────────────
-  ✓  Installed  14 guidelines (3 with a conformance sheet) · 5 skills · 10 commands · 3 subagents
+  ✓  Installed  14 guidelines (10 with a conformance sheet) · 6 skills · 11 commands · 3 subagents
   ──────────────────────────────────────────────────────────────────────
 
     /deliver:feature
@@ -208,6 +208,7 @@ $ python3 adapters/claude/install.py ~/.claude
     /diagram:review
     /eval:new
     /plan:release
+    /review:mr
     /scaffold:add
     /scaffold:configure
     /scaffold:new
@@ -218,7 +219,7 @@ What the verify lines are guarding against:
 
 | Line | Guards against |
 |---|---|
-| `29 entry points, zero payload` | A template `CHANGELOG` or a reference doc registering itself as a slash command. It once registered 40 commands, 22 of them payload. |
+| `31 entry points, zero payload` | A template `CHANGELOG` or a reference doc registering itself as a slash command. It once registered 40 commands, 22 of them payload. The count is asserted, so a payload file that starts registering itself fails the install rather than quietly appearing as a command. |
 | `no unresolved markers` | Any surviving `__TOKEN__`. Scanned generally, not against a list of known names — a list is how `__ORG_PREFIX__` shipped into six installed guidelines unnoticed. |
 | `profile sheet untouched` | Your filled-in profile being clobbered. Hashed before and after; a change fails the install. |
 
@@ -229,8 +230,9 @@ deleted from `core/` cannot linger as a stale command.
 
 ## 4. Scaffold a new repo
 
-One repo of one type. The type picks the primary resource and the CI/CD wiring; the standards
-docs, `.gitignore` and `CONFIG.md` come with all five.
+One repo of one type. The type picks the primary resource and what `deploy` resolves; the
+GitLab pipeline, `.gitignore`, `.editorconfig`, `docs/specs/` and `CONFIG.md` come with all
+six. **No standards docs** — the guidelines are read from the installed tree, never copied in.
 
 ```
 $ scaffold:new --type api --slug payments --display-name "Payments API"
@@ -238,138 +240,154 @@ $ scaffold:new --type api --slug payments --display-name "Payments API"
 ============================================================
   Scaffolding: ai-payments-api  (type: api)
   Output:      ~/repos/ai-payments-api
+  profile: global  ~/personal/agent-kit/scaffold-profile.md
+           no profile here — every value stays per-repo
 ============================================================
   [api] copied skeleton from templates/api-skeleton/
-  [cicd] .gitlab-ci.yml, team_config.yaml, .bundleignore, run_resources.yml
-  [gitignore] .gitignore
-  [config] CONFIG.md — 15 placeholder(s) to fill, then /scaffold:configure
+  [deploy] 5 files
+  [gitlab] .gitlab-ci.yml
+  [gitignore] kept the skeleton's own .gitignore
+  [editorconfig] .editorconfig
+  [specs] docs/specs/README.md
+  [config] CONFIG.md — 27 placeholder(s) to fill, then {{cmd:scaffold:configure}}
 
   Created: ~/repos/ai-payments-api
 
   Next steps:
-    1. CONFIG.md           — fill the placeholder sheet (hosts, service principals,
-                             policy ids, team, repo url), then apply it with:
-                             /scaffold:configure   (uuid is already generated)
-    2. schema/models.py    — domain schemas; implement routers/ + services/
-    3. Local dev deploy    — ./bundle.sh   (deploys to DEV only)
-    4. Cloud deploy        — set CONTROLLER_TRIGGER_TOKEN in GitLab CI/CD vars,
-                             then merge to the stg / prod branch
+    1. CONFIG.md — fill the placeholder sheet (workspace hosts, service
+       principals, developer groups, catalogs), then apply it with
+       {{cmd:scaffold:configure}}.  The bundle uuid is already generated.
+    2. schema/models.py — domain schemas; then implement routers/ + services/
+    3. wheels/ — vendor the dependencies (see wheels/README.md) and COMMIT
+       them. The Apps build environment has no network.
+    4. Local dev deploy — ./run_local.sh deploy   (deploys to DEV only)
+    5. Cloud deploy — set CONTROLLER_TRIGGER_TOKEN in GitLab CI/CD vars, then
+       merge to the stg / prod branch. Both belong to the controller — never
+       `databricks bundle deploy -t stg|prod` by hand.
+    6. Scaffold the evaluation suite with {{cmd:eval:new}}
 ```
 
-Every type prints the same shape with its own aspects and next steps. What differs:
+`[gitignore] kept the skeleton's own .gitignore` is the aspects-never-clobber rule showing
+its work: `api` ships a `.gitignore` that tracks `wheels/`, so the shared one is not applied
+over it. An aspect that writes nothing prints no line at all.
 
-| Type | Primary resource | Docs it receives | Placeholders |
-|---|---|---|---|
-| `api` | Databricks App (FastAPI) | API + PYTHON + SERVICE_STRUCTURE (+2 conformance) | 15 |
-| `etl` | Lakeflow pipeline | PIPELINE + PYTHON | 11 |
-| `job` | Scheduled Job | JOB + PYTHON + SERVICE_STRUCTURE (+1 conformance) | 11 |
-| `genie` | Genie space (Genie management API) | GENIE + PYTHON | 4 |
-| `agent` | Multi-Agent Supervisor (`supervisor_agents` API) | AGENT + PYTHON | 2 |
+Every type prints the same shape. What differs:
 
-> **Only `api` and `job` get the service-structure standard.** A Genie space is configuration,
-> and an agent is instructions plus a tool list handed to a managed supervisor service —
-> neither has a request boundary of its own, so shipping them a layering standard would be
-> noise.
+| Type | Primary resource | Placeholders |
+|---|---|---|
+| `api` | Databricks App (FastAPI) | 27 |
+| `etl` | Lakeflow pipeline | 19 |
+| `job` | Scheduled Job, one task per stage | 17 |
+| `genie` | Genie space (`genie_spaces` DAB resource) | 19 |
+| `agent` | Multi-Agent Supervisor, reconciled by a deploy job | 18 |
+| `fe` | Databricks App (React, prebuilt `dist/`) | 15 |
 
-An `agent` repo, which has no bundle — its two placeholders are the CI image and runner:
+**Every type is a bundle now**, including `agent` and `genie`. That is the change worth
+knowing if you used an older version: there is one deploy path — `databricks bundle deploy`
+plus `bundle run` on a resource — and the controller drives stg/prod for all six. No type
+carries a workspace token in CI.
+
+An `agent` repo, whose bundle's only resource is the job that reconciles the supervisor:
 
 ```
 $ scaffold:new --type agent --slug support-agent --display-name "Support Agent"
 
 ============================================================
-  Scaffolding: ai-support-agent  (type: agent)
-  Output:      ~/repos/ai-support-agent
-============================================================
   [agent] copied skeleton from templates/agent/
+  [deploy] 7 files
+  [gitlab] .gitlab-ci.yml
   [gitignore] .gitignore
+  [editorconfig] .editorconfig
   [specs] docs/specs/README.md
-  [config] CONFIG.md — 2 placeholder(s) to fill, then /scaffold:configure
+  [config] CONFIG.md — 18 placeholder(s) to fill, then {{cmd:scaffold:configure}}
 
   Created: ~/repos/ai-support-agent
 
   Next steps:
-    1. supervisor/instructions.md — write the supervisor's routing instructions
-    2. supervisor/supervisor.yml  — set display_name/description + the tools list
-                                    (each tool: id, type, description + its id)
-    3. Local dev deploy           — ./deploy.sh   (reconciles '<name> [DEV]',
-                                    attaches tools, prints the working URL)
-    4. Cloud deploy               — set DATABRICKS_HOST + DATABRICKS_TOKEN in
-                                    GitLab CI/CD vars per branch, then merge to
-                                    the stg / prod branch
-    5. Scaffold evaluation with /eval:new
+    1. CONFIG.md — fill the placeholder sheet (workspace hosts, service
+       principals, developer groups, catalogs), then apply it with
+       {{cmd:scaffold:configure}}.  The bundle uuid is already generated.
+    2. src/managed/agent.yml — the tools to attach, one per tool_id. A tool
+       NOT declared here is deleted from the live agent.
+    3. src/managed/instructions.md — routing guidance (sent byte-verbatim)
+    4. ./run_local.sh plan — shows what a deploy would add, change or
+       delete, before it does it
+    5. Local dev deploy — ./run_local.sh deploy   (deploys to DEV only)
+    6. Cloud deploy — set CONTROLLER_TRIGGER_TOKEN in GitLab CI/CD vars, then
+       merge to the stg / prod branch. Both belong to the controller — never
+       `databricks bundle deploy -t stg|prod` by hand.
+    7. Scaffold the evaluation suite with {{cmd:eval:new}}
 ```
 
-> **An agent repo does not just carry instructions — it provisions the supervisor.** `api`,
-> `etl` and `job` deploy through a Databricks Asset Bundle; `agent` and `genie` have no bundle
-> resource, so they call a management API from a deploy script instead. For `agent` that means
-> `deploy.sh` runs `src/deploy.py`, which reads `supervisor/supervisor.yml` + `instructions.md`
-> and reconciles the supervisor through the workspace's `supervisor_agents` SDK service, then
-> `create_tool` for each entry in the `tools:` list. It is the scripted equivalent of building
-> the supervisor in the Agents tab, and it prints the same working query URL the UI would give
-> you. `supervisor_agents` is Preview, so `deploy.py` imports the tool classes lazily and fails
-> with a named error if your `databricks-sdk` predates the service; only `knowledge_assistant`
-> and `genie_space` tool types are wired, and any other `type:` raises with the supported list
-> and a pointer at `_build_tool`.
+> **Why an agent's deploy is a job.** A supervisor agent has no DAB resource type — it has a
+> Beta REST API (`/api/2.1/supervisor-agents`). The controller reaches project code only
+> through `bundle deploy` followed by `bundle run` on a resource, so the deploy has to *be* a
+> resource: `resources/deploy.job.yml` is a job that runs `python/deploy_agent.py` in the
+> workspace, as the job's `run_as` principal. `run_resources.yml` lists that job, and without
+> the entry a deploy uploads a new spec, changes no agent, and still reports success. Dev runs
+> the same job the controller runs, so there is one deploy path rather than two.
 
-### Declare, don't record — how the non-bundle types identify what they deployed
+> **Step 4 is not optional politeness.** Reconciliation deletes every live tool it does not
+> find declared in `agent.yml`, and that is not recoverable from the repo. `./run_local.sh
+> plan` runs the reconciler against dev with `--dry-run` and prints what would be added,
+> changed or deleted. Read the delete lines before you deploy.
 
-`agent` and `genie` deploy real resources without a bundle, so they need their own answer to
-*which* resource a redeploy should update. Both give the same one.
+### Declare, don't record — how `agent` and `genie` identify what they deployed
 
-**Neither repo stores an id.** `supervisor.yml` and `space.yml` declare what should exist;
-they do not record what does. Identity is two axes together:
+Both deploy something a bundle cannot fully own, so both need an answer to *which* resource a
+redeploy should update. **Neither stores an id** — but they get there differently now, and the
+difference matters.
 
-| Axis | Source |
-|---|---|
-| Which workspace | `DATABRICKS_HOST` / the CLI profile the deploy authenticated with |
-| Which resource in it | the name `"<display_name\|title> [ENV]"`, from config + `--env` |
+| | How identity is resolved | The sharp edge |
+|---|---|---|
+| `agent` | By **`display_name`**, looked up through the API at deploy time | Renaming `display_name` points the next deploy at a *different* agent, and creates it |
+| `genie` | By the **DAB resource key** in `resources/genie.yml` | Renaming that key **destroys and recreates** the space, losing its id and every conversation in it |
 
-The deploy script lists, matches that name, and: one match → update; none → create;
-**more than one → refuse**. Every environment is suffixed, prod included — one rule, no
-exception, so the name is derivable from `(config, env)` alone in CI as on a laptop.
+For `agent`, `python/managed.py` lists, matches the name, and: one match → update; none →
+create; **more than one → refuse**. Every environment is name-suffixed, prod included — one
+rule with no exception, so the name is derivable from `(config, target)` alone, in CI exactly
+as on a laptop.
 
 > **Why not write the id back into the yml?** CI cannot hold it. A runner checks out fresh,
 > reads an empty id, takes the create branch, and throws the write-back away when the job
-> ends — one more supervisor (or Genie space) per deploy. Per-environment id fields do not
-> help: the id is an *output* of a deploy, and CI's only place to put an output is a commit,
-> which is a race. Same trade a DAB target makes — declarative identity plus a per-target
-> workspace, nothing about the deployment in git.
+> ends — one more supervisor per deploy. Per-environment id fields do not help: the id is an
+> *output* of a deploy, and CI's only place to put an output is a commit, which is a race.
+> Same trade a DAB target makes — declarative identity plus a per-target workspace, nothing
+> about the deployment in git. Both validators reject a committed `supervisor_agent_id:` /
+> `space_id:` outright, so a repo cannot drift back into storing deploy state.
 
-The sharp edge: **the name is the identity.** Renaming `display_name` or `title` does not
-rename the deployed resource — the next deploy creates a new one. Both validate scripts also
-reject a `supervisor_agent_id:` / `space_id:` key outright, so a repo cannot drift back to
-storing deploy state.
+`genie`'s `src/space.yml` does carry one id — the **instruction** id. That is not deploy state:
+it identifies a piece of space *content* so a redeploy edits the instructions in place instead
+of dropping them and adding a copy. The build mints it on first run and writes it back; commit
+it with the entry it belongs to.
 
-Both repos are laid out identically, and **CI holds no logic of its own** — each stage is one
-line that runs a script in the repo:
-
-```
-src/validate.py    check the declaration — no credentials, no network, no SDK
-src/deploy.py      reconcile the resource   (--env dev|stg|prod)
-deploy.sh          local one-shot: pip install + deploy.py (dev)
-.gitlab-ci.yml     validate: python src/validate.py
-                   deploy:   python src/deploy.py --env "$CI_COMMIT_BRANCH"
-```
-
-That split is the point of the rename from `deploy_genie.py` / an inline CI heredoc: every
-check that gates a deploy is runnable on a laptop before you push, and `deploy.py` calls the
-same `validate.check()` before it touches a workspace — so "valid" has one definition instead
-of one per place that asks. `validate.py` reports *every* problem at once rather than the
-first, so one run tells you everything to fix:
+**CI holds no logic of its own.** Each stage runs a script that lives in the repo, so every
+check that gates a deploy also runs on a laptop:
 
 ```
-$ python src/validate.py
-
-ERROR: supervisor/supervisor.yml: instructions_file 'nope.md' does not resolve to a file
-ERROR: supervisor/supervisor.yml: remove 'supervisor_agent_id'. Deploy state does not belong
-       in the repo — the supervisor is resolved by name (agent guideline §3a)
-ERROR: supervisor/supervisor.yml: tools[0] is missing description
+agent                                    genie
+  python/validate.py   offline spec check  python/validate.py   offline declaration check
+  python/managed.py    the reconciler      python/build_space.py  builds generated/space.<t>.json
+  python/deploy_agent.py  job entry point
+  run_local.sh  validate | plan | deploy   run_local.sh  build + validate, deploy to dev
 ```
 
-The deploy stage is manual-gated on `stg` and `prod`. Neither type uses the DAB controller, so
-neither gets `team_config.yaml` or `run_resources.yml`; what they need instead is
-`DATABRICKS_HOST` + `DATABRICKS_TOKEN` set per branch, which is what actually separates the
-environments.
+`deploy_agent.py` calls the same `check()` that `validate.py` calls, so "valid" has one
+definition rather than one per place that asks. Each validator reports *every* problem at once
+rather than the first:
+
+```
+$ PYTHONPATH=python python3 python/validate.py
+
+✗ agent.yml: tools[0] is missing description
+✗ agent.yml: duplicate tool_id 'genie-registry'
+✗ agent.yml: ${genie_space_id} survived substitution
+```
+
+Both types deploy through the shared DAB controller like every other bundle, and **neither
+holds a workspace token in CI** — auth on stg/prod is the deploy job's `run_as` principal,
+reached with `CONTROLLER_TRIGGER_TOKEN`. `agent` needs `run_resources.yml` to list its deploy
+job; `genie` ships it empty, because a space is live the moment it is deployed.
 
 ---
 
@@ -386,8 +404,9 @@ $ scaffold:add --repo ~/repos/ai-payments-api --detect
   Type:    api  (detected from resources/api.app.yml)
   Bundle:  payments_api   uuid 08a8a83a-c0dc-497c-b856-703551ae5cd3
 ==================================================================
-  cicd  PRESENT  already there
-  api   PRESENT  already there
+  deploy  PRESENT  already there
+  gitlab  PRESENT  already there
+  api     PRESENT  already there
 
   Standard set complete for an api repo.
 ```
@@ -427,14 +446,17 @@ $ scaffold:add --repo ~/repos/legacy --aspect api
     [api] Check core/config.py — service_id / display_name / description feed GET /v1/info. If
           the repo already had its own config module, merge into Settings and delete the other
           one; two config modules means two answers to the same question.
-    [api] Configure logging once at startup, from settings:  configure_logging(...)  — then
-          remove any basicConfig / setLevel elsewhere, or LOG_LEVEL stops working.
-    [api] Add the request context middleware — it generates and echoes X-Request-ID and emits
-          the one access-log line (api guideline §10).
-    [api] Register the exception handlers — this is what normalizes FastAPI's {'detail': ...}
-          onto the ErrorResponse envelope and installs the catch-all (api guideline §7).
+    [api] Configure logging once at startup, from settings:
+          configure_logging(settings.log_level, settings.log_format, settings.service_id)
+          — then remove any basicConfig / setLevel elsewhere, or LOG_LEVEL stops working.
+    [api] Add the request context middleware:  app.add_middleware(RequestContextMiddleware,
+          service_id=settings.service_id)  — it generates and echoes X-Request-ID and emits
+          the one access-log line.
+    [api] Register the exception handlers:  register_exception_handlers(app)  — this is what
+          normalizes FastAPI's {'detail': ...} onto the ErrorResponse envelope and installs
+          the catch-all. Then delete any per-route error bodies.
     [api] Raise from core/exceptions.py in services and repositories — never HTTPException
-          below the router (service-structure guideline §3).
+          below the router.
     [api] Set CORS from settings.cors_origins — an allowlist, never ['*'].
 
   Then:
@@ -446,11 +468,13 @@ $ scaffold:add --repo ~/repos/legacy --aspect api
 > `core/handlers.py` in does nothing until something calls `register_exception_handlers(app)`
 > — so the script says so rather than pretending the aspect is finished.
 
-**No standards docs are copied in.** The api aspect's code cites the guidelines by name
-(`api guideline §7`, `service-structure guideline §3`) and those names resolve in agent-kit at
-`~/.claude/guidelines/`, so there is nothing to ship alongside the code. Copying them per repo
-was measured across six repos: six different subsets, every one drifted from source, and
+**No standards docs are copied in, and the wiring notes cite no guideline.** Each note states
+its rule — "an allowlist, never `['*']`" — rather than pointing at where the rule is written.
+A section number in a comment goes stale the moment a guideline is renumbered, which is the
+same failure as a copied file, so the repo carries neither. Copying the docs per repo was
+measured across six repos: six different subsets, every one drifted from source, and
 `/review:mr` never read them anyway — it resolves `core/guidelines/conformance/` directly.
+The guidelines a repo answers to are named once, in its README.
 
 Re-run the same add and nothing is overwritten:
 
@@ -460,55 +484,55 @@ Re-run the same add and nothing is overwritten:
   [api] SKIPPED core/config.py — already exists (use --force to replace)
 ```
 
-The `cicd` aspect, and what it flags when a bundle uuid is missing:
+**`cicd` is two aspects now** — `deploy` (how the repo deploys: bundle descriptor,
+`resources/`, `run_local.sh`, `run_resources.yml`) and `gitlab` (the pipeline and the project
+setup it needs). They split because they change for different reasons: the deploy story is
+per-repo-type, the CI provider is not. Asking for `cicd` prints a pointer rather than
+"unknown aspect".
+
+Adding one that is already there writes nothing and says so:
 
 ```
-$ scaffold:add --repo ~/repos/legacy --aspect cicd
+$ scaffold:add --repo ~/repos/ai-support-agent --aspect gitlab
 
-  [cicd] added .gitlab-ci.yml
-  [cicd] added team_config.yaml
-  [cicd] added .bundleignore
-  [cicd] added run_resources.yml
-  [config-sheet] CONFIG.md — 6 placeholder(s) outstanding
+==================================================================
+  Repo:    ~/repos/ai-support-agent
+  Type:    agent  (detected from src/managed/agent.yml)
+  Adding:  gitlab
+  profile: global  ~/personal/agent-kit/scaffold-profile.md
+           no profile here — every value stays per-repo
+==================================================================
+  [gitlab] SKIPPED .gitlab-ci.yml — already exists (use --force to replace)
+  [config-sheet] CONFIG.md — 18 placeholder(s) outstanding
 
-  4 file(s) written into ~/repos/legacy
-
-  Heads-up:
-    ! No bundle uuid found — generated 9bce6c94-376b-42ca-8fa4-5ba42bfed471. Put the SAME uuid
-      in databricks.yml (bundle.uuid); the controller identifies the bundle by it, and it must
-      never change after the first deploy.
+  0 file(s) written into ~/repos/ai-support-agent
+  1 left untouched (already present): .gitlab-ci.yml
 
   Manual wiring the copy cannot do:
-    [cicd] Set CONTROLLER_TRIGGER_TOKEN in GitLab > Settings > CI/CD > Variables (masked)
-           before the first stg/prod deploy.
-    [cicd] Confirm BUNDLE_TAG in .gitlab-ci.yml matches bundle.name in databricks.yml, and that
-           team_config.yaml's bundle_name + uuid match it too.
-    [cicd] Push the `stg` / `prod` branches — the pipeline fires on merge to each.
+    [gitlab] Run the kit's gitlab/setup-group.sh --group <id> once per group: the
+             CONTROLLER_TRIGGER_TOKEN variable and the Databricks service account, both
+             inherited by every project including ones added later.
+    [gitlab] Run gitlab/setup-repo.sh --project <id> per repo: dev/stg/prod branches, branch
+             protection, the default branch, and the controller in the job-token allowlist.
+             Both scripts are a dry run until --apply.
+    [gitlab] stg and prod must stay PROTECTED branches. CONTROLLER_TRIGGER_TOKEN is a
+             protected variable, so an unprotected branch receives an empty one and the
+             trigger posts nothing while the job still goes green.
+
+  Then:
+    1. Fill CONFIG.md and apply it:   {{cmd:scaffold:configure}}
+    2. Review the added files in git before committing:  git status
 ```
 
-On a `genie` or `agent` repo the same aspect installs a different pipeline — and the scripts
-that pipeline calls. Here, a hand-built agent repo that only ever had a `supervisor/` folder:
+> **The *Manual wiring* block is the honest boundary of what a file copy can do.** Copying a
+> `.gitlab-ci.yml` in does nothing until the group has a trigger token and the branches exist,
+> so the script says so instead of pretending the aspect is finished. The same block is where
+> the protected-branch trap is recorded: an unprotected `stg` receives an empty
+> `CONTROLLER_TRIGGER_TOKEN` and the trigger job still goes green.
 
-```
-$ scaffold:add --repo ~/repos/legacy-agent --aspect cicd
-
-==================================================================
-  Repo:    ~/repos/legacy-agent
-  Type:    agent  (detected from supervisor/supervisor.yml)
-  Adding:  cicd
-==================================================================
-  [cicd] added .gitlab-ci.yml
-  [cicd] added src/validate.py
-  [cicd] added src/deploy.py
-  [gitignore] added .gitignore   (always included)
-  [specs] added docs/specs/README.md   (always included)
-  [config-sheet] CONFIG.md — 2 placeholder(s) outstanding
-```
-
-> **The pipeline brings the scripts it invokes.** Its two jobs are `python src/validate.py`
-> and `python src/deploy.py`, so shipping the `.gitlab-ci.yml` alone would install a pipeline
-> pointing at files that are not there — the same broken-pointer class every aspect has to
-> avoid. On a scaffolded repo that already has them, both are reported `SKIPPED`.
+One pipeline serves every type. It never deploys — it validates the bundle and triggers the
+shared controller — so no type's CI holds a workspace token, and there is no per-type CI
+variant to keep in step.
 
 Everything available:
 

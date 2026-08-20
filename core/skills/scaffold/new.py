@@ -383,8 +383,11 @@ def _apply_aspect(key: str, repo_dir: str, rtype: str, vars_: dict) -> None:
     writes. A file the skeleton already ships is kept (aspects never clobber), so
     a type's own version of a file always wins over the shared one."""
     written, skipped = aspects.apply(key, repo_dir, rtype, vars_)
-    shown = ", ".join(written) if len(written) <= 4 else f"{len(written)} files"
-    print(f"  [{key}] {shown}")
+    # An aspect can write nothing — every file it owns was already shipped by the
+    # skeleton. Printing a bare "[key] " line then reads as a failure.
+    if written:
+        shown = ", ".join(written) if len(written) <= 4 else f"{len(written)} files"
+        print(f"  [{key}] {shown}")
     for path in skipped:
         print(f"  [{key}] kept the skeleton's own {path}")
 
@@ -398,8 +401,11 @@ def _write_config_sheet(repo_dir: str, display_name: str) -> None:
     _, present = configure.generate(repo_dir, display_name)
     n = len(present)
     if n:
+        # Not an f-string on the marker half: inside one, {{…}} collapses to {…}
+        # and the adapter never resolves it.
         print(
-            f"  [config] CONFIG.md — {n} placeholder(s) to fill, then {{cmd:scaffold:configure}}"
+            f"  [config] CONFIG.md — {n} placeholder(s) to fill, then "
+            "{{cmd:scaffold:configure}}"
         )
     else:
         print("  [config] CONFIG.md — no placeholders to fill")
