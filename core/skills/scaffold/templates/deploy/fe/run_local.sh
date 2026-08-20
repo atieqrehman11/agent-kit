@@ -14,7 +14,7 @@
 #   BACKEND_API_UPSTREAM   the API to proxy /api/* to           (required)
 #   BACKEND_API_TOKEN      workspace token, when that API is a deployed App
 #   PORT                   override the port
-#   SKIP_VERIFY=1          deploy without running `npm run verify` first
+#   SKIP_VERIFY=1          deploy without running `pnpm run verify` first
 #
 # A busy port is cleared first: SIGTERM, then SIGKILL if it does not let go.
 set -euo pipefail
@@ -24,13 +24,17 @@ cd "$(dirname "$0")"
 # Must match the resource key in resources/fe.app.yml.
 APP_KEY="TPLVAR_RESOURCE_KEY"
 
-MODE="${1:-run}"
+# pnpm, because pnpm-lock.yaml is the lockfile and Databricks Apps picks the
+# manager from it. npx runs it when it is not installed globally.
+if command -v pnpm >/dev/null; then PM=(pnpm); else PM=(npx --yes pnpm@10); fi
+
+MODE="${1:-dev}"
 case "$MODE" in
-  run)    PORT="${PORT:-5173}" ;;
+  dev)    PORT="${PORT:-5173}" ;;
   prod)   PORT="${PORT:-8000}" ;;
   deploy) ;;
   -h|--help) sed -n '/^# ── Modes/,/^$/p' "$0"; exit 0 ;;
-  *) echo "usage: $0 [run|prod|deploy]" >&2; exit 2 ;;
+  *) echo "usage: $0 [dev|prod|deploy]" >&2; exit 2 ;;
 esac
 
 # ── Deploy to the dev workspace ─────────────────────────────────────────────
@@ -47,8 +51,8 @@ if [[ "$MODE" == "deploy" ]]; then
     echo "── Skipping verify (SKIP_VERIFY=1) ──"
   else
     echo "── Verify ──"
-    [[ -d node_modules ]] || npm install
-    npm run verify
+    [[ -d node_modules ]] || "${PM[@]}" install
+    "${PM[@]}" run verify
   fi
 
   echo "── Deploying to dev ──"
@@ -111,7 +115,7 @@ if [[ "$BACKEND_API_UPSTREAM" == *databricksapps.com* && -z "${BACKEND_API_TOKEN
   echo "         proxied calls will 401." >&2
 fi
 
-[[ -d node_modules ]] || { echo "Installing dependencies…"; npm install; }
+[[ -d node_modules ]] || { echo "Installing dependencies…"; "${PM[@]}" install; }
 
 free_port "$PORT"
 
@@ -121,9 +125,9 @@ echo "port     : $PORT"
 echo "upstream : $BACKEND_API_UPSTREAM"
 echo
 
-if [[ "$MODE" == "run" ]]; then
+if [[ "$MODE" == "dev" ]]; then
   exec npx vite --port "$PORT" --strictPort
 else
-  npm run build
+  "${PM[@]}" run build
   PORT="$PORT" exec node server.mjs
 fi

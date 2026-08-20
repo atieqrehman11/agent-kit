@@ -5,8 +5,13 @@ description: >
   Standards for Genie spaces: views, functions, instructions and benchmark coverage. Applies
   when building or reviewing a Genie space.
 applies_to:
-  - "**/resources/*.genie.yml"
-  - "**/docs/GENIE_STANDARDS.md"
+  - "**/resources/genie*.yml"
+  - "**/src/space.yml"
+  - "**/src/instructions.md"
+  - "**/src/data_sources.yml"
+  - "**/src/example_queries.yml"
+  - "**/src/sql_functions.yml"
+  - "**/python/build_space.py"
 ---
 
 # Genie Standards — __ORG_PREFIX__Genie Space Reference
@@ -41,7 +46,6 @@ generated/               built, committed, never hand-edited
 resources/genie.yml      the DAB resource — title, warehouse_id, description, file_path
 databricks.yml           targets, run_as, per-environment values
 run_resources.yml        empty — a space is live as soon as it deploys
-docs/GENIE_STANDARDS.md  this file
 ```
 
 **The artifact is committed.** The controller clones the repo fresh and runs no project
@@ -134,18 +138,22 @@ without it. `dev` has none, because you deploy it yourself.
 A Genie space answers questions **over curated tables you already own** — normally the
 **gold** layer of a use-case ETL repo. Genie should never read raw or bronze data.
 
-- **Default: list existing tables directly** in `space.yml: data_sources.tables`
+- **Default: list existing tables directly** in `src/data_sources.yml`
   (e.g. `your_catalog.gold.customer_orders`). No SQL to write in this repo.
 - **Optional bespoke view.** If no single existing table fits (you need a join, a rename,
   or a narrowed column set), write re-appliable `CREATE OR REPLACE VIEW` DDL under
-  `views/<name>.sql`, then list that view under `data_sources.tables`. Expose exactly the
+  `src/views/<name>.sql`, then list that view in `src/data_sources.yml`. Expose exactly the
   columns Genie should query, with clear names it can reason about. **Skip this** when
   existing tables already fit — do not add a view for its own sake.
-- **UC functions** the space uses live under `functions/` as `CREATE OR REPLACE FUNCTION`
-  DDL and are listed in `space.yml: uc_functions`.
-- **The bundle does not deploy the DDL.** DAB has no resource for arbitrary SQL, so
-  everything under `views/` and `functions/` must be applied to the catalog separately and
-  must exist before the space is deployed — the space attaches to them by name.
+- **UC functions** the space uses live under `src/functions/` as `CREATE OR REPLACE FUNCTION`
+  DDL and are listed in `src/sql_functions.yml`. A space may also *declare* a function whose
+  DDL is owned by the repo that owns the tables it reads; say which repo that is in
+  `sql_functions.yml`, because nothing else records the dependency.
+- **The bundle does not deploy the DDL.** DAB has no resource for arbitrary SQL, so every view
+  and function must be applied to the catalog separately — by hand, or by a stage of the
+  owning repo — and must exist before the space is deployed. The space attaches by name, and
+  the create API does not validate functions the way it validates tables, so a space whose
+  functions are missing deploys clean and fails only when someone asks.
 
 ---
 
@@ -191,10 +199,11 @@ the repo. Anything set in the UI is display-only and is not tracked here.
 
 The scaffold is a skeleton. To turn it into a working space:
 
-1. **Point at your data** — `space.yml: data_sources.tables` (§5).
-2. **(Optional) add a backing view** under `views/` only if needed (§5).
-3. **Write the prose** — `description.md` (what the space covers) and `instructions.md`
-   (how Genie should answer: joins, filters, business definitions, units, caveats).
+1. **Point at your data** — `src/data_sources.yml` (§5).
+2. **(Optional) add a backing view** under `src/views/` only if needed (§5).
+3. **Write the prose** — `src/instructions.md` (how Genie should answer: joins, filters,
+   business definitions, units, caveats). What the space *covers* is the `description` DAB
+   field in `resources/genie.yml`, not a file in `src/`.
 4. **Add example queries** — fill `example_queries.yml` with validated question → SQL
    pairs (§6). Highest-leverage step for accuracy.
 5. **Set `sample_questions`** to real starter questions (§7).
@@ -261,8 +270,8 @@ behaviour change to a non-deterministic system.
   whose expected value nobody can source gets edited to match whatever the space returned.
 - **Repeated runs, recorded as a pass rate.** One run of a non-deterministic system is not a
   result; a case that passes intermittently is failing.
-- **The gate:** a change to `instructions.md`, `description.md`, `example_queries.yml`,
-  `data_sources` or a backing view requires a fresh run before merge, and the pass rate must not
+- **The gate:** a change to `instructions.md`, `example_queries.yml`, `data_sources.yml`,
+  `sql_functions.yml` or a backing view requires a fresh run before merge, and the pass rate must not
   fall below the `CHANGELOG.md` baseline. A deliberate drop records the new baseline and the
   reason in the same commit. A wording tidy needs no rerun.
 

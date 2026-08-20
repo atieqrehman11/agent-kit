@@ -1,6 +1,0 @@
-# Per-environment task config — STG
-env: STG
-catalog: TPLVAR_CATALOG
-table_prefix: TPLVAR_TABLE_PREFIX
-# Add task parameters your resource reads at runtime:
-# batch_size: 1000

@@ -20,6 +20,9 @@ coverage/
 # BACKEND_API_UPSTREAM / BACKEND_API_TOKEN for the Vite dev proxy live here.
 .env
 .env.*
+# .env.example carries no secret — it is the list of names a new developer has
+# to fill in, and it is useless if it is not in the repo.
+!.env.example
 *.local
 
 # ── Editor / OS ─────────────────────────────────────────────────────────────

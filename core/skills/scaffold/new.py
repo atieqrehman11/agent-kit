@@ -5,30 +5,36 @@ Scaffold a new Databricks repo — one repo, one type.
 A repo is exactly ONE of these types. The type picks the primary resource; CI/CD
 is wired for every type.
 
-    api    FastAPI Databricks App        resources.apps       (bundle deploy)
-    etl    Lakeflow declarative pipeline resources.pipelines  (bundle deploy)
-    job    Scheduled Databricks Job      resources.jobs       (bundle deploy)
-    fe     React Databricks App          resources.apps       (bundle deploy)
-    agent  Multi-Agent Supervisor        supervisor_agents API (deploy script)
-    genie  Genie space                   Genie management API  (deploy script)
+    api    FastAPI Databricks App        resources.apps         (bundle deploy)
+    etl    Lakeflow declarative pipeline resources.pipelines    (bundle deploy)
+    job    Scheduled Databricks Job      resources.jobs         (bundle deploy)
+    fe     React Databricks App          resources.apps         (bundle deploy)
+    genie  Genie space                   resources.genie_spaces (bundle deploy)
+    agent  Multi-Agent Supervisor        resources.jobs         (bundle deploy)
 
-Note: `apps` / `jobs` / `pipelines` are the DAB *schema collection keys* (always
-plural, even for one resource). The single resource key under them is singular.
+Note: `apps` / `jobs` / `pipelines` / `genie_spaces` are the DAB *schema
+collection keys* (always plural, even for one resource). The single resource key
+under them is singular.
 
-Deployment model:
-    Controller types (api/etl/job):
-      dev  — LOCAL dev loop:  `./bundle.sh` (this laptop → dev workspace).
+Deployment model — ONE path, for every type:
+      dev  — LOCAL dev loop:  `./run_local.sh deploy` (this laptop → dev).
       stg  — CLOUD: CI/CD controller deploys on merge to the `stg` branch.
       prod — CLOUD: CI/CD controller deploys on merge to the `prod` branch.
-    fe: also a bundle, but it deploys ITSELF. What ships is dist/, a build
-      artifact that is not committed, and the controller deploys from a git
-      checkout without running a Node build — so build and deploy happen in one
-      job. Local: ./bundle.sh (build → deploy → run). Cloud: the repo's own
-      .gitlab-ci.yml on stg/prod merge, with its own DATABRICKS_TOKEN.
-    API types (agent/genie): no bundle. src/deploy.py calls a management API —
-      supervisor_agents for agent, createspace/updatespace for genie. Local via
-      ./deploy.sh (dev), cloud via CI on stg/prod merge. Neither stores an id: the
-      resource is resolved by name, "<name> [ENV]", in the target workspace.
+
+No type deploys itself and none holds a workspace token in CI. The controller
+reaches project code only through `bundle deploy` and `bundle run`, so a repo
+that ran its own deploy script would be a second, ungoverned path. What differs
+between types is the payload, not the mechanism:
+
+    fe     ships a committed dist/ — the Apps build environment cannot resolve
+           registry.npmjs.org, so nothing can be built there.
+    genie  ships a committed generated/space.<target>.json — the controller
+           clones fresh and runs no project scripts, so the artifact is built
+           locally. The catalog is baked in per target, because DAB reads a
+           file_path payload verbatim.
+    agent  has no DAB resource type, so the bundle's one resource is a JOB whose
+           single task runs the reconciler. run_resources.yml lists it, and that
+           `bundle run` IS the deploy.
 
 Usage:
     python new.py --type {api|etl|job|fe|genie|agent} \\
@@ -55,7 +61,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 
 sys.path.insert(0, _HERE)
 
-# The composable slices of a repo (CI/CD, standards docs, per-env config, ...).
+# The composable slices of a repo (CI/CD, deploy descriptor, platform endpoints, ...).
 # `new` applies them to a fresh tree; `{{cmd:scaffold:add}}` applies one to a repo that
 # already exists. One registry, so an aspect means the same thing in both.
 import aspects  # noqa: E402
@@ -119,18 +125,22 @@ _IGNORE_CACHES = shutil.ignore_patterns(
 )
 
 # Repo types, defined once in aspects.py (add.py needs them without importing new).
-#   Bundle types deploy via `databricks bundle deploy`: api, etl, job, fe.
-#     Of those, the CONTROLLER types (api, etl, job) hand stg/prod to the shared
-#     CI/CD controller; fe deploys itself, because it ships a build artifact the
-#     controller's git checkout would not contain.
-#   Script types have no DAB bundle; a deploy script calls a Databricks management API.
-#     genie: build serialized_space from space.yml → Genie createspace/updatespace API.
-#     agent: a Multi-Agent Supervisor created via the supervisor_agents SDK from config
-#            (instructions + a tools list) — the scripted equivalent of the Agents-tab UI.
+#   Every type is a bundle and every one hands stg/prod to the shared CI/CD
+#   controller — see the module docstring for what differs between them.
 BUNDLE_TYPES = aspects.BUNDLE_TYPES
 CONTROLLER_TYPES = aspects.CONTROLLER_TYPES
-API_TYPES = aspects.API_TYPES
 ALL_TYPES = aspects.ALL_TYPES
+
+# Resource key the controller must `bundle run` for the deploy to be complete.
+# Types not listed here ship an empty run_resources.yml — see
+# aspects.run_resources_yaml for why that is a per-type fact, not a preference.
+#   api/fe  the app deployment that makes an upload live
+#   agent   the reconciler job, which IS the deploy
+RUN_RESOURCE_BY_TYPE = {
+    "api": "TPLVAR_RESOURCE_KEY",
+    "fe": "TPLVAR_RESOURCE_KEY",
+    "agent": "deploy_agent",
+}
 
 # Org-wide values that appear as bare TODO_SET_ tokens in templates (not TPLVAR_).
 # The install profile ({{cmd:scaffold:profile}}) fills these at scaffold time when present;
@@ -141,7 +151,6 @@ _PROFILE_TODO_TOKENS = {
     "support_email": "TODO_SET_SUPPORT_EMAIL",
     "developers_group": "TODO_SET_DEVELOPERS_GROUP",
     "prod_admin": "TODO_SET_PROD_ADMIN_USER",
-    "controller_repo_url": "TODO_SET_CONTROLLER_REPO_URL",
     "ci_image": "TODO_SET_CI_IMAGE",
     "policy_id": "TODO_SET_POLICY_ID",
     "dev_policy_id": "TODO_SET_DEV_POLICY_ID",
@@ -279,10 +288,11 @@ def main(argv=None):
     org_prefix = f"{org} " if org else ""
 
     bundle_name = f"{resource_key}_{args.type}"
-    # Resource key run after deploy. Deployment registers a definition; execution is
-    # separate, so bundle repos are deploy-only (run on their own schedule or a manual
-    # trigger). None here → run_resources.yml ships empty.
-    run_resource_key = None
+    # Resource key the controller runs after deploy, per type. The token form is
+    # resolved against resource_key below so this table stays declarative.
+    run_resource_key = RUN_RESOURCE_BY_TYPE.get(args.type, "").replace(
+        "TPLVAR_RESOURCE_KEY", resource_key
+    )
 
     repo_dir = os.path.join(_resolve_output_dir(args.output_dir, profile), repo_name)
     if os.path.exists(repo_dir):
@@ -356,7 +366,7 @@ def _scaffold(rtype: str, repo_dir: str) -> None:
     shutil.copytree(src, repo_dir, ignore=_IGNORE_CACHES)
     print(f"  [{rtype}] copied skeleton from templates/{os.path.basename(src)}/")
 
-    # Make any shipped shell entrypoints executable (bundle.sh / deploy.sh).
+    # Make any shipped shell entrypoints executable (run_local.sh).
     for fn in os.listdir(repo_dir):
         if fn.endswith(".sh"):
             os.chmod(os.path.join(repo_dir, fn), 0o755)
@@ -433,110 +443,89 @@ def _banner(repo_name: str, repo_dir: str, rtype: str, profile: dict, origin) ->
 def _print_next_steps(
     repo_dir: str, rtype: str, bundle_name: str, resource_key: str
 ) -> None:
+    """What to do next, per type.
+
+    Each step is a list of lines, so the numbering counts STEPS rather than
+    printed lines — a two-line step is still one step.
+    """
     print(f"\n  Created: {repo_dir}\n")
     print("  Next steps:")
-    if rtype == "fe":
-        print(
-            "    1. CONFIG.md           — fill the placeholder sheet (hosts, service principals,"
-        )
-        print(
-            "                             TODO_SET_BACKEND_API_URL), then apply it with:"
-        )
-        print("                             {{cmd:scaffold:configure}}")
-        print(
-            "    2. npm run setup       — installs deps and vendors shadcn/ui into src/shared/ui/"
-        )
-        print(
-            "    3. src/app/registry.ts — one entry per feature; nav and routes both derive from"
-        )
-        print("                             it, so adding a page edits no shell file")
-        print(
-            "    4. npm run verify      — format, lint, types, tests, build, bundle budget"
-        )
-        print(
-            "    5. Local dev deploy    — ./bundle.sh   (builds, then deploys to DEV)"
-        )
-        print(
-            "    6. Cloud deploy        — set DATABRICKS_TOKEN in GitLab CI/CD vars per branch,"
-        )
-        print(
-            "                             then merge to stg / prod. This repo deploys ITSELF —"
-        )
-        print(
-            "                             the controller has no Node build, so it would deploy"
-        )
-        print("                             a checkout with no dist/ in it.")
-    elif rtype in CONTROLLER_TYPES:
-        print(
-            "    1. CONFIG.md           — fill the placeholder sheet (hosts, service principals,"
-        )
-        print(
-            "                             policy ids, team, repo url), then apply it with:"
-        )
-        print(
-            "                             {{cmd:scaffold:configure}}   (uuid is already generated)"
-        )
-        if rtype == "api":
-            print(
-                "    2. schema/models.py    — domain schemas; implement routers/ + services/"
-            )
-        if rtype == "etl":
-            print(
-                "    2. pipeline/task*.py   — implement the TODO blocks; uncomment @dp.table"
-            )
-        if rtype == "job":
-            print(
-                "    2. src/main.py         — implement run(); adjust schedule in resources/job.job.yml"
-            )
-        print("    3. Local dev deploy    — ./bundle.sh   (deploys to DEV only)")
-        print(
-            "    4. Cloud deploy        — set CONTROLLER_TRIGGER_TOKEN in GitLab CI/CD vars,"
-        )
-        print("                             then merge to the stg / prod branch")
-    elif rtype == "agent":
-        print(
-            "    1. supervisor/instructions.md — write the supervisor's routing instructions"
-        )
-        print(
-            "    2. supervisor/supervisor.yml  — set display_name/description + the tools list"
-        )
-        print(
-            "                                    (each tool: id, type, description + its id)"
-        )
-        print(
-            "    3. Local dev deploy           — ./deploy.sh   (reconciles '<name> [DEV]',"
-        )
-        print(
-            "                                    attaches tools, prints the working URL)"
-        )
-        print(
-            "    4. Cloud deploy               — set DATABRICKS_HOST + DATABRICKS_TOKEN in"
-        )
-        print(
-            "                                    GitLab CI/CD vars per branch, then merge to"
-        )
-        print("                                    the stg / prod branch")
-        print("    5. Scaffold evaluation with {{cmd:eval:new}}")
-    else:  # genie
-        print(
-            "    1. genie-space/space.yml   — set warehouse_id, description, instructions,"
-        )
-        print("                                 data_sources, sample_questions")
-        print(
-            "    2. data_sources.tables     — point at your curated gold tables (views/ is"
-        )
-        print(
-            "                                 empty; add a bespoke view only if needed — see README)"
-        )
-        print("    3. Local dev deploy        — ./deploy.sh  (applies DDL, reconciles")
-        print("                                 '<title> [DEV]')")
-        print(
-            "    4. Cloud deploy            — set DATABRICKS_HOST + DATABRICKS_TOKEN in GitLab"
-        )
-        print(
-            "                                 CI/CD vars per branch, then merge to stg / prod"
-        )
-        print("    5. Scaffold evaluation with {{cmd:eval:new}}")
+
+    steps = [
+        [
+            "CONFIG.md — fill the placeholder sheet (workspace hosts, service",
+            "principals, developer groups, catalogs), then apply it with",
+            "{{cmd:scaffold:configure}}.  The bundle uuid is already generated.",
+        ]
+    ]
+    steps += {
+        "api": [
+            ["schema/models.py — domain schemas; then implement routers/ + services/"],
+            [
+                "wheels/ — vendor the dependencies (see wheels/README.md) and COMMIT",
+                "them. The Apps build environment has no network.",
+            ],
+        ],
+        "etl": [
+            ["pipeline/task*.py — implement the TODO blocks; uncomment @dp.table"],
+        ],
+        "job": [
+            [
+                "src/task_0N_*.py — implement the stages; adjust the task chain and",
+                "the schedule in resources/job.job.yml",
+            ],
+        ],
+        "fe": [
+            ["pnpm install — then `pnpm ui:init` to vendor the shadcn/ui components"],
+            [
+                "src/app/registry.ts — one entry per feature; nav and routes both",
+                "derive from it, so adding a page edits no shell file",
+            ],
+            [
+                "dist/ — build it and COMMIT it. The Apps build cannot reach npm, so",
+                "an uncommitted dist/ fails the deploy on a fresh clone.",
+            ],
+        ],
+        "genie": [
+            [
+                "src/data_sources.yml — point it at your curated gold tables. Every",
+                "identifier must start with ${catalog}.${schema}.",
+            ],
+            ["src/instructions.md — how Genie should answer (sent byte-verbatim)"],
+            [
+                "src/example_queries.yml — curated question -> SQL pairs. The single",
+                "biggest accuracy lever a space has.",
+            ],
+            ["generated/ — `./run_local.sh all` builds it; COMMIT the result."],
+        ],
+        "agent": [
+            [
+                "src/managed/agent.yml — the tools to attach, one per tool_id. A tool",
+                "NOT declared here is deleted from the live agent.",
+            ],
+            ["src/managed/instructions.md — routing guidance (sent byte-verbatim)"],
+            [
+                "./run_local.sh plan — shows what a deploy would add, change or",
+                "delete, before it does it",
+            ],
+        ],
+    }[rtype]
+
+    steps += [
+        ["Local dev deploy — ./run_local.sh deploy   (deploys to DEV only)"],
+        [
+            "Cloud deploy — set CONTROLLER_TRIGGER_TOKEN in GitLab CI/CD vars, then",
+            "merge to the stg / prod branch. Both belong to the controller — never",
+            "`databricks bundle deploy -t stg|prod` by hand.",
+        ],
+    ]
+    if rtype in ("api", "genie", "agent"):
+        steps.append(["Scaffold the evaluation suite with {{cmd:eval:new}}"])
+
+    for n, lines in enumerate(steps, 1):
+        print(f"    {n}. {lines[0]}")
+        for cont in lines[1:]:
+            print(f"       {cont}")
     print()
 
 

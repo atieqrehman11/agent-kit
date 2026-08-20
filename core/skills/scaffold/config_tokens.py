@@ -49,12 +49,6 @@ TOKENS = [
         "https://gitlab.com/<group>/my-service",
     ),
     (
-        "TODO_SET_CONTROLLER_REPO_URL",
-        "CI/CD",
-        "Shared DAB CI/CD controller repo URL (stg/prod deploys)",
-        "https://gitlab.com/<group>/databricks-asset-bundle-ci-cd-controller",
-    ),
-    (
         "TODO_SET_CI_IMAGE",
         "CI/CD",
         "CI container image with the Databricks CLI/SDK",
@@ -75,7 +69,7 @@ TOKENS = [
     (
         "TODO_SET_DEV_WORKSPACE_HOST",
         "Databricks Workspaces",
-        "Dev workspace host — local (./bundle.sh) deploy target",
+        "Dev workspace host — local (./run_local.sh deploy) deploy target",
         "https://<workspace>-dev.cloud.databricks.com",
     ),
     (
@@ -103,6 +97,18 @@ TOKENS = [
         "",
     ),
     (
+        "TODO_SET_STG_CATALOG",
+        "Data",
+        "Unity Catalog in the STAGING workspace",
+        "myapp_stg",
+    ),
+    (
+        "TODO_SET_PROD_CATALOG",
+        "Data",
+        "Unity Catalog in the PRODUCTION workspace",
+        "myapp_prod",
+    ),
+    (
         "TODO_SET_STG_SP_ID",
         "Service Principals",
         "Staging service principal application id",
@@ -126,10 +132,34 @@ TOKENS = [
     ("TODO_SET_CATALOG", "Data", "Unity Catalog", "my_catalog_dev"),
     ("TODO_SET_TABLE_PREFIX", "Data", "snake_case table name prefix", "myapp_"),
     (
+        "TODO_SET_STG_SOURCE_VOLUME",
+        "Data",
+        "Volume path the STAGING pipeline reads",
+        "/Volumes/<catalog>/bronze/unstructured_data/<folder>/",
+    ),
+    (
+        "TODO_SET_PROD_SOURCE_VOLUME",
+        "Data",
+        "Volume path the PRODUCTION pipeline reads",
+        "/Volumes/<catalog>/bronze/unstructured_data/<folder>/",
+    ),
+    (
         "TODO_SET_DEVELOPERS_GROUP",
         "Permissions",
         "Workspace group granted CAN_MANAGE on the app",
         "<workspace>-developers-dev",
+    ),
+    (
+        "TODO_SET_STG_DEVELOPERS_GROUP",
+        "Permissions",
+        "Workspace group granted CAN_MANAGE in STAGING",
+        "<workspace>-developers-stg",
+    ),
+    (
+        "TODO_SET_PROD_DEVELOPERS_GROUP",
+        "Permissions",
+        "Workspace group granted CAN_RUN in PRODUCTION",
+        "<workspace>-developers",
     ),
     (
         "TODO_SET_PROD_ADMIN_USER",
@@ -144,15 +174,52 @@ TOKENS = [
         "",
     ),
     (
+        "TODO_SET_STG_FRONTEND_SP_ID",
+        "Permissions",
+        "Frontend app service-principal id in STAGING — a different id from dev's, "
+        "because each workspace mints the app its own",
+        "",
+    ),
+    (
+        "TODO_SET_PROD_FRONTEND_SP_ID",
+        "Permissions",
+        "Frontend app service-principal id in PRODUCTION",
+        "",
+    ),
+    (
         "TODO_SET_WAREHOUSE_ID",
         "API Runtime",
-        "SQL warehouse id — gold-layer panel queries",
+        "SQL warehouse id — gold-layer queries (dev)",
+        "",
+    ),
+    (
+        "TODO_SET_STG_WAREHOUSE_ID",
+        "API Runtime",
+        "SQL warehouse id in the STAGING workspace",
+        "",
+    ),
+    (
+        "TODO_SET_PROD_WAREHOUSE_ID",
+        "API Runtime",
+        "SQL warehouse id in the PRODUCTION workspace",
         "",
     ),
     (
         "TODO_SET_FRONTEND_ORIGIN",
         "API Runtime",
         "Allowed CORS origin — the frontend that calls this API. Never *",
+        "https://app.example.com",
+    ),
+    (
+        "TODO_SET_STG_FRONTEND_ORIGIN",
+        "API Runtime",
+        "Allowed CORS origin in STAGING",
+        "https://<app>-<workspace-id>.aws.databricksapps.com",
+    ),
+    (
+        "TODO_SET_PROD_FRONTEND_ORIGIN",
+        "API Runtime",
+        "Allowed CORS origin in PRODUCTION",
         "https://app.example.com",
     ),
     (
@@ -163,9 +230,52 @@ TOKENS = [
     ),
     (
         "TODO_SET_GENIE_SPACE_ID",
-        "API Runtime",
-        "Genie space id (only if the app queries Genie)",
+        "Agent Tools",
+        "Genie space id attached as an agent tool. Workspace-local, so it differs "
+        "per environment — the dev value is never valid in stg",
         "",
+    ),
+    (
+        "TODO_SET_STG_GENIE_SPACE_ID",
+        "Agent Tools",
+        "Genie space id in the STAGING workspace",
+        "",
+    ),
+    (
+        "TODO_SET_PROD_GENIE_SPACE_ID",
+        "Agent Tools",
+        "Genie space id in the PRODUCTION workspace",
+        "",
+    ),
+    (
+        "TODO_SET_VECTOR_SEARCH_INDEX",
+        "Agent Tools",
+        "Vector Search index attached as an agent tool, <catalog>.<schema>.<index>",
+        "",
+    ),
+    (
+        "TODO_SET_STG_VECTOR_SEARCH_INDEX",
+        "Agent Tools",
+        "Vector Search index in the STAGING workspace",
+        "",
+    ),
+    (
+        "TODO_SET_PROD_VECTOR_SEARCH_INDEX",
+        "Agent Tools",
+        "Vector Search index in the PRODUCTION workspace",
+        "",
+    ),
+    (
+        "TODO_SET_STG_BACKEND_API_URL",
+        "Front End Runtime",
+        "Use case API the front end proxies to in STAGING",
+        "https://<app-name>-<workspace-id>.aws.databricksapps.com",
+    ),
+    (
+        "TODO_SET_PROD_BACKEND_API_URL",
+        "Front End Runtime",
+        "Use case API the front end proxies to in PRODUCTION",
+        "https://<app-name>-<workspace-id>.aws.databricksapps.com",
     ),
     (
         "TODO_SET_BACKEND_API_URL",

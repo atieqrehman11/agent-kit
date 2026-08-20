@@ -1,34 +1,65 @@
-#!/bin/bash
+#!/usr/bin/env bash
+#
+# ── Modes ───────────────────────────────────────────────────────────────────
+#   ./run_local.sh [env]          build the artifact and validate the bundle
+#   ./run_local.sh deploy [env]   build, validate, then deploy to DEV
+#
+#   env: dev (default) | stg | prod | all
+#
+# `deploy` targets dev whatever env you build. stg and prod go through the CI/CD
+# controller on merge, and it deploys the artifact you COMMITTED — so build `all`
+# before promoting, or stg deploys a stale space.
+#
+# The views and functions the space reads are NOT deployed by the bundle: DAB has
+# no resource for arbitrary SQL. Apply src/{views,functions}/*.sql to the catalog
+# yourself before the space can answer anything.
 set -euo pipefail
 
-# ── Modes ───────────────────────────────────────────────────────────────────
-#   ./run_local.sh            validate the space declaration (no credentials needed)
-#   ./run_local.sh deploy     deploy to the DEV workspace
-#
-# deploy targets dev only. stg and prod go through the CI/CD controller, on
-# merge to the stg / prod branch.
-MODE="${1:-run}"
-case "$MODE" in
-  deploy) shift || true ;;
-  run)    shift || true ;;
-  -h|--help) sed -n '/^# ── Modes/,/^$/p' "$0"; exit 0 ;;
-  *) echo "usage: $0 [run|deploy]" >&2; exit 2 ;;
+cd "$(dirname "$0")"
+
+MODE="run"
+case "${1:-}" in
+  deploy)     MODE=deploy; shift ;;
+  run)        shift ;;
+  -h|--help)  sed -n '/^# ── Modes/,/^$/p' "$0"; exit 0 ;;
 esac
 
-if [[ "$MODE" != "deploy" ]]; then
-  cd "$(dirname "$0")"
-  exec python3 src/validate.py "$@"
-  exit $?
+ENV="${1:-dev}"
+case "$ENV" in
+  dev|stg|prod|all) ;;
+  *) echo "usage: $0 [run|deploy] [dev|stg|prod|all]" >&2; exit 2 ;;
+esac
+
+command -v databricks >/dev/null || { echo "ERROR: databricks CLI not found" >&2; exit 2; }
+
+# genie_spaces needs CLI 1.3.0+; below that this bundle will not even parse.
+ver=$(databricks --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+if [ "$(printf '%s\n1.3.0\n' "$ver" | sort -V | head -1)" != "1.3.0" ]; then
+  echo "ERROR: Databricks CLI $ver is too old — genie_spaces needs 1.3.0+." >&2
+  exit 2
 fi
 
+# Artifacts are committed: the controller clones fresh and runs no project scripts.
+echo "── Building ($ENV) ──"
+PYTHONPATH=python python3 python/validate.py
+if [ "$ENV" = all ]; then
+  for e in dev stg prod; do PYTHONPATH=python python3 python/build_space.py --env "$e"; done
+else
+  PYTHONPATH=python python3 python/build_space.py --env "$ENV"
+fi
 
-cd "$(dirname "$0")"   # paths below are repo-relative, so run from anywhere
-# Local Genie deploy — applies backing-view DDL, then create/update the space.
-# Needs DATABRICKS_HOST + DATABRICKS_TOKEN (or a configured CLI profile) and a
-# warehouse_id set in genie-space/space.yml.
-#
-# Local deploys target dev. Pass --env stg / --env prod only if you are pointed at
-# that workspace on purpose; normally stg and prod are deployed by CI on a branch
-# merge (.gitlab-ci.yml), against credentials this laptop does not hold.
-python3 -m pip install -q -r requirements.txt
-python3 src/deploy.py --apply-ddl "$@"
+echo "── Validating the bundle ──"
+databricks bundle validate -t dev
+
+if [ "$MODE" != "deploy" ]; then
+  exit 0
+fi
+
+echo "── Deploying to dev ──"
+databricks bundle deploy -t dev
+
+echo
+databricks bundle summary -t dev | sed -n '/Resources:/,$p'
+echo
+echo "Commit generated/space.*.json — the controller deploys what is in git,"
+echo "not what your laptop just built."

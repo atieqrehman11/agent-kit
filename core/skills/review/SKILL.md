@@ -68,14 +68,16 @@ match them against the changed-file list.
 **Do not keep a mapping of repositories to standards.** The globs are the mapping. A second copy
 drifts, and a name-based map breaks on the first rename.
 
-Then apply the additions in `__SKILL_DIR__/reference/detection.md` — the three things a glob
-cannot express, including the LLM-call detection that decides whether `python-llm` is in scope.
+Then apply the additions in `__SKILL_DIR__/reference/detection.md` — what a glob cannot express,
+including the LLM-call detection that decides whether `python-llm` is in scope, and the rule that
+routes a repo's `python/` build and deploy scripts to the surface they deploy rather than to
+generic Python.
 
 Record the result as an explicit list. Every reviewer is told its standards; none infers them.
 
 ## 3. Dispatch one reviewer per surface
 
-Group the changed files by surface — front end, service, pipeline, agent, Genie space — and
+Group the changed files by surface — front end, service, pipeline, job, agent, Genie space — and
 dispatch the **`reviewer` subagent** once per group, in parallel, each in its own context.
 
 Give each one:
@@ -97,7 +99,9 @@ Rules, in `__SKILL_DIR__/reference/detection.md`. The four that change the outco
 - **Drop any standards finding that does not cite its rule and its line.** The reviewer is
   already required to; enforcing it here is what stops a plausible invention surviving.
 - **Dedupe by file and line**, keeping the more specific statement.
-- **Merge the structure gates** into one table, worst verdict per row.
+- **Merge the structure gates** per shape, worst verdict per row — the service table and the
+  Databricks table stay separate, because their rows are different checks. A review can emit
+  one, the other, or both.
 
 ## 5. Emit one review
 
@@ -113,7 +117,7 @@ VERDICT: PASS | PASS_WITH_CONDITIONS | FAIL
 Scope     <guidelines applied> · base <target> (assumed, if it was) · <n> files, <n> surfaces
 Summary   one paragraph
 
-Structure gate      merged table, when service code was touched
+Structure gate      merged table(s) — service, Databricks, or both, per what was touched
 Critical issues     must fix
 Warnings            should fix
 Suggestions         optional

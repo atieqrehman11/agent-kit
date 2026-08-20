@@ -1,0 +1,46 @@
+# The one deployable resource in this bundle.
+#
+# A supervisor agent has no DAB resource type, and the CI/CD controller runs no
+# project scripts — it only does `bundle deploy`, then `bundle run` on whatever
+# run_resources.yml lists. So the job IS the deploy: `bundle deploy` uploads src/
+# and python/ to the workspace, and `bundle run deploy_agent` executes the
+# reconciler against /api/2.1/supervisor-agents.
+#
+# dev runs the same job the controller runs, so there is one deploy path, not two.
+#
+# Serverless (no job_clusters, so no policy_id): the task makes REST calls and
+# needs no Spark. Serverless environments resolve dependencies from PyPI.
+resources:
+  jobs:
+    deploy_agent:
+      name: "TPLVAR_SLUG-deploy"
+
+      tasks:
+        - task_key: deploy
+          environment_key: default
+          spark_python_task:
+            python_file: ${workspace.file_path}/python/deploy_agent.py
+            parameters:
+              - "--spec-dir=${workspace.file_path}/src"
+              - "--var=display_name=${var.agent_display_name}"
+              - "--var=genie_space_id=${var.genie_space_id}"
+              - "--var=vector_search_index=${var.vector_search_index}"
+
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "5"
+            dependencies:
+              - pyyaml>=6.0
+
+      # Two reconcilers racing on the same agent would fight over the tool set.
+      max_concurrent_runs: 1
+
+      # environment, team and ci_commit_sha are mandatory on every taggable
+      # resource — the controller's governance check rejects the bundle without
+      # them. `commit_sha` (no ci_ prefix) is NOT the key it looks for.
+      tags:
+        environment: ${bundle.target}
+        team: ${var.team_tag}
+        ci_commit_sha: ${var.commit_sha}
+        project: ${var.project_tag}

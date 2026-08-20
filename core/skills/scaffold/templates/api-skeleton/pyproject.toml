@@ -1,5 +1,5 @@
 # Ruff config only — an api is a Databricks App, not a packaged wheel.
-# Code style per PYTHON_STANDARDS.md (line length 100, Python 3.12+).
+# Line length 100, Python 3.12+.
 [tool.ruff]
 line-length = 100
 target-version = "py312"

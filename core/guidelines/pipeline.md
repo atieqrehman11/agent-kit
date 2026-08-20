@@ -7,7 +7,6 @@ description: >
 applies_to:
   - "**/pipeline/**/*.py"
   - "**/resources/*.pipeline.yml"
-  - "**/docs/PIPELINE_STANDARDS.md"
 ---
 
 # Pipeline Standards — __ORG_PREFIX__Lakeflow Reference
@@ -148,6 +147,36 @@ SELECT ai_prep_search(ai_parse_document(content, map('version', '2.0')))
 | VS index | `<catalog>.pipeline.<TABLE_PREFIX>_chunks_index` |
 
 `TABLE_PREFIX` is set per use case (e.g. `aeo_disc`) to avoid naming collisions when multiple use cases share the same catalog.
+
+### Never write a catalog into a task file
+
+The catalog, schema, source volume and table prefix are **bundle variables**, overridden per
+target in `databricks.yml`. They reach a task through the pipeline's `configuration:` block
+and are read at runtime:
+
+```yaml
+# resources/*.pipeline.yml
+      catalog: ${var.catalog}
+      target:  ${var.schema}
+      configuration:
+        pipeline.catalog:       ${var.catalog}
+        pipeline.schema:        ${var.schema}
+        pipeline.table_prefix:  "myapp"
+        pipeline.source_volume: ${var.source_volume}
+```
+
+```python
+CATALOG      = spark.conf.get("pipeline.catalog")
+TABLE_PREFIX = spark.conf.get("pipeline.table_prefix")
+```
+
+A literal `CATALOG = "rapid_prototype_dev"` in a task file **survives the target override
+untouched** — so a stg deploy validates, runs green, and reads and writes dev's data. It is
+the same failure as a hardcoded warehouse id in an app's `app.yml`, and it is equally silent.
+
+Prefer **unqualified** table names in `@dp.table(name=...)` so the pipeline's own
+`catalog`/`target` place them; reach for `CATALOG` only where a fully-qualified name is
+genuinely required, such as a Vector Search index.
 
 ---
 

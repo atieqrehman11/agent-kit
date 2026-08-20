@@ -159,7 +159,7 @@ FIELDS = [
         "Branding",
         "Organization / brand name",
         "Acme",
-        "doc titles + docs/*_STANDARDS.md branding",
+        "doc titles + README branding",
         "you choose (brand name)",
     ),
     (
@@ -175,7 +175,7 @@ FIELDS = [
         "Workspace",
         "Workspace project folder — /Workspace/Shared/<project>/",
         "ai-apps",
-        "databricks.yml workspace root_path + bundle.sh",
+        "databricks.yml workspace root_path + run_local.sh",
         "your Databricks workspace convention",
     ),
     (

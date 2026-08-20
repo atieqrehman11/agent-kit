@@ -2,64 +2,119 @@
 
 TPLVAR_DESCRIPTION
 
-**Type:** `genie` — a **Genie space**, deployed via the Genie management API (there is no
-DAB bundle for Genie). `genie-space/space.yml` is the definition; the long-form description
-and instructions live in their own `.md` files it points to. `src/deploy.py` assembles
-them into the `serialized_space` payload and calls createspace / updatespace.
+**Type:** `genie` — a Databricks **Genie space**, deployed as an Asset Bundle.
+DAB exposes a `genie_spaces` resource (CLI 1.3.0+, `engine: direct`), so this
+deploys through the shared CI/CD controller like every other bundle: no deploy
+script, and no workspace token in CI.
+
+The **repo is authoritative**. The space is redeployed *from* these files, so
+anything tuned in the Genie UI is overwritten on the next deploy. All
+answer-quality work — instructions, example queries, the backing views — lives
+here.
+
+## Layout
+
+```
+src/                     what the space is made of
+├── space.yml              the manifest — just the instruction id
+├── instructions.md        how Genie should answer (sent byte-verbatim)
+├── data_sources.yml       the tables and views it may query
+├── sql_functions.yml      UC functions it may call
+├── example_queries.yml    curated question -> trusted-SQL pairs
+├── views/*.sql            DDL for any bespoke backing view
+└── functions/*.sql        DDL for the functions above
+python/
+├── build_space.py         assembles src/ into the artifact
+└── validate.py            checks src/ — no credentials, no network
+generated/               built, COMMITTED, never hand-edited
+resources/genie.yml      the DAB resource — title, warehouse_id, description
+databricks.yml           per-environment values; every target's catalog
+docs/                    changelog — standards live in agent-kit
+```
+
+## Configuration
+
+Every per-environment value — catalog, schema, warehouse, space title — lives in
+`databricks.yml`, set per target, and nowhere else. Nothing under `src/` names a catalog:
+everything is `${catalog}.${schema}`, substituted at build time.
+
+That substitution is why there is **one built artifact per environment**. DAB resolves
+`${var.*}` inside an inline `serialized_space` but reads a `file_path` target verbatim, so
+the catalog is baked in at build and `${bundle.target}` picks the file.
+
+### Before first deploy
+
+Fill [`CONFIG.md`](CONFIG.md), then apply it:
+
+```
+{{cmd:scaffold:configure}}          # or: python3 <commands>/scaffold/configure.py --repo .
+```
+
+## Verify
+
+```bash
+python3 python/validate.py     # the declaration alone — no credentials, no network
+./run_local.sh                 # the above, then build + `databricks bundle validate`
+```
+
+The validator refuses what would deploy and be wrong:
+
+
+- Every identifier starts with `${catalog}.${schema}.` — a literal catalog
+  survives substitution untouched, so a stg deploy would silently read dev.
+- No `space_id` / `genie_space_id` in `src/`. DAB owns the space's identity
+  through the resource key in `resources/genie.yml`; a committed id is deploy
+  state the repo must not hold.
+- Renaming that resource key **destroys and recreates** the space, losing its id
+  and every conversation in it.
+
+None of that says the space **answers** correctly, which is the risk that matters for a
+non-deterministic system. See [Evaluation](#evaluation) — and note that a change to
+`instructions.md` or `example_queries.yml` is a behaviour change with nothing to compile
+and no test to break.
+
+## The build step, and why it exists
+
+DAB resolves `${var.*}` inside an *inline* `serialized_space`, but reads a
+`file_path` payload **verbatim**. So the catalog cannot be a variable in the
+artifact — it is baked in at build time, and `${bundle.target}` picks which file
+deploys:
+
+```
+src/  --build_space.py --env stg-->  generated/space.stg.json  --DAB-->  workspace
+```
+
+That is also why `generated/` is committed. The controller clones the repo fresh
+and runs no project scripts, so what is in git is what deploys.
+
+**Build every environment before promoting:**
+
+```bash
+./run_local.sh all        # builds dev, stg and prod, then validates
+```
+
+Building only `dev` and merging leaves stg deploying whatever artifact was
+committed last.
 
 ## Deployment
 
 | Target | How |
 |---|---|
-| **local (dev)** | `./deploy.sh` — applies the backing-view DDL, then reconciles the space |
-| **stg / prod** | merge to the `stg` / `prod` branch — CI runs `src/deploy.py --env <branch>` |
+| **dev** | `./run_local.sh deploy` — build, validate, `bundle deploy -t dev` |
+| **stg** | merge to the `stg` branch — the controller deploys |
+| **prod** | merge to `prod`, then press play in Build → Pipelines |
 
-**No id is stored in this repo.** The space is found by title, `"<title> [ENV]"`, in the
-workspace `DATABRICKS_HOST` points at — one match is updated, none creates it, several
-refuse. See [`docs/GENIE_STANDARDS.md`](docs/GENIE_STANDARDS.md) §4.
+Never run `databricks bundle deploy -t stg|prod` by hand — that is the
+controller's job.
 
-The Genie management API is Public Preview — confirm the `serialized_space` field names for
-your workspace version. See https://docs.databricks.com/api/workspace/genie/createspace
+## The DDL is not deployed
 
-## Layout
+DAB has no resource for arbitrary SQL, so nothing in this pipeline runs
+`src/views/*.sql` or `src/functions/*.sql`. Apply them to the catalog yourself
+before the space can answer anything. A space whose functions do not exist
+deploys perfectly cleanly and then fails every question that needs one.
 
-```
-genie-space/space.yml       definition: title, warehouse_id, data_sources,
-                            sample_questions, + pointers to the .md files
-genie-space/description.md    long-form space Description (edited as prose)
-genie-space/instructions.md   long-form space Instructions (edited as prose)
-genie-space/example_queries.yml  OPTIONAL curated question -> SQL pairs (few-shot);
-                            ships as an empty commented template
-genie-space/views/            EMPTY by default — add a backing view only if needed
-genie-space/functions/        EMPTY by default — UC-function DDL for the space
-src/validate.py             check space.yml — no credentials, no network
-src/deploy.py               assemble serialized_space + reconcile via the API
-deploy.sh                   local one-shot (pip install + apply DDL + deploy)
-.gitlab-ci.yml              two jobs, each one line: run validate.py, run deploy.py
-docs/                       all repo docs (standards, guides)
-```
+## Evaluation
 
-Check it before pushing — no credentials needed, same check CI runs first:
-
-```
-python src/validate.py
-```
-
-`views/`, `functions/`, `example_queries.yml`, and `sample_questions` ship **empty /
-as templates on purpose** — no dummy content is generated. A Genie space points at
-*curated tables you already own*. The full walkthrough for turning this skeleton into a
-working space — data sources, optional backing views, example SQL queries (the biggest
-accuracy lever), sample questions, and deploy — is in
-[`docs/GENIE_STANDARDS.md`](docs/GENIE_STANDARDS.md) §5–§8.
-
-## Standards
-
-Docs live in [`docs/`](docs/). Two non-overlapping layers, both applied when writing code here:
-
-- [`docs/PYTHON_STANDARDS.md`](docs/PYTHON_STANDARDS.md) — code style (PEP 8, type hints, Ruff, testing).
-- [`docs/GENIE_STANDARDS.md`](docs/GENIE_STANDARDS.md) — how to build and deploy the Genie space.
-
-Run `ruff check` and `ruff format` before committing.
-
-`space.yml` is a declaration, not a record: it holds no `space_id`. Renaming `title`
-re-points the deploy at a different space, so treat it as the space's identity.
+The loop is: edit `src/` → build → deploy → run `evaluation/` → record the
+baseline in `docs/CHANGELOG.md`. Scaffold the suite with `{{cmd:eval:new}}`.

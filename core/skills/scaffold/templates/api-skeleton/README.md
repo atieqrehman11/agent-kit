@@ -8,18 +8,6 @@ This repo is a single Databricks Asset Bundle. `resources.<apps|jobs|pipelines>`
 DAB schema collection key (always plural, even for one resource); the single resource key
 under it is defined in `resources/`.
 
-## Deployment
-
-| Target | How | Where |
-|---|---|---|
-| **dev** | `./bundle.sh` (local dev loop) | your laptop → dev workspace |
-| **stg** | merge to the `stg` branch | CI/CD controller → stg workspace |
-| **prod** | merge to the `prod` branch | CI/CD controller → prod workspace |
-
-`bundle.sh` deploys to **dev only** on purpose. stg/prod are cloud deploys owned by the
-shared CI/CD controller (`.gitlab-ci.yml`). Set `CONTROLLER_TRIGGER_TOKEN` in
-GitLab → Settings → CI/CD → Variables before the first cloud deploy.
-
 ## Layout
 
 ```
@@ -37,7 +25,7 @@ resources/              the one resource (apps | pipelines | jobs)
 .gitlab-ci.yml          controller trigger (validate -> stg -> prod)
 team_config.yaml        controller registration (bundle_name, uuid, url)
 run_resources.yml       resource keys to run after deploy
-docs/                   all repo docs (standards, conformance sheets)
+docs/                   repo docs (guides, runbooks) — standards live in agent-kit
 CONFIG.md               one-page fill-in sheet for every TODO_SET_* placeholder
 ```
 
@@ -45,22 +33,19 @@ Calls go one way: `routers/` → `services/` → `repositories/`. A router never
 anything directly, a service never sees an HTTP type, and no route builds an error body —
 `core/handlers.py` owns every error response.
 
-## Standards
+## Configuration
 
-Docs live in [`docs/`](docs/). Three non-overlapping layers, all applied when writing code here:
+Configuration is loaded and validated **once** at startup into the typed `Settings` object
+in `core/config.py`, and fails loudly on a missing key. Nothing else in the repo calls
+`os.getenv`.
 
-- [`docs/PYTHON_STANDARDS.md`](docs/PYTHON_STANDARDS.md) — code style (PEP 8, type hints, Ruff, testing).
-- [`docs/SERVICE_STRUCTURE_STANDARDS.md`](docs/SERVICE_STRUCTURE_STANDARDS.md) — how the service is
-  arranged: layering, where models live, one exception hierarchy, log levels from config, and no
-  hardcoded prompts or thresholds.
-- [`docs/API_STANDARDS.md`](docs/API_STANDARDS.md) — the contract on the wire for this resource type.
+Values arrive from the environment: `resources/api.app.yml` supplies them when deployed,
+`.env` locally. Anything that differs per environment is a **bundle variable** in
+`databricks.yml`, overridden per target — a literal at a callsite survives the override
+untouched, so a stg deploy would read dev's data and report success. No prompt, threshold,
+endpoint or model parameter belongs at a callsite either; it belongs here.
 
-Each ships its audit list beside it as `*_CONFORMANCE.md` — that is what a reviewer walks, and
-what to check yourself before opening a merge request.
-
-Run `ruff check` and `ruff format` before committing.
-
-## Before first deploy
+### Before first deploy
 
 Every infrastructure placeholder (stg/prod hosts, service principals, policy ids, team,
 repo url, and any runtime env) is listed in one place — [`CONFIG.md`](CONFIG.md). Fill in
@@ -70,5 +55,37 @@ the values there, then apply them across the repo:
 {{cmd:scaffold:configure}}          # or: python3 <commands>/scaffold/configure.py --repo .
 ```
 
-This replaces the `TODO_SET_*` tokens in `databricks.yml`, `team_config.yaml`, and the
-rest of the tree. The bundle `uuid` is already generated — do not change it.
+This replaces the `TODO_SET_*` tokens across the tree. The bundle `uuid` is already
+generated — do not change it.
+
+`wheels/` must be vendored and **committed** before the first deploy — the Apps build
+environment has no network. See [`wheels/README.md`](wheels/README.md).
+
+## Verify
+
+```bash
+./run_local.sh              # serve on :8000 with reload
+curl localhost:8000/v1/health
+open localhost:8000/docs    # the generated OpenAPI contract
+ruff check . && ruff format --check .
+```
+
+**No tests ship with this skeleton, and that is a gap to close, not a licence.** Add them
+under `tests/` as you add logic, and mock at the I/O seam — the repository class — never
+inside the logic under test. What to cover first: every branch a route or service adds,
+each domain exception actually being raised, and both sides of any threshold or default.
+
+`./run_local.sh deploy` validates the bundle before deploying, which catches a malformed
+descriptor and an undeclared `--var`. It does not exercise a single endpoint.
+
+## Deployment
+
+| Target | How | Where |
+|---|---|---|
+| **dev** | `./run_local.sh deploy` (local dev loop) | your laptop → dev workspace |
+| **stg** | merge to the `stg` branch | CI/CD controller → stg workspace |
+| **prod** | merge to the `prod` branch | CI/CD controller → prod workspace |
+
+`run_local.sh` deploys to **dev only** on purpose. stg/prod are cloud deploys owned by the
+shared CI/CD controller (`.gitlab-ci.yml`). Set `CONTROLLER_TRIGGER_TOKEN` in
+GitLab → Settings → CI/CD → Variables before the first cloud deploy.

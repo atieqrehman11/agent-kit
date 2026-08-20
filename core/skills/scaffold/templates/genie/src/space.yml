@@ -1,0 +1,19 @@
+# The manifest for this Genie space.
+#
+# Almost everything is found by CONVENTION, not configuration — instructions.md,
+# data_sources.yml, sql_functions.yml and example_queries.yml are read from this
+# directory by name. A manifest that lists them can disagree with the tree, and
+# there is nothing to decide.
+#
+# So only one thing lives here: the instruction id. The example and function ids
+# live inline in their own files; this one cannot, because instructions.md is
+# prose sent byte-verbatim. python/build_space.py mints it on the first build and
+# writes it back here — commit it. It is what makes a redeploy EDIT the
+# instructions in place instead of dropping them and adding a new copy.
+#
+# Do NOT add space_id / genie_space_id. DAB owns the space's identity through the
+# resource key in resources/genie.yml; a committed id is deploy state, and
+# python/validate.py rejects it.
+#
+# `title`, `description` and `warehouse_id` are deploy-time fields — they live in
+# resources/genie.yml and databricks.yml, where DAB reads them.

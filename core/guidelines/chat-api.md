@@ -11,7 +11,6 @@ description: >
 applies_to:
   - "**/routers/**/chat*.py"
   - "**/chat/**/*.py"
-  - "**/docs/CHAT_API_STANDARDS.md"
 ---
 
 # Chat API Standards

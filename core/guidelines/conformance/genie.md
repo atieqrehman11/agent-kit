@@ -10,23 +10,27 @@ This is payload, not a guideline: it carries no frontmatter and is never invocab
 
 Layout and separation:
 
-- [ ] `space.yml` holds machine-readable fields only — no multi-paragraph prose inlined as YAML strings.
-- [ ] Description and instructions live in `description.md` / `instructions.md`, referenced by `*_file` pointers.
-- [ ] `views/` and `functions/` contain only what the space actually needs — no view added for its own sake.
-- [ ] `src/validate.py` passes, and needs no credentials or network to run.
+- [ ] `space.yml` holds the instruction id and nothing else — no prose inlined as YAML strings, and no manifest re-listing the files that are found by convention.
+- [ ] The instruction id is committed. It is what makes a redeploy edit the instructions in place instead of dropping them and adding a copy.
+- [ ] The prose is `src/instructions.md`, read by name and sent byte-verbatim; `title` and `description` are DAB fields in `resources/genie.yml`, not payload.
+- [ ] `src/views/` and `src/functions/` contain only what the space actually needs — no view added for its own sake.
+- [ ] `python/validate.py` passes, and needs no credentials or network to run.
 
 Identity:
 
-- [ ] The repo stores **no space id** — identity is the title plus the authenticated workspace.
-- [ ] Every environment is title-suffixed, prod included.
-- [ ] Deploy resolves by title: one match updates, none creates, more than one is a hard failure.
+- [ ] The repo stores **no space id** — DAB owns identity through the resource key in `resources/genie.yml`.
+- [ ] Every environment is title-suffixed, prod included, set per target in `databricks.yml`.
+- [ ] The resource key has not been renamed: renaming destroys and recreates the space, losing its id and every conversation in it.
+- [ ] `generated/space.<target>.json` is committed and current for **every** environment — the controller clones fresh and runs no project scripts, so a stale artifact deploys green.
+- [ ] Every identifier starts with `${catalog}.${schema}.`; no deployed file names a literal catalog.
 
 Data sources:
 
 - [ ] Data sources point at curated tables — gold layer or a purpose-built view. **Never raw or bronze.**
-- [ ] Any bespoke view is re-appliable `CREATE OR REPLACE VIEW` DDL under `views/`, exposing exactly the columns Genie should query with names it can reason about.
-- [ ] UC functions are `CREATE OR REPLACE FUNCTION` DDL under `functions/` and listed in `space.yml: uc_functions`.
-- [ ] DDL is applied before the space is created or updated.
+- [ ] Any bespoke view is re-appliable `CREATE OR REPLACE VIEW` DDL under `src/views/`, exposing exactly the columns Genie should query with names it can reason about.
+- [ ] UC functions are `CREATE OR REPLACE FUNCTION` DDL under `src/functions/` and listed in `src/sql_functions.yml`.
+- [ ] DDL is applied to the catalog before the space is deployed, by hand or by a stage of the job repo that owns the tables it reads — the bundle deploys no DDL, and a space whose functions do not exist deploys clean and answers nothing.
+- [ ] Where a declared function's DDL lives in another repo, that repo is named in `sql_functions.yml` — the create API does not validate functions the way it validates tables, so nothing else records the dependency.
 
 Answer quality:
 
@@ -45,9 +49,9 @@ Benchmark coverage — the accuracy gate:
 - [ ] Grading asserts on the returned answer or result set, not on SQL string similarity.
 - [ ] Every case records its expected answer and the validated source that expected answer came from.
 - [ ] The set was run repeatedly and a pass rate recorded — not graded on a single run.
-- [ ] A change to `instructions.md`, `description.md`, `example_queries.yml`, `data_sources` or a backing view triggered a fresh run before merge.
+- [ ] A change to `instructions.md`, `example_queries.yml`, `data_sources.yml`, `sql_functions.yml` or a backing view triggered a fresh run before merge.
 - [ ] The recorded pass rate is **at or above** the `CHANGELOG.md` baseline; any drop is recorded as a deliberate trade with its reason in the same commit.
-- [ ] `CHANGELOG.md` has a row for this deploy: version → date → eval baseline → what changed.
+- [ ] `docs/CHANGELOG.md` has a row for this deploy: version → date → eval baseline → what changed.
 
 Safety and data handling:
 

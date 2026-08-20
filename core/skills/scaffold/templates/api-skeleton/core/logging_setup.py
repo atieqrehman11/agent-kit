@@ -1,6 +1,6 @@
 """The only place logging is configured.
 
-docs/SERVICE_STRUCTURE_STANDARDS.md §4. configure_logging() is called once from the
+configure_logging() is called once from the
 app lifespan. No other module calls basicConfig, setLevel, or attaches a handler —
 if it did, the LOG_LEVEL setting would stop meaning anything.
 """

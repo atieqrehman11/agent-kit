@@ -58,43 +58,41 @@ not the tech inside it:
 
 | Type | Primary resource | Deploy | CI/CD |
 |---|---|---|---|
-| `api` | `resources.apps` — FastAPI Databricks App | `bundle deploy` | enterprise controller |
-| `etl` | `resources.pipelines` — Lakeflow declarative pipeline | `bundle deploy` | enterprise controller |
-| `job` | `resources.jobs` — scheduled Databricks Job | `bundle deploy` | enterprise controller |
-| `fe` | `resources.apps` — React Databricks App | `bundle deploy` (after a build) | own pipeline: verify → build → deploy |
-| `agent` | Agent Bricks Multi-Agent Supervisor | `supervisor_agents` SDK (`./run_local.sh deploy`) | validate → deploy |
-| `genie` | Genie space | Genie management API (`./run_local.sh deploy`) | validate → apply DDL → deploy |
+| `api` | `resources.apps` — FastAPI Databricks App | `bundle deploy` + `run` | shared controller |
+| `etl` | `resources.pipelines` — Lakeflow declarative pipeline | `bundle deploy` | shared controller |
+| `job` | `resources.jobs` — scheduled Databricks Job | `bundle deploy` | shared controller |
+| `fe` | `resources.apps` — React Databricks App | `bundle deploy` + `run` | shared controller |
+| `genie` | `resources.genie_spaces` — Genie space | `bundle deploy` | shared controller |
+| `agent` | Agent Bricks Multi-Agent Supervisor | `bundle deploy` + `run` | shared controller |
 
-`agent` and `genie` have no DAB bundle — `src/deploy.py` calls a management API instead, and
-neither repo stores an id: the resource is resolved by name, `"<display_name|title> [ENV]"`,
-in the target workspace.
+**One deploy path, for every type.** No repo deploys itself and none holds a workspace token
+in CI. The controller reaches project code only through `bundle deploy` and `bundle run`, so
+a repo running its own deploy script would be a second, ungoverned path into the same
+workspaces.
 
-`fe` **is** a bundle — the same `resources.apps` as `api` — but it is the one bundle type
-that does not hand stg/prod to the enterprise controller, and the reason is structural rather
-than a preference. What it deploys is `dist/`, a build artifact that must not be committed;
-the controller deploys from a git checkout and runs no Node build, so it would deploy a repo
-whose `dist/` does not exist. Building and deploying therefore have to happen in one job, and
-that job lives in the repo. If the controller ever gains a Node build stage, the repo swaps
-its deploy jobs for the controller-trigger form and nothing else changes. `aspects.py` keeps
-the distinction as two tuples: `BUNDLE_TYPES` (deploys with `bundle deploy`) and
-`CONTROLLER_TYPES` (…through the shared controller).
+What differs between types is the **payload**, not the mechanism:
 
-The one ambiguous pair is `etl` vs `job`. The sharp test: **does the repo materialize a
-graph of Delta tables via declarative transforms? Yes → `etl`. No — it performs an *action*
-(export, orchestrate, score, maintain, trigger) → `job`.** `api` vs `fe` never is: they are
-two halves of one product, scaffolded as two repos, and the browser reaches the `api` only
-through the `fe`'s same-origin `/api` proxy — never directly, which is what keeps the
-backend's URL and credentials out of the shipped bundle. See [new.md](commands/new.md) for the
-full decision table.
+- `fe` ships a committed `dist/` — the Apps build environment cannot resolve
+  `registry.npmjs.org`, so nothing can be built there.
+- `genie` ships a committed `generated/space.<target>.json` — the controller clones fresh
+  and runs no project scripts, so the artifact is built locally. The catalog is baked in per
+  target, because DAB reads a `file_path` payload verbatim rather than resolving `${var.*}`
+  inside it.
+- `agent` has no DAB resource type at all, so the bundle's one resource is a **job whose
+  single task runs the reconciler**. `run_resources.yml` lists it, and that `bundle run`
+  *is* the deploy.
+
+`genie` and `agent` store no id: DAB owns the Genie space's identity through its resource
+key, and the agent is resolved by `display_name` in the target workspace.
 
 ### `fe` — the one repo that is not Python
 
 Everything else in this skill assumes a Python repo, and `fe` is the exception the registry
 had to learn. Three places encode it, all of them one-liners:
 
-- **`PYTHON_TYPES`** — `fe` is excluded, so it does not receive `docs/PYTHON_STANDARDS.md`.
-  It gets `REACT_STANDARDS.md` and its conformance sheet instead. Shipping a repo a doc
-  nobody in it can act on is worse than shipping none.
+- **`GUIDELINE_NAMES`** — `fe` maps to `react` alone, with no `python` entry, so its README
+  points at the one guideline its code can actually be held to. Naming a repo a standard
+  nobody in it can act on is worse than naming none.
 - **its own `.gitignore`** — the shared one is Python-flavoured, and `fe`'s ignores
   `node_modules/`, `dist/`, `.vite/`. `dist/` stays uncommitted in both, but for opposite
   reasons: build junk there, the deployed payload here.
@@ -105,7 +103,7 @@ had to learn. Three places encode it, all of them one-liners:
   start cannot fail on the npm registry. Add a runtime dependency there and the trade
   changes.
 
-`server.mjs` is also where two rules from `REACT_STANDARDS.md` are actually enforced rather
+`server.mjs` is also where two rules from the `react` guideline are actually enforced rather
 than asserted: the browser only ever calls a same-origin `/api` path (so no backend host or
 token reaches `dist/`), and the process **exits at startup** when required configuration is
 missing, rather than booting and 500-ing on first use.
@@ -119,14 +117,14 @@ five-year-old one. Two are choosable:
 
 | Aspect | Adds | Types |
 |---|---|---|
-| `deploy` | How the repo deploys, independent of CI provider: `databricks.yml` + `resources/` + `run_local.sh` + `run_resources.yml` + `.bundleignore`. `fe` ships a committed `dist/` and a sync block that keeps `package.json` out of the app root. `genie`/`agent` are not bundles: they get `run_local.sh` + `src/validate.py` + `src/deploy.py` and no descriptor. A `job` repo also gets `config/{DEV,STG,PROD}/task_config.yaml`. | `api` `etl` `job` `fe` `genie` `agent` |
-| `gitlab` | The GitLab pipeline: `.gitlab-ci.yml`. Bundle types trigger the shared DAB controller on merge to `stg`/`prod`; `genie`/`agent` validate their declaration, then run their own deploy script. The GitLab project setup it needs is `gitlab/setup-group.sh` (once per group) and `gitlab/setup-repo.sh` (per repo) — kit tooling, not repo files. | `api` `etl` `job` `fe` `genie` `agent` |
+| `deploy` | How the repo deploys: `databricks.yml` + `resources/` + `run_local.sh` + `run_resources.yml` (+ `.bundleignore` where it applies). Every type gets a bundle descriptor; the descriptor and resource it resolves differ per type. `fe` also gets the sync block that keeps `package.json` out of the app root; `genie` gets `python/build_space.py`; `agent` gets the reconciler under `python/`. | `api` `etl` `job` `fe` `genie` `agent` |
+| `gitlab` | The GitLab pipeline: `.gitlab-ci.yml` — validate the bundle, then trigger the shared DAB controller on merge to `stg`/`prod`. One pipeline for every type, and none of them holds a workspace token. The GitLab project setup it needs is `gitlab/setup-group.sh` (once per group) and `gitlab/setup-repo.sh` (per repo) — kit tooling, not repo files. | `api` `etl` `job` `fe` `genie` `agent` |
 | `api` | `routers/platform.py` (`GET /v1/health` + `GET /v1/info`) plus the service spine those endpoints need: `core/` (validated settings, one logging setup, one exception hierarchy behind one handler layer, request-id middleware), `schema/`, `services/`, `repositories/` | `api` |
 
-The rest are **not decisions**, so they are never offered: the standards docs for the repo's
-type (each with its `*_CONFORMANCE.md` sheet), `.gitignore` (the Node one on an `fe` repo, the
-Python / Databricks one everywhere else), `docs/specs/README.md`, and a regenerated
-`CONFIG.md` come with **any** add wherever they are missing. They live in the same
+The rest are **not decisions**, so they are never offered: `.gitignore` (the Node one on an
+`fe` repo, one that tracks `wheels/` on an `api` repo, the shared Python / Databricks one
+everywhere else), `.editorconfig`, `docs/specs/README.md`, and a regenerated `CONFIG.md` come
+with **any** add wherever they are missing. They live in the same
 registry — one definition each — just flagged `selectable: False`, and `add --list` prints
 them straight from `AUTO` so the list cannot drift from what a run actually applies.
 
@@ -136,15 +134,35 @@ but a placeholder example folder is the kind of thing people copy rather than re
 there isn't one. {{cmd:deliver:spec}} and {{cmd:deliver:feature}} create the per-feature
 folders.
 
-The standards ship with `add`, not only with `new`, because the code an aspect delivers
-*cites* them: the `api` aspect alone writes ten references to `docs/API_STANDARDS.md` and
-`docs/SERVICE_STRUCTURE_STANDARDS.md`. Without them you get a repo with no `docs/` and ten
-pointers into nothing.
+## Standards are not a repo file
 
-Per-environment config is deliberately *inside* `deploy` rather than beside it: the DEV/STG/PROD
-split exists because the controller deploys per target, so it is part of the deploy story, not
-a separate thing to choose. Only `job` reads it (`${var.config_dir}/task_config.yaml`) — `api`
-and `fe` serve env from `app.yml` and `etl` bakes the catalog into its tasks.
+There is no `standards` aspect, and no `docs/*_STANDARDS.md`. The guidelines live in
+`core/guidelines/` and install to `~/.claude/guidelines/`; a scaffolded repo cites them by
+name — the `api` aspect alone writes ten `api guideline §N` / `service-structure guideline §N`
+references — and each README says which ones govern the repo and where to read them.
+
+It used to copy them in. Measured across six repos built from this scaffold: six *different*
+subsets of the docs, and every copy drifted from source — 25 to 106 differing lines, with
+`PYTHON_STANDARDS.md` identically stale in all three repos that had it. The copy was a
+snapshot of whichever commit each repo was scaffolded from, and `review` never read it anyway:
+the reviewer resolves `core/guidelines/conformance/<name>.md` directly. A stale rule that
+looks authoritative is worse than a pointer to a current one, so now there is only the
+pointer.
+
+`GUIDELINE_NAMES` is what maps a repo type to its guideline names. It carries names, never
+paths into a repo, so adding a guideline does not add a file to anything.
+
+Per-environment config is deliberately *inside* `deploy` rather than beside it: the
+dev/stg/prod split exists because the controller deploys per target, so it is part of the
+deploy story, not a separate thing to choose. Every type expresses it the same way — bundle
+variables in `databricks.yml`, overridden per target. `api` and `fe` turn them into the App's
+env through the `config:` block of their app resource; `job` passes them to each task as
+`base_parameters`; `genie` bakes them into the built artifact.
+
+There is no `config/{DEV,STG,PROD}/task_config.yaml`. A per-environment config file makes the
+values a run used invisible: you end up reading a file in the workspace and inferring which
+one the run picked up, and a `config_dir` pointing at the wrong target does not surface until
+the output is wrong. Explicit parameters show up on the task's own run page.
 
 `{{cmd:scaffold:new}}` applies each type's **standard set** (`DEFAULT_BY_TYPE`); `{{cmd:scaffold:add}}`
 applies a single aspect to an existing repo, and `--aspect all` restores exactly that standard

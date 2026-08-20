@@ -15,10 +15,11 @@ Repo type is the right one:
 
 Configuration:
 
-- [ ] No catalog, environment name or other environment-specific value is hardcoded in `src/main.py`.
-- [ ] Per-environment values live in `config/DEV|STG|PROD/task_config.yaml`, resolved via `${var.config_dir}`.
-- [ ] `main.py` loads the config passed by `--config` and fails loudly on a missing required key.
-- [ ] No secret is in a config file; secrets are read from a Databricks secret scope at runtime.
+- [ ] No catalog, schema, volume path or other environment-specific value is hardcoded in a stage file.
+- [ ] Per-environment values are bundle variables in `databricks.yml`, overridden per target, and reach each task as `base_parameters`.
+- [ ] Each stage declares the parameters it reads as widgets, with a dev default, so it is also runnable interactively.
+- [ ] `config_dir` and `policy_id` are declared in `databricks.yml` even when unused — the controller passes both and `bundle deploy` errors on an undeclared `--var`.
+- [ ] No secret is passed as a parameter; secrets are read from a Databricks secret scope at runtime.
 
 Idempotency and reliability:
 
@@ -37,10 +38,12 @@ Scheduling:
 
 Compute:
 
-- [ ] The job uses a **job cluster**, not an all-purpose cluster.
-- [ ] `policy_id` is set to the real policy for the target environment.
+- [ ] Compute is **serverless** unless a stated reason requires otherwise, recorded in a comment.
+- [ ] If classic compute is used: a **job cluster**, never an all-purpose cluster, and `policy_id` set to the real policy for the target environment.
 - [ ] `data_security_mode: SINGLE_USER` is set for Unity Catalog access under the job's service principal.
-- [ ] The cluster is right-sized with `autoscale` min/max workers rather than a large fixed size.
+- [ ] If classic compute is used: the cluster is right-sized with `autoscale` min/max workers rather than a large fixed size.
+- [ ] `max_concurrent_runs: 1` unless the job is genuinely safe to run concurrently, and `queue.enabled: true` so a trigger during a run waits rather than being dropped.
+- [ ] One task per stage, chained with `depends_on`, so a failed run resumes rather than re-running everything.
 
 Evaluation:
 

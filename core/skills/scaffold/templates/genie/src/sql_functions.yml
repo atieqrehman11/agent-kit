@@ -1,0 +1,27 @@
+# Unity Catalog functions Genie may call.
+#
+# A function is the right answer when a question needs logic Genie cannot be
+# expected to derive from the schema — a recursive walk, an as-of resolution, a
+# ranked text lookup. Otherwise prefer a curated view in data_sources.yml.
+#
+# `ddl` points at the file under functions/ that CREATEs it. The bundle does NOT
+# deploy that SQL — DAB has no resource for arbitrary statements — so apply
+# functions/*.sql to the catalog yourself. See README.md.
+#
+# `id` is minted by python/build_space.py on the first build and written back
+# here. Commit it: it is what makes a redeploy update the attachment in place
+# rather than detaching and re-adding the function.
+#
+# `purpose` is what the supervisor/Genie reads to decide WHEN to call this. Write
+# it as routing guidance, not as a description of the SQL.
+#
+# Replace the block below with your own, e.g.
+#
+#   sql_functions:
+#     - identifier: ${catalog}.${schema}.get_open_orders
+#       ddl: functions/get_open_orders.sql
+#       purpose: >-
+#         Open orders for one customer, newest first. Use for "what is
+#         outstanding / still open" questions about a named account.
+
+sql_functions: []

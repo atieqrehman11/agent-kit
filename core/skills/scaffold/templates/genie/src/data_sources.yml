@@ -1,0 +1,29 @@
+# The tables and views Genie may query.
+#
+# Point the space at CURATED gold tables, not raw data — a Genie space is only as
+# good as the surface it reads.
+#
+# Every identifier MUST start with ${catalog}.${schema}. — python/build_space.py
+# substitutes those per environment, and python/validate.py fails the build on a
+# literal catalog, because that is what makes a stg deploy silently read dev.
+#
+# column_configs is load-bearing, not decoration: it tells Genie which columns to
+# format-assist and which to entity-match. Dropping it degrades answers without
+# erroring. A YAML anchor shares one block across tables that need the same tuning.
+#
+# Replace the whole block below with your own, e.g.
+#
+#   _column_configs: &column_configs
+#     - column_name: status
+#       enable_format_assistance: true
+#       enable_entity_matching: true
+#     - column_name: amount
+#       enable_format_assistance: true
+#
+#   data_sources:
+#     tables:
+#       - identifier: ${catalog}.${schema}.TPLVAR_TABLE_PREFIXcustomers
+#         column_configs: *column_configs
+
+data_sources:
+  tables: []

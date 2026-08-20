@@ -1,6 +1,6 @@
 """Request identity and the one access-log line.
 
-API_STANDARDS §10: accept an inbound X-Request-ID or generate one, echo it on every
+Accept an inbound X-Request-ID or generate one, and echo it on every
 response, and emit one log line per request carrying service_id, request_id, method,
 path, status_code and duration_ms — from here, not from each route.
 """

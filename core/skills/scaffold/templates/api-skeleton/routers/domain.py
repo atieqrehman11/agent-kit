@@ -1,13 +1,13 @@
 """Domain endpoints — the boundary layer.
 
 A router parses, validates, delegates and serialises. It holds no business logic, no
-data access and no LLM calls, and it never builds an error body — see
-docs/SERVICE_STRUCTURE_STANDARDS.md §1 and §3.
+data access and no LLM calls, and it never builds an error body — it validates,
+delegates and translates, nothing else.
 
 The commented example below is the shape to copy: router → service → repository, with
 the service raising a domain exception the handler layer already knows how to render.
 
-Rules (docs/API_STANDARDS.md):
+Rules:
   - Paths:     /v1/{plural-resource}  (lowercase, hyphenated)
   - Params:    snake_case query and path parameter names; never a bare {id}
   - Responses: objects, not bare arrays

@@ -2,7 +2,7 @@
 
 A service knows nothing about HTTP — no status codes, no Request/Response objects, no
 headers, no HTTPException. That is what lets the same logic be called by a job, a
-consumer or an agent tool later. See docs/SERVICE_STRUCTURE_STANDARDS.md §1.
+consumer or an agent tool later.
 
 Shape to copy (services/record_service.py):
 

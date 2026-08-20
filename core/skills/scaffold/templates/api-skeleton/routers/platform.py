@@ -1,4 +1,4 @@
-"""The two endpoints every use case API must expose — API_STANDARDS §3–4."""
+"""The two endpoints every use case API must expose."""
 
 from datetime import datetime, timezone
 from typing import Annotated
@@ -24,7 +24,7 @@ async def health(settings: SettingsDep) -> HealthResponse:
 
     Add real dependency checks (warehouse ping, model endpoint ping) to the
     dependencies dict. Each check belongs in its repository — this endpoint calls
-    them, it does not implement them. See docs/API_STANDARDS.md §4.
+    them, it does not implement them.
     """
     dependencies: dict[str, str] = {}  # TODO: e.g. {"delta_lake": "OK"}
     return HealthResponse(
@@ -42,7 +42,6 @@ async def info(settings: SettingsDep) -> InfoResponse:
     """
     Service identity used by the platform shell for service discovery.
     Update capabilities to match what this service actually exposes.
-    See docs/API_STANDARDS.md §3.
     """
     return InfoResponse(
         service_id=settings.service_id,

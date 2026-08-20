@@ -1,0 +1,30 @@
+# The Genie space. `bundle deploy` reconciles it — there is no deploy script.
+#
+# The space CONTENT (tables, instructions, example queries, functions) is the
+# artifact under generated/, built from src/ by python/build_space.py. `title`
+# and `description` are NOT part of that payload — the API takes them as separate
+# fields — so they live here.
+#
+# One artifact per environment: DAB resolves ${var.*} inside an inline
+# serialized_space, but a file_path target is read verbatim. That is why the
+# catalog is baked in at build time and ${bundle.target} picks the file.
+#
+# Renaming the resource key destroys and recreates the space, losing its id and
+# every conversation in it.
+resources:
+  genie_spaces:
+    TPLVAR_RESOURCE_KEY:
+      title: ${var.space_title}
+      warehouse_id: ${var.warehouse_id}
+      file_path: ../generated/space.${bundle.target}.json
+      description: |-
+        TPLVAR_DESCRIPTION
+
+        **Capabilities:**
+
+        - TODO: what this space can answer, one bullet per question shape.
+
+        **Limitations:**
+
+        - TODO: what it cannot answer. Be specific — this text is shown to users
+          and is the cheapest way to stop an out-of-scope question.

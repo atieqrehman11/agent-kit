@@ -1,5 +1,5 @@
-# deploy.py resolves the space with w.genie.list_spaces and calls create_space /
-# update_space. Those were verified against 0.102.0; older SDKs predate the Genie
-# management API and fail at import or attribute lookup.
-databricks-sdk>=0.102.0
+# The build is offline — it reads src/ and databricks.yml and writes JSON. The
+# only dependency is the YAML parser. Reconciling the space is `databricks bundle
+# deploy`, so there is no SDK call anywhere in this repo and no workspace token
+# in CI.
 pyyaml>=6.0

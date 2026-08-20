@@ -15,7 +15,7 @@ import { z } from 'zod'
  *    three components deep, half a second after the user clicked something. */
 export const API_BASE = '/api'
 
-/** The platform error envelope (docs/API_STANDARDS.md §7). Only the fields the
+/** The platform error envelope. Only the fields the
  * UI actually uses are required — a stricter schema here would turn a backend
  * that omits `detail` into a client-side crash. */
 const errorEnvelope = z.object({

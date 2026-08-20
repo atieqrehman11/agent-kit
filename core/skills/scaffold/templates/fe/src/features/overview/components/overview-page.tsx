@@ -31,10 +31,6 @@ export function OverviewPage() {
             Fetch through <code>src/shared/api/client.ts</code>, which parses every response
             with Zod and calls the same-origin <code>/api</code> path.
           </li>
-          <li>
-            Read <code>docs/REACT_STANDARDS.md</code>, and check your work against{' '}
-            <code>docs/REACT_STANDARDS_CONFORMANCE.md</code> before you open the merge request.
-          </li>
         </ol>
       </div>
     </div>

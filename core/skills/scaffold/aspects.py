@@ -1,8 +1,9 @@
 """Composable repo **aspects** — the slices a repo is made of, one at a time.
 
 An *aspect* is a named, self-contained piece of a scaffolded repo: its CI/CD
-pipeline, its standards docs, its per-environment config, the platform endpoints
-every API must expose. ``new.py`` applies several when it creates a repo from
+pipeline, its deploy descriptor, the platform endpoints every API must expose.
+Standards are not among them — the guidelines live in agent-kit and are read from
+there, never copied in. ``new.py`` applies several when it creates a repo from
 scratch; ``add.py`` applies one to a repo that **already exists**. Both go
 through :func:`apply` here, so "the deploy aspect" means exactly the same set of
 files in a brand-new repo and in a five-year-old one.
@@ -34,33 +35,9 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES = os.path.join(_HERE, "templates")
 
 
-def _guidelines_dir():
-    """The shared guidelines dir. The *_STANDARDS docs a scaffolded repo receives are
-    guidelines, not templates — one source of truth, read from here rather than copied."""
-    d = os.environ.get("AGENT_KIT_GUIDELINES_DIR") or "__GUIDELINES_DIR__"
-    if not d.startswith("__"):
-        return d
-    p = _HERE
-    while p != os.path.dirname(p):
-        if os.path.exists(os.path.join(p, "STANDARD.md")):
-            return os.path.join(p, "core", "guidelines")
-        p = os.path.dirname(p)
-    return os.path.join(_HERE, "templates")
-
-
-GUIDELINES = _guidelines_dir()
-
-
 def _src_path(src_rel):
-    """Resolve a files-tuple source. ``guidelines:<name>`` reads the shared guideline."""
-    if src_rel.startswith("guidelines:"):
-        return os.path.join(GUIDELINES, src_rel.split(":", 1)[1])
+    """Resolve a files-tuple source against the template tree."""
     return os.path.join(TEMPLATES, src_rel)
-
-
-def _strip_frontmatter(text):
-    m = re.match(r"\A---\n.*?\n---\n+", text, re.S)
-    return text[m.end() :] if m else text
 
 
 # Repo types, mirrored from new.py (kept here so add.py needs only this module).
@@ -73,69 +50,61 @@ CONTROLLER_TYPES = ("api", "etl", "job", "fe")
 API_TYPES = ("genie", "agent")
 ALL_TYPES = BUNDLE_TYPES + API_TYPES
 
-# Per-type standards doc: repo type -> (template file, filename under docs/).
-STANDARDS = {
-    "api": ("guidelines:api.md", "API_STANDARDS.md"),
-    "etl": ("guidelines:pipeline.md", "PIPELINE_STANDARDS.md"),
-    "job": ("guidelines:job.md", "JOB_STANDARDS.md"),
-    "fe": ("guidelines:react.md", "REACT_STANDARDS.md"),
-    "agent": ("guidelines:agent.md", "AGENT_STANDARDS.md"),
-    "genie": ("guidelines:genie.md", "GENIE_STANDARDS.md"),
+# Which guidelines govern each repo type. Names only — they resolve to
+# core/guidelines/<name>.md in agent-kit and are never copied into a repo. Used to
+# print the pointer a scaffolded README carries, so that a citation in template
+# code ("api §7") names something the reader can go and find.
+#
+# `fe` gets no `python` entry: it is TypeScript end to end, server.mjs included.
+GUIDELINE_NAMES = {
+    "api": ("api", "service-structure", "python"),
+    "etl": ("pipeline", "python"),
+    "job": ("job", "service-structure", "python"),
+    "fe": ("react",),
+    "agent": ("agent", "python"),
+    "genie": ("genie", "python"),
 }
-
-# Repo types that contain a request boundary and therefore hand-written service
-# code — these get the service-structure standard alongside their own.
-SERVICE_TYPES = ("api", "job")
-
-# Types whose baseline language standard is Python. `fe` is TypeScript end to
-# end — server.mjs included — so shipping it PYTHON_STANDARDS.md would be a doc
-# nobody in that repo can act on.
-PYTHON_TYPES = tuple(t for t in ALL_TYPES if t != "fe")
-
-
-def _conformance_for(src_rel, dest):
-    """The ``conformance/<name>.md`` checklist of a guideline, if it has one (STANDARD.md §1.2).
-
-    Derived from the tree rather than listed: a guideline that gains a sheet starts
-    shipping it with no edit here, which is the same rule obligation 1 puts on adapters.
-
-    The generated repo gets a flat ``docs/<NAME>_CONFORMANCE.md`` rather than a mirrored
-    directory — a use-case repo carries one or two of these, so a folder holding a single
-    file would be structure for its own sake.
-    """
-    if not src_rel.startswith("guidelines:"):
-        return []
-    name = src_rel.split(":", 1)[1][:-3]
-    if not os.path.isfile(os.path.join(GUIDELINES, "conformance", f"{name}.md")):
-        return []
-    return [(f"guidelines:conformance/{name}.md", f"docs/{dest[:-3]}_CONFORMANCE.md")]
-
 
 # Tool caches a formatter/linter may have dropped in a template dir.
 _IGNORE = {"__pycache__", ".ruff_cache", ".pytest_cache", ".DS_Store"}
 
 
-# ─── Generated file bodies ────────────────────────────────────────────────────
-
-
 def run_resources_yaml(vars_) -> str:
     """``run_resources.yml`` — resource keys the controller runs after deploy.
 
-    Deployment only registers a definition; execution is separate, so this ships
-    empty for deploy-only bundles. ``vars_["TPLVAR_RUN_RESOURCE_KEY"]`` (when
-    set) lists a key that must run to complete the deploy.
+    Deployment only registers a definition; execution is separate. Which of the
+    two a repo needs is a per-type fact, not a preference:
+
+    * ``api`` / ``fe`` — deploy uploads the source, but it is ``bundle run`` that
+      creates the app deployment making it live. Without the key the previous
+      version keeps serving, and the deploy still reports success.
+    * ``agent`` — the bundle's only resource IS the deploy job, so without the key
+      nothing reconciles the agent at all.
+    * ``job`` / ``etl`` / ``genie`` — empty. A job runs on its schedule, and a
+      Genie space is live the moment it is deployed. Forcing a run here would
+      re-execute the pipeline on every merge.
+
+    ``vars_["TPLVAR_RUN_RESOURCE_KEY"]`` carries the key when the type needs one.
     """
     header = (
-        "# Resource keys the controller runs immediately after deploy.\n"
-        "# Deployment only registers a definition — execution is separate. Leave\n"
-        "# empty for deploy-only bundles (an app starts itself; a job/pipeline runs\n"
-        "# on its own schedule or a manual trigger). List a key here only to force\n"
-        "# a run after every deploy.\n"
+        "# Resource keys the controller runs (`bundle run`) after a successful\n"
+        "# deploy. Deployment only registers a definition — execution is separate.\n"
     )
     key = (vars_ or {}).get("TPLVAR_RUN_RESOURCE_KEY", "")
     if key:
-        return f"{header}resources:\n  - {key}\n"
-    return f"{header}resources: []\n  # e.g. - my_resource_key   # uncomment to run after deploy\n"
+        return (
+            f"{header}#\n"
+            "# The key must match the resource key in resources/, NOT the resource's\n"
+            "# `name:` — they are different strings and only the first one resolves.\n"
+            f"resources:\n  - {key}\n"
+        )
+    return (
+        f"{header}#\n"
+        "# Deliberately EMPTY: nothing here has to run for the deploy to be complete.\n"
+        "# A job runs on its schedule or a manual trigger; a Genie space is live as\n"
+        "# soon as it is deployed. Listing a key would re-run the work on every merge.\n"
+        "resources: []\n"
+    )
 
 
 # ─── The registry ─────────────────────────────────────────────────────────────
@@ -160,13 +129,6 @@ _DEPLOY_WIRING = [
     "stg and prod are the controller's — never `bundle deploy -t stg|prod` by hand.",
 ]
 
-# genie/agent reconcile a declaration through a management API rather than a
-# bundle, so they have no descriptor and no registry entry.
-_API_TYPE_DEPLOY_WIRING = [
-    "`./run_local.sh` validates the declaration and needs no credentials; "
-    "`./run_local.sh deploy` reconciles it against dev.",
-]
-
 _FE_DEPLOY_WIRING = [
     "Commit dist/. `./run_local.sh deploy` builds it; the controller deploys from a "
     "fresh clone, so an uncommitted dist/ fails validate_bundle with "
@@ -179,19 +141,31 @@ _FE_DEPLOY_WIRING = [
 ]
 
 _GENIE_DEPLOY_WIRING = [
-    "A repo that predates this usually fails validation on one thing: a `space_id:` "
-    "left in genie-space/space.yml. Delete it. The space is resolved by title, so a "
-    "committed id is deploy state the repo must not hold.",
-    "If the repo already had a deploy_genie.py at its root, delete it — src/deploy.py "
-    "replaces it, and two deploy scripts means two answers to which space this repo "
-    "owns.",
+    "Commit generated/space.<target>.json. `./run_local.sh all` builds every "
+    "environment; the controller deploys from a fresh clone and runs no project "
+    "scripts, so an unbuilt or stale artifact deploys green and serves the previous "
+    "space.",
+    "Delete any `space_id:`/`genie_space_id:` left in src/space.yml, and any "
+    "deploy_genie.py the repo used to carry. DAB owns the space's identity through "
+    "the resource key in resources/genie.yml — a committed id is deploy state, and "
+    "python/validate.py rejects it.",
+    "The views and functions under src/ are NOT deployed by the bundle: DAB has no "
+    "resource for arbitrary SQL. Apply src/{views,functions}/*.sql to the catalog "
+    "yourself, or the space deploys clean and answers nothing.",
 ]
 
 _AGENT_DEPLOY_WIRING = [
-    "A repo that predates this usually fails validation on one thing: a "
-    "`supervisor_agent_id:` left in supervisor/supervisor.yml. Delete it. The "
-    "supervisor is resolved by name, so a committed id is deploy state the repo must "
-    "not hold.",
+    "The bundle's only resource is a JOB that runs the reconciler — a supervisor "
+    "agent has no DAB resource type, and the controller reaches project code only "
+    "through `bundle run`. That is why run_resources.yml lists deploy_agent: without "
+    "it the deploy uploads the spec and changes no agent.",
+    "Delete any `supervisor_agent_id:` left in the spec, and any deploy.sh the repo "
+    "used to carry. The agent is resolved by display_name, so a committed id is "
+    "deploy state the repo must not hold.",
+    "Every ${name} in src/managed/agent.yml must be passed as a --var by "
+    "resources/deploy.job.yml and declared as a variable in databricks.yml. An "
+    "unresolved one fails the deploy rather than reaching the API — but only "
+    "because deploy_agent.py checks for it.",
 ]
 
 # ── gitlab aspect ────────────────────────────────────────────────────────────
@@ -209,32 +183,16 @@ _GITLAB_WIRING = [
     "trigger posts nothing while the job still goes green.",
 ]
 
-_GITLAB_TOKEN_WIRING = [
-    "Set DATABRICKS_HOST + DATABRICKS_TOKEN in GitLab > Settings > CI/CD > Variables "
-    "(masked), scoped to the `stg` and `prod` branches separately — the deploy job "
-    "authenticates with them, and the workspace is what separates the environments. "
-    "There is no controller token here: neither type is a DAB bundle.",
-    "Run gitlab/setup-repo.sh --project <id> for the branches and protection.",
-]
-
-_ENV_CONFIG_WIRING = [
-    "Add the config_dir + policy_id variables to databricks.yml and set them per "
-    "target (the resource then reads ${var.config_dir}/task_config.yaml):\n"
-    "        variables:\n"
-    "          config_dir:\n"
-    '            description: "Per-target config directory (config/DEV|STG|PROD)"\n'
-    '            default: ""\n'
-    "          policy_id:\n"
-    '            default: "TODO_SET_DEV_POLICY_ID"\n'
-    "        targets:\n"
-    "          dev:  { variables: { config_dir: ${workspace.file_path}/config/DEV,  "
-    "policy_id: TODO_SET_DEV_POLICY_ID } }\n"
-    "          stg:  { variables: { config_dir: ${workspace.file_path}/config/STG,  "
-    "policy_id: TODO_SET_STG_POLICY_ID } }\n"
-    "          prod: { variables: { config_dir: ${workspace.file_path}/config/PROD, "
-    "policy_id: TODO_SET_PROD_POLICY_ID } }",
-    "Pass the config path to your task, e.g. a job task's parameters: "
-    '["--config", "${var.config_dir}/task_config.yaml"].',
+_JOB_DEPLOY_WIRING = [
+    "The tasks are serverless notebook tasks taking explicit base_parameters — no "
+    "job cluster, no policy_id, no per-environment config file. Every value a stage "
+    "reads is visible in the run itself. If you genuinely need a classic cluster "
+    "(custom runtime, init script, unresolvable library), resources/job.job.yml "
+    "carries the job_clusters block to paste in, and you must then set policy_id per "
+    "target — the run-as principal cannot create a cluster without one.",
+    "config_dir and policy_id are declared in databricks.yml but unused. Leave them: "
+    "the controller passes both on every deploy and `bundle deploy` errors on an "
+    "undeclared --var.",
 ]
 
 _API_PLATFORM_WIRING = [
@@ -248,13 +206,12 @@ _API_PLATFORM_WIRING = [
     "then remove any basicConfig / setLevel elsewhere, or LOG_LEVEL stops working.",
     "Add the request context middleware:  "
     "app.add_middleware(RequestContextMiddleware, service_id=settings.service_id)  — "
-    "it generates and echoes X-Request-ID and emits the one access-log line "
-    "(docs/API_STANDARDS.md §10).",
+    "it generates and echoes X-Request-ID and emits the one access-log line.",
     "Register the exception handlers:  register_exception_handlers(app)  — this is what "
     "normalizes FastAPI's {'detail': ...} onto the ErrorResponse envelope and installs the "
-    "catch-all (docs/API_STANDARDS.md §7). Then delete any per-route error bodies.",
+    "catch-all. Then delete any per-route error bodies.",
     "Raise from core/exceptions.py in services and repositories — never HTTPException "
-    "below the router (docs/SERVICE_STRUCTURE_STANDARDS.md §3).",
+    "below the router.",
     "Set CORS from settings.cors_origins — an allowlist, never ['*'].",
 ]
 
@@ -273,7 +230,10 @@ ASPECTS = {
             "api": [
                 ("deploy/bundleignore", ".bundleignore"),
                 ("deploy/api/databricks.yml", "databricks.yml"),
-                ("deploy/api/app.yml", "app.yml"),
+                # No app.yml at the source root: it uploads verbatim and cannot
+                # hold a per-environment value, so every target would get dev's
+                # warehouse. command/env live in resources/api.app.yml under
+                # `config:`, which goes through DAB variable resolution.
                 ("deploy/api/run_local.sh", "run_local.sh"),
             ],
             "etl": [
@@ -293,72 +253,67 @@ ASPECTS = {
                 ("deploy/fe/databricks.yml", "databricks.yml"),
                 ("deploy/fe/run_local.sh", "run_local.sh"),
             ],
-            # Neither is a DAB bundle: no descriptor, no registry entry. They
-            # reconcile a declaration through a management API instead.
+            # A genie_spaces resource (CLI 1.3.0+, engine: direct). The space
+            # CONTENT is a committed artifact under generated/, built from src/ —
+            # DAB resolves ${var.*} inside an inline serialized_space but reads a
+            # file_path target verbatim, so the catalog is baked in per target.
             "genie": [
+                ("deploy/genie/databricks.yml", "databricks.yml"),
                 ("deploy/genie/run_local.sh", "run_local.sh"),
-                ("deploy/genie/src/validate.py", "src/validate.py"),
-                ("deploy/genie/src/deploy.py", "src/deploy.py"),
+                ("deploy/genie/python/build_space.py", "python/build_space.py"),
+                ("deploy/genie/python/validate.py", "python/validate.py"),
             ],
+            # A supervisor agent has no DAB resource type, so the bundle's one
+            # resource is a job whose single task runs the reconciler. That is
+            # what makes it deployable by the controller at all.
             "agent": [
+                ("deploy/agent/databricks.yml", "databricks.yml"),
                 ("deploy/agent/run_local.sh", "run_local.sh"),
-                ("deploy/agent/src/validate.py", "src/validate.py"),
-                ("deploy/agent/src/deploy.py", "src/deploy.py"),
+                ("deploy/agent/python/deploy_agent.py", "python/deploy_agent.py"),
+                ("deploy/agent/python/managed.py", "python/managed.py"),
+                ("deploy/agent/python/validate.py", "python/validate.py"),
             ],
         },
-        # config/{DEV,STG,PROD} exists because the controller deploys per target.
-        # Only `job` reads it (${var.config_dir}/task_config.yaml).
         "dirs": {
             "api": [("deploy/api/resources", "resources")],
             "etl": [("deploy/etl/resources", "resources")],
-            "job": [("deploy/job/resources", "resources"), ("deploy/config", "config")],
+            "job": [("deploy/job/resources", "resources")],
             "fe": [("deploy/fe/resources", "resources")],
+            "genie": [("deploy/genie/resources", "resources")],
+            "agent": [("deploy/agent/resources", "resources")],
             "*": [],
         },
-        # run_resources.yml tells the CONTROLLER what to run after deploy, so it
-        # is meaningless in a repo that does not use the controller.
-        "generated": {
-            "*": [("run_resources.yml", run_resources_yaml)],
-            "genie": [],
-            "agent": [],
-        },
+        # run_resources.yml tells the CONTROLLER what to run after deploy. Every
+        # type has one now, because every type goes through the controller.
+        "generated": {"*": [("run_resources.yml", run_resources_yaml)]},
         "wiring": {
             "*": _DEPLOY_WIRING,
-            "job": _DEPLOY_WIRING + _ENV_CONFIG_WIRING,
+            "job": _DEPLOY_WIRING + _JOB_DEPLOY_WIRING,
             "fe": _DEPLOY_WIRING + _FE_DEPLOY_WIRING,
-            "genie": _API_TYPE_DEPLOY_WIRING + _GENIE_DEPLOY_WIRING,
-            "agent": _API_TYPE_DEPLOY_WIRING + _AGENT_DEPLOY_WIRING,
+            "genie": _DEPLOY_WIRING + _GENIE_DEPLOY_WIRING,
+            "agent": _DEPLOY_WIRING + _AGENT_DEPLOY_WIRING,
         },
     },
     "gitlab": {
         "label": "GitLab CI/CD",
         "summary": (
-            "The GitLab pipeline and the project setup it needs — bundle types trigger "
-            "the shared DAB controller on merge to stg/prod; genie/agent validate their "
-            "declaration, then run their own deploy script"
+            "The GitLab pipeline and the project setup it needs — validate the bundle, "
+            "then trigger the shared DAB controller on merge to stg/prod. One pipeline "
+            "for every type; none of them holds a workspace token"
         ),
         "applies_to": ALL_TYPES,
         "selectable": True,
-        "files": {
-            "*": [("gitlab/gitlab-ci.controller.yml", ".gitlab-ci.yml")],
-            "genie": [("gitlab/genie-gitlab-ci.yml", ".gitlab-ci.yml")],
-            "agent": [("gitlab/agent-gitlab-ci.yml", ".gitlab-ci.yml")],
-        },
+        "files": {"*": [("gitlab/gitlab-ci.controller.yml", ".gitlab-ci.yml")]},
         "dirs": {"*": []},
         "generated": {"*": []},
-        "wiring": {
-            "*": _GITLAB_WIRING,
-            "genie": _GITLAB_TOKEN_WIRING,
-            "agent": _GITLAB_TOKEN_WIRING,
-        },
+        "wiring": {"*": _GITLAB_WIRING},
     },
     "api": {
         "label": "Use case API surface",
         "summary": (
-            "GET /v1/health and GET /v1/info (API_STANDARDS §3–4), plus the service "
-            "spine they need: validated settings, one logging setup, one exception "
-            "hierarchy behind one handler layer, and request-id middleware "
-            "(SERVICE_STRUCTURE_STANDARDS §2–4)"
+            "GET /v1/health and GET /v1/info, plus the service spine those "
+            "endpoints need: validated settings, one logging setup, one exception "
+            "hierarchy behind one handler layer, and request-id middleware"
         ),
         "applies_to": ("api",),
         "selectable": True,
@@ -383,47 +338,28 @@ ASPECTS = {
         "wiring": _API_PLATFORM_WIRING,
     },
     # ── Not choices: pieces every repo just has ───────────────────────────────
-    # `standards` ships with `new` (each type's docs/), and `gitignore` /
-    # `config-sheet` are applied automatically wherever they are missing. They are
-    # in the registry so there is still one definition of each, but they never
-    # appear in a picker — nobody should have to decide about them.
-    "standards": {
-        "label": "Standards docs",
+    # `gitignore` / `editorconfig` / `specs` / `config-sheet` are applied
+    # automatically wherever they are missing. They are in the registry so there is
+    # still one definition of each, but they never appear in a picker — nobody
+    # should have to decide about them.
+    #
+    # There is no `standards` aspect. The guidelines live in agent-kit and are read
+    # from there; a copy in each repo was six different subsets across six repos,
+    # every one of them drifted from the source, and the reviewer never read them
+    # anyway — it resolves core/guidelines/ directly. See README.md §Standards.
+    # Not style policing. Two files in these repos are sent byte-verbatim to a
+    # platform API and compared byte for byte on the next deploy, so an editor
+    # that adds a trailing newline turns a no-op deploy into a content change.
+    # The rule has to live somewhere the editor reads, which is this file.
+    "editorconfig": {
+        "label": ".editorconfig",
         "summary": (
-            "docs/PYTHON_STANDARDS.md + the per-type <TYPE>_STANDARDS.md, "
-            "plus docs/SERVICE_STRUCTURE_STANDARDS.md wherever service code is written"
+            "line endings, indent width, and the two prose files that must NOT be "
+            "trailing-newline-normalised (Genie instructions, an agent's prompt)"
         ),
         "applies_to": ALL_TYPES,
         "selectable": False,
-        "files": {
-            t: [(src, f"docs/{dest}")]
-            + (
-                [("guidelines:python.md", "docs/PYTHON_STANDARDS.md")]
-                if t in PYTHON_TYPES
-                else []
-            )
-            # A guideline's checklist lives in a sibling now (STANDARD.md §1.2), so the
-            # standards doc alone would land in the repo without its audit list.
-            + _conformance_for(src, dest)
-            # Layering, exception handling, log levels and the no-hardcoded-values
-            # rule only bind a repo that has a request boundary. A genie space is
-            # configuration; shipping it a service standard is noise.
-            + (
-                [
-                    (
-                        "guidelines:service-structure.md",
-                        "docs/SERVICE_STRUCTURE_STANDARDS.md",
-                    )
-                ]
-                + _conformance_for(
-                    "guidelines:service-structure.md",
-                    "SERVICE_STRUCTURE_STANDARDS.md",
-                )
-                if t in SERVICE_TYPES
-                else []
-            )
-            for t, (src, dest) in STANDARDS.items()
-        },
+        "files": [("common/editorconfig", ".editorconfig")],
     },
     "gitignore": {
         "label": "Python / Databricks .gitignore",
@@ -433,9 +369,14 @@ ASPECTS = {
         # fe gets a Node one. The shared file ignores dist/ as build junk, which
         # is right everywhere except here, where dist/ is the deployed payload —
         # still not committed, but for a different reason, and the file says so.
+        # fe gets a Node one, and api gets one that TRACKS wheels/ — the shared
+        # file used to ignore it while databricks.yml relied on `sync: include:
+        # wheels/**`, which uploads the deploying laptop's wheels and leaves the
+        # controller's fresh clone with none.
         "files": {
             "*": [("common/gitignore", ".gitignore")],
             "fe": [("fe/.gitignore", ".gitignore")],
+            "api": [("api-skeleton/.gitignore", ".gitignore")],
         },
     },
     # A convention needs somewhere to land before the first feature, or the first
@@ -468,52 +409,63 @@ ASPECTS = {
 
 # Apply order. config-sheet is last on purpose: it must see the tokens the other
 # aspects bring in.
-ORDER = ["deploy", "gitlab", "api", "standards", "gitignore", "specs", "config-sheet"]
+ORDER = [
+    "deploy",
+    "gitlab",
+    "api",
+    "gitignore",
+    "editorconfig",
+    "specs",
+    "config-sheet",
+]
 
 # What a user chooses between. Everything else in ASPECTS is applied for them.
 SELECTABLE = [k for k in ORDER if ASPECTS[k].get("selectable")]
 
 # Applied automatically by `add` after the chosen aspects, wherever missing — no
 # question asked, no menu entry. Order matters: config-sheet last.
-# Applied on every add, not just on new. `standards` is here because the aspects that
-# ship code ship code that *cites* the standards: the api aspect alone writes ten
-# references to docs/API_STANDARDS.md and docs/SERVICE_STRUCTURE_STANDARDS.md, in
-# docstrings and in the printed wiring notes. Without this, adding it to a repo the
-# scaffold never created produced a repo with no docs/ and ten dangling pointers — the
-# same broken-link class STANDARD.md §1.6.1 refuses for command references.
-# Safe on a repo that already has them: _emit skips an existing file rather than
-# overwriting it, so a doc someone has edited survives.
-AUTO = ["standards", "gitignore", "specs", "config-sheet"]
+# The code these aspects ship states its rules plainly and cites nothing — a section
+# number in a comment goes stale the moment a guideline is renumbered. The README
+# pointer each template carries is the one place that names the guidelines.
+AUTO = ["gitignore", "editorconfig", "specs", "config-sheet"]
 
 # Keys that are not choices, mapped to where that work lives now — so anyone who
 # reaches for one gets a pointer instead of "unknown aspect".
 MERGED = {
-    "env-config": "config/{DEV,STG,PROD} now ships with the `deploy` aspect on job repos.",
+    "env-config": (
+        "job tasks take explicit base_parameters now, not a per-target config file. "
+        "See resources/job.job.yml."
+    ),
     "api-platform": "it is now called `api`.",
-    "standards": "standards docs ship with {{cmd:scaffold:new}}, per repo type.",
+    "standards": (
+        "the guidelines are not copied into a repo any more. They live in agent-kit "
+        "(core/guidelines/) and are read from there; each README names the ones that "
+        "govern the repo."
+    ),
     "gitignore": ".gitignore is applied automatically wherever it is missing.",
+    "editorconfig": ".editorconfig is applied automatically wherever it is missing.",
     "specs": "docs/specs/README.md is applied automatically wherever it is missing.",
     "config-sheet": "CONFIG.md is regenerated automatically after every add.",
 }
 
 # The **standard set** per type: what a repo of this type gets from `new`, and so
-# what `add --aspect all` restores in a repo that predates the scaffold. Notes:
-#   deploy — bundle descriptor + resources + run_local.sh (job also gets config/).
-#   gitlab — the pipeline, and the project setup it needs.
-#           fe, genie and agent each ship their own .gitlab-ci.yml inside their
-#           template dir, so `new` does not layer the aspect on top; `add` still
-#           can, for a repo that predates it.
-#   api   — part of the api skeleton already, so not layered again by `new`; the
-#           aspect exists for FastAPI repos that were never scaffolded.
-# README.md ships inside each template dir (tokens patched by new.py's _patch_tree).
-DEFAULT_BY_TYPE = {
-    "api": ("deploy", "gitlab", "standards", "gitignore", "specs"),
-    "etl": ("deploy", "gitlab", "standards", "gitignore", "specs"),
-    "job": ("deploy", "gitlab", "standards", "gitignore", "specs"),
-    "fe": ("deploy", "gitlab", "standards", "gitignore", "specs"),
-    "agent": ("deploy", "gitlab", "standards", "gitignore", "specs"),
-    "genie": ("deploy", "gitlab", "standards", "gitignore", "specs"),
-}
+# what `add --aspect all` restores in a repo that predates the scaffold.
+#
+# It is the same set for every type now, because every type deploys the same way.
+# What varies is inside the aspects — `deploy` resolves a different descriptor and
+# a different resource per type — not which aspects a type gets.
+#
+#   deploy       bundle descriptor + resources/ + run_local.sh + run_resources.yml
+#   gitlab       the controller pipeline, and the project setup it needs
+#   gitignore    shared, except api (tracks wheels/) and fe (Node, tracks dist/)
+#   editorconfig the byte-verbatim prose rules
+#   specs        docs/specs/README.md
+#
+# `api` (the use case API surface) is NOT here: it ships inside the api-skeleton
+# template already. The aspect exists for FastAPI repos the scaffold never made.
+# README.md likewise ships inside each template dir (tokens patched by _patch_tree).
+_STANDARD_SET = ("deploy", "gitlab", "gitignore", "editorconfig", "specs")
+DEFAULT_BY_TYPE = {t: _STANDARD_SET for t in ALL_TYPES}
 
 
 def is_default(key, rtype):
@@ -632,10 +584,7 @@ def apply(key, repo_dir, rtype, vars_, force=False, dry_run=False):
         written.append(dest_rel)
 
     for src_rel, dest_rel in _for_type(ASPECTS[key].get("files"), rtype):
-        if src_rel.startswith("guidelines:"):
-            _emit(dest_rel, text=_strip_frontmatter(_read(_src_path(src_rel))))
-        else:
-            _emit(dest_rel, src=_src_path(src_rel))
+        _emit(dest_rel, src=_src_path(src_rel))
 
     for src_dir, dest_dir in _for_type(ASPECTS[key].get("dirs"), rtype):
         for src, dest_rel in _walk_dir(os.path.join(TEMPLATES, src_dir), dest_dir):
@@ -670,10 +619,20 @@ def detect_type(repo_dir):
     when nothing decisive is found (the caller then requires ``--type``)."""
     j = lambda *p: os.path.join(repo_dir, *p)  # noqa: E731
 
-    if os.path.isfile(j("genie-space", "space.yml")):
-        return "genie", "genie-space/space.yml"
-    if os.path.isfile(j("supervisor", "supervisor.yml")):
-        return "agent", "supervisor/supervisor.yml"
+    # genie and agent are checked FIRST, and by their payload rather than their
+    # resource file. Both are bundles now: an agent repo's only resource is
+    # resources/deploy.job.yml, which the .job.yml scan below would read as a
+    # plain `job` repo.
+    if os.path.isfile(j("src", "space.yml")) or os.path.isfile(
+        j("genie-space", "space.yml")  # pre-bundle layout
+    ):
+        return "genie", "src/space.yml"
+    if os.path.isfile(j("src", "managed", "agent.yml")) or os.path.isfile(
+        j("supervisor", "supervisor.yml")  # pre-bundle layout
+    ):
+        return "agent", "src/managed/agent.yml"
+    if _resource_files(repo_dir) == ["genie.yml"]:
+        return "genie", "resources/genie.yml"
 
     # Checked BEFORE the resource-file scan below: a front end is also an
     # `apps` resource, so `.app.yml` alone cannot tell it from an api repo. A
@@ -741,8 +700,6 @@ def read_bundle(repo_dir):
     installed, and only the two keys under the top-level ``bundle:`` block matter.
     Returns ``(None, None)`` when there is no bundle file.
     """
-    import re
-
     path = os.path.join(repo_dir, "databricks.yml")
     if not os.path.isfile(path):
         return None, None

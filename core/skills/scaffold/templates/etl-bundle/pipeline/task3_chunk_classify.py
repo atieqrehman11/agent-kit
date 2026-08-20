@@ -1,16 +1,20 @@
-# SKELETON — implement the TODO blocks. See docs/PIPELINE_STANDARDS.md for guidance.
+# SKELETON — implement the TODO blocks.
 # Task 3 — Chunk & Classify
 # Pattern: ai_prep_search → chunks; ai_classify + ai_query → labels & importance
-# Inputs:  TPLVAR_CATALOG.silver.TPLVAR_RAW_PREFIX_parsed_documents
-#          TPLVAR_CATALOG.silver.TPLVAR_RAW_PREFIX_document_summary
-# Output:  TPLVAR_CATALOG.gold.TPLVAR_RAW_PREFIX_enriched_chunks  (Change Data Feed enabled)
+# Inputs:  <catalog>.silver.TPLVAR_RAW_PREFIX_parsed_documents
+#          <catalog>.silver.TPLVAR_RAW_PREFIX_document_summary
+# Output:  <catalog>.gold.TPLVAR_RAW_PREFIX_enriched_chunks  (Change Data Feed enabled)
 
 # COMMAND ----------
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F, Window
 
-CATALOG       = "TPLVAR_CATALOG"
-TABLE_PREFIX  = "TPLVAR_RAW_PREFIX"
+# Per-environment values come from the pipeline's `configuration:` block
+# (resources/etl.pipeline.yml), never from a literal here — a literal survives the
+# target override untouched, so a stg run would read dev's data and succeed.
+CATALOG      = spark.conf.get("pipeline.catalog")
+SCHEMA       = spark.conf.get("pipeline.schema")
+TABLE_PREFIX = spark.conf.get("pipeline.table_prefix")
 SILVER_SCHEMA = "silver"
 GOLD_SCHEMA   = "gold"
 LLM           = "databricks-claude-sonnet-4-6"

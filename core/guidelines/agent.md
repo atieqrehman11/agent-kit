@@ -5,41 +5,44 @@ description: >
   Standards for multi-agent supervisor services: agent boundaries, tool exposure,
   instructions and evaluation. Applies when building or reviewing an agent service.
 applies_to:
-  - "**/supervisor/**"
-  - "**/docs/AGENT_STANDARDS.md"
+  - "**/src/managed/**"
+  - "**/python/deploy_agent.py"
+  - "**/python/managed.py"
 ---
 
 # Agent Standards — __ORG_PREFIX__Multi-Agent Supervisor Reference
 
-Standard for the `agent` repo type: a Databricks **Agent Bricks Multi-Agent Supervisor**
-created via the `supervisor_agents` **SDK** — the scripted equivalent of building a
-supervisor in the Agents-tab UI. There is no DAB bundle; CI deploys by running the same
-script (§3, §6).
+Standard for the `agent` repo type: a Databricks **Agent Bricks Multi-Agent Supervisor**,
+reconciled from configuration against `/api/2.1/supervisor-agents` — the scripted
+equivalent of building a supervisor in the Agents-tab UI.
 
 The idea: **standardize how we stamp out supervisors.** To spin up a new one you provide
-only two things — **instructions** and a **list of tools to attach** — and one script does
-what the UI does, returning a working query URL. The **repo is authoritative**: the
-supervisor is (re)deployed *from* these files.
+only two things — **instructions** and a **list of tools to attach** — and one reconciler
+does what the UI does, returning a working endpoint name. The **repo is authoritative**:
+the supervisor is (re)deployed *from* these files, and anything changed in the UI is
+overwritten on the next deploy.
 
 ---
 
 ## 1. Canonical layout
 
 ```
-supervisor/
-├── supervisor.yml     the DEFINITION — display_name, description, tools list
-└── instructions.md    the supervisor's routing instructions (prose)
-src/validate.py        check supervisor.yml — no credentials, no network
-src/deploy.py          reconcile the supervisor + attach tools; prints the URL
-deploy.sh              one-shot: pip install + run deploy.py (dev)
-.gitlab-ci.yml         two jobs, each one line: run validate.py, run deploy.py
-CHANGELOG.md           version → date → eval baseline → what changed
-AGENT_STANDARDS.md     this file
+src/managed/
+├── agent.yml           the DEFINITION — display_name, description, tools list
+└── instructions.md     the routing instructions (prose, sent byte-verbatim)
+python/
+├── deploy_agent.py     the job task entry point
+├── managed.py          the reconciler
+└── validate.py         check agent.yml — no credentials, no network
+resources/deploy.job.yml  the job that IS the deploy (§6)
+databricks.yml         per-environment values, passed to the job as --var
+run_resources.yml      lists deploy_agent — what makes the controller run it
+docs/CHANGELOG.md      version → date → eval baseline → what changed
 ```
 
-> **CI holds no logic of its own** — each stage runs one of these scripts, so every check
-> that gates a deploy also runs on a laptop. `deploy.py` calls the same `validate.check()`
-> before touching a workspace.
+> **CI holds no logic of its own** — the validate stage runs `python/validate.py`, the same
+> check `deploy_agent.py` runs before touching a workspace, so every gate also runs on a
+> laptop.
 
 No per-agent Python and no hand-written tool loop — the supervisor's reasoning and
 tool-routing are managed by Agent Bricks. You supply configuration, not code.
@@ -48,10 +51,11 @@ tool-routing are managed by Agent Bricks. You supply configuration, not code.
 
 ## 2. The two things you edit
 
-- **`instructions.md`** — how the supervisor should behave and route: for each tool, when
-  to call it; grounding and out-of-scope rules; tone. Sent verbatim as the supervisor's
-  instructions.
-- **`supervisor.yml: tools`** — the list of tools/subagents to attach. Each entry:
+- **`src/managed/instructions.md`** — how the supervisor should behave and route: for each
+  tool, when to call it; grounding and out-of-scope rules; tone. Sent **byte-verbatim** as
+  the supervisor's instructions, and compared byte for byte against the live agent — so
+  reflowing the file turns a no-op deploy into a content change.
+- **`src/managed/agent.yml: tools`** — the list of tools/subagents to attach. Each entry:
   - `id` — a stable key for the tool within this supervisor
   - `type` — the tool type (e.g. `knowledge_assistant`, `genie_space`)
   - `description` — what it does; the supervisor uses this to decide when to route to it
@@ -61,46 +65,59 @@ Everything else (display name, description) is a couple of scalar fields at the 
 
 ---
 
-## 3. Deploy flow (`src/deploy.py`)
+## 3. Reconcile flow (`python/managed.py`)
 
-`deploy.py` uses the Databricks SDK:
+The REST surface is `/api/2.1/supervisor-agents`, called through the SDK's **raw
+`api_client`** rather than a typed service — so a runtime whose `databricks-sdk` predates
+the Beta still works, and only the path has to be right.
 
-1. Resolve the target name: `"<display_name> [ENV]"` for the `--env` given (§3a).
-2. Build a `SupervisorAgent(display_name, description, instructions)`.
-3. **Resolve** the existing supervisor by listing and matching that name. Exactly one
-   match → **update** it (`update_supervisor_agent`); none → **create** it
-   (`create_supervisor_agent`); more than one → **fail**, rather than guess which
-   supervisor belongs to this repo.
-4. **Attach** each configured tool with `w.supervisor_agents.create_tool(...)`, falling back
-   to `update_tool` when the `tool_id` is already attached, so a redeploy converges instead
-   of erroring. Build the type-specific `Tool` object in `_build_tool` (extend that function
-   to support more tool types).
-5. **Print the working query URL** — the same URL the Agents-tab UI would show.
+1. **Resolve** the agent by listing and matching `display_name` (§3a). None → **create**;
+   one → **patch** only the fields that actually drifted.
+2. **Reconcile tools by `tool_id`.** Read each live tool *in full* — the list response omits
+   some spec bodies, so comparing against the list alone makes every tool look changed and
+   rewrites them on every deploy.
+3. **A tool spec is immutable.** Only `description` can be patched; changing anything else —
+   repointing a tool at a different Genie space, say — is a **delete + recreate**, reusing
+   the same stable `tool_id`.
+4. **Anything not declared is deleted**, including tools added in the UI.
+5. **Print the endpoint name** (`mas-<hex>-endpoint`). Databricks assigns it at create time,
+   so it cannot be predicted, and any API repo calling this agent has to be told what it is.
+
+Two comparison rules that are not obvious, and are why a naive reconciler churns:
+
+- **Compare declared-is-a-subset-of-live, not equality.** A `genie_space` declared as
+  `{"id": ...}` comes back as `{"id": ..., "space_id": ...}`. Strict equality reads the
+  server-added field as drift and, because the spec is immutable, deletes and recreates the
+  tool on *every single deploy*.
+- **`update_mask` is a query parameter, not a body field**, and only the fields it names are
+  applied. Likewise `tool_id` on create is a query parameter — sending it in the body is
+  rejected with "Field 'tool_id' is required".
 
 ```
-./deploy.sh                # dev; needs DATABRICKS_HOST + DATABRICKS_TOKEN (or a CLI profile)
-./deploy.sh --env stg      # normally CI's job, not a laptop's
+./run_local.sh             # validate only — no credentials, no network
+./run_local.sh plan        # dry run against dev: what would change
+./run_local.sh deploy      # bundle deploy -t dev, then bundle run
 ```
 
 ---
 
 ## 3a. Identity and environments — declare, don't record
 
-**The repo stores no id for the deployed supervisor.** `supervisor.yml` declares what should
+**The repo stores no id for the deployed supervisor.** `agent.yml` declares what should
 exist; it does not record what does. Identity is two axes together:
 
 | Axis | Source |
 |---|---|
-| Which workspace | `DATABRICKS_HOST` / the CLI profile the deploy authenticated with |
-| Which supervisor in it | the name `"<display_name> [ENV]"`, from config + `--env` |
+| Which workspace | the bundle target's `workspace.host` (and its `run_as` principal) |
+| Which supervisor in it | `display_name`, set per target in `databricks.yml` |
 
-Every environment is suffixed, prod included — one rule, no exception, so the name is
-derivable from `(config, env)` alone in CI as on a laptop.
+Suffix every environment, prod included — one rule, no exception, so the name is derivable
+from the target alone.
 
-**Why not store the id?** CI cannot hold it. A runner checks out fresh, reads an empty id,
-creates a *new* supervisor, and discards the write-back — one more per pipeline run. A field
-per environment does not help: the id is an output of a deploy, and CI's only place to put an
-output is a commit, which is a race.
+**Why not store the id?** CI cannot hold it. The controller checks out fresh, reads an empty
+id, creates a *new* supervisor, and discards the write-back — one more per pipeline run. A
+field per environment does not help: the id is an output of a deploy, and CI's only place to
+put an output is a commit, which is a race.
 
 Two consequences:
 
@@ -109,8 +126,9 @@ Two consequences:
 - **Duplicate names are a hard error** — deploy refuses rather than silently retargeting
   someone else's resource.
 
-Same model as a DAB target: declarative identity plus a per-target workspace, no deploy state
-in git. `genie` repos follow it by space title; see `GENIE_STANDARDS.md`.
+Same model as any DAB target: declarative identity plus a per-target workspace, no deploy
+state in git. A `genie` repo goes one better — DAB itself owns the space's identity through
+the resource key; see [`genie`](./genie.md).
 
 > Agent Bricks and the `supervisor_agents` SDK service are in **Preview** and move quickly.
 > Confirm the service name, the `SupervisorAgent`/`Tool` classes, the tool-type field names,
@@ -122,10 +140,22 @@ in git. `genie` repos follow it by space title; see `GENIE_STANDARDS.md`.
 
 ## 4. Adding a tool type
 
-`deploy.py._build_tool` has a small registry mapping a config `type` to an SDK `Tool`
-builder. `knowledge_assistant` and `genie_space` ship wired. To attach another kind
-(another agent, a UC function, an MCP server, …), add a builder that constructs the right
-`Tool(...)` for your SDK version and list the type in `supervisor.yml`.
+There is no registry to extend. `managed.py` passes a tool's body through to the API
+unchanged apart from `tool_id`, so a new tool type is a new block in `agent.yml` and nothing
+else:
+
+```yaml
+  - tool_id: some-index
+    tool_type: vector_search_index      # the API's own type name
+    vector_search_index:                # the type-specific spec, verbatim
+      name: ${vector_search_index}
+    description: >-
+      When to route here, and what it does not cover.
+```
+
+Check the tool-type names and their spec fields against the workspace docs before adding
+one — Agent Bricks is in Preview and these move. `validate.py` catches a missing `tool_id`
+or `tool_type`, but it cannot know whether a spec body is the shape the API wants.
 
 ---
 
@@ -145,7 +175,7 @@ for a vague one.
 - Give a tie-break rule for the case where two tools both look applicable.
 - One instruction per line, imperative. Prose paragraphs read well and route badly.
 
-`supervisor.yml: tools[].description`:
+`agent.yml: tools[].description`:
 
 - Written **for the router, not for a human** — it is the only thing distinguishing this tool
   from its neighbours at selection time.
@@ -177,7 +207,7 @@ first rule applies hardest here: instructions are advisory.
 
 **Always:**
 
-- **Classify every tool read-only or side-effecting** in its `supervisor.yml` `description`,
+- **Classify every tool read-only or side-effecting** in its `agent.yml` `description`,
   before attaching it. If nobody can say which it is, it is not ready to attach.
 - **Prefer proposing to acting.** A tool that returns a draft for a human to apply removes this
   whole class of risk, and is usually what the use case actually needed.
@@ -194,8 +224,8 @@ first rule applies hardest here: instructions are advisory.
 
 ## 5. Versioning & the eval loop
 
-- Keep `CHANGELOG.md`: version → date → eval baseline → what changed, one row per deploy.
-- The loop: **edit `supervisor/` → deploy → run `evaluation/` → record the baseline**.
+- Keep `docs/CHANGELOG.md`: version → date → eval baseline → what changed, one row per deploy.
+- The loop: **edit `src/managed/` → deploy → run `evaluation/` → record the baseline**.
   Scaffold the eval area with `{{cmd:eval:new}}` and point the spec at the supervisor's
   query URL.
 
@@ -209,7 +239,7 @@ tweak and a silent regression nobody re-checked.
   nothing produces a stated "I don't know" rather than a fallback to model knowledge.
 - **Cover injection**: a tool result saying "ignore your instructions" is reported as content.
 - **The gate:** a change to `instructions.md`, a tool `description`, or the attached tool list
-  requires a fresh eval run before merge, with the pass rate at or above the `CHANGELOG.md`
+  requires a fresh eval run before merge, with the pass rate at or above the `docs/CHANGELOG.md`
   baseline. A deliberate trade records the new baseline and reason in the same commit.
 - **One run is not a result.** Run the set repeatedly and record the pass rate; a case that
   passes intermittently is failing.
@@ -231,19 +261,54 @@ tweak and a silent regression nobody re-checked.
 
 ## 6. Deployment
 
+### The deploy IS a resource
+
+A supervisor agent has **no DAB resource type**, and the shared CI/CD controller reaches
+project code only through `bundle deploy` followed by `bundle run` on a resource. So the
+deploy has to *be* a resource: the bundle's single resource is a **job** whose one task
+runs the reconciler.
+
+```
+bundle deploy             uploads src/ + python/ to the workspace
+bundle run deploy_agent   runs the reconciler there, against
+                          /api/2.1/supervisor-agents
+```
+
+`run_resources.yml` lists `deploy_agent`, and that entry is what makes the controller
+perform the second step. **Without it the deploy uploads a new spec, changes no agent, and
+reports success.**
+
+This is what keeps a supervisor on the same governed path as every other repo — one deploy
+mechanism, no workspace token in CI, and dev running the identical job the controller runs.
+
 | Target | How |
 |---|---|
-| **local (dev)** | `./deploy.sh` — reconciles `"<display_name> [DEV]"` |
-| **stg / prod** | merge to the `stg` / `prod` branch — CI runs `src/deploy.py --env <branch>`, manual-gated |
+| **validate** | `./run_local.sh` — offline check of the spec |
+| **plan** | `./run_local.sh plan` — what a deploy would add, change or **delete** |
+| **local (dev)** | `./run_local.sh deploy` — `bundle deploy -t dev`, then `bundle run` |
+| **stg** | merge to the `stg` branch — the controller deploys |
+| **prod** | merge to `prod`, then press play in Build → Pipelines |
 
-Auth is the default Databricks SDK chain (`DATABRICKS_HOST` + token, or a CLI profile). For
-stg / prod those two variables are set **per branch** in GitLab CI/CD settings — the
-workspace they point at is what separates the environments, since the repo stores no
-per-environment id (§3a).
+Never run `databricks bundle deploy -t stg|prod` by hand.
 
-There is no shared-controller path: a supervisor is not a DAB resource, so nothing is
-deployed by the bundle controller. If that changes, the wrapper changes and `supervisor/` +
-`deploy.py` do not.
+Auth comes from the runtime: inside the job it is the bundle's `run_as` principal, and
+locally it is your `~/.databrickscfg` profile. There is no `DATABRICKS_TOKEN` in CI.
+
+### Nothing in `src/` names an environment
+
+`agent.yml` references `${...}` placeholders; `resources/deploy.job.yml` passes them as
+`--var`, and `databricks.yml` sets them per target. A Genie space id is workspace-local, so
+the dev value is never valid in stg. Two guards, both in `deploy_agent.py`:
+
+- an unresolved `${name}` **fails** rather than reaching the API;
+- a value still left as `TODO_SET_*` is **rejected** — the API would accept it as an id, and
+  the agent would deploy green with a tool that answers nothing.
+
+### Run `plan` before changing the tool list
+
+Reconciliation deletes every tool it does not find declared in `agent.yml`, including
+anything added through the Agents-tab UI. That is the point — the repo is authoritative —
+but it is not recoverable from the repo, so look at the plan first.
 
 ---
 

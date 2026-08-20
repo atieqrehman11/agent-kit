@@ -1,18 +1,22 @@
-# SKELETON — implement the TODO blocks. See docs/PIPELINE_STANDARDS.md for guidance.
+# SKELETON — implement the TODO blocks.
 # Task 4 — Embeddings & Vector Search Index
 # Part A (pipeline): ai_query embedding model → gold.TPLVAR_RAW_PREFIX_chunks_with_embeddings
 # Part B (run manually after pipeline): create/sync Vector Search index
-# Input:   TPLVAR_CATALOG.gold.TPLVAR_RAW_PREFIX_enriched_chunks
-# Outputs: TPLVAR_CATALOG.gold.TPLVAR_RAW_PREFIX_chunks_with_embeddings
-#          TPLVAR_CATALOG.gold.TPLVAR_RAW_PREFIX_chunks_index  (Vector Search)
+# Input:   <catalog>.gold.TPLVAR_RAW_PREFIX_enriched_chunks
+# Outputs: <catalog>.gold.TPLVAR_RAW_PREFIX_chunks_with_embeddings
+#          <catalog>.gold.TPLVAR_RAW_PREFIX_chunks_index  (Vector Search)
 
 # COMMAND ----------
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, FloatType
 
-CATALOG          = "TPLVAR_CATALOG"
-TABLE_PREFIX     = "TPLVAR_RAW_PREFIX"
+# Per-environment values come from the pipeline's `configuration:` block
+# (resources/etl.pipeline.yml), never from a literal here — a literal survives the
+# target override untouched, so a stg run would read dev's data and succeed.
+CATALOG      = spark.conf.get("pipeline.catalog")
+SCHEMA       = spark.conf.get("pipeline.schema")
+TABLE_PREFIX = spark.conf.get("pipeline.table_prefix")
 GOLD_SCHEMA      = "gold"
 EMBEDDING_MODEL  = "databricks-gte-large-en"  # 1024-dim, 512-token limit
 VS_ENDPOINT_NAME = "TPLVAR_RAW_PREFIX-vs-endpoint"  # TODO: use a shared endpoint if one exists

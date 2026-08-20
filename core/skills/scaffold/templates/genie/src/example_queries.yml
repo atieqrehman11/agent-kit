@@ -1,19 +1,30 @@
-# Curated example SQL queries — question <-> trusted-SQL pairs Genie uses as
-# few-shot examples. OPTIONAL and the biggest accuracy lever. This is a TEMPLATE:
-# the list is empty, so nothing is sent until you add entries. Each entry pairs a
-# natural-language `question` with the exact single-statement `sql` that answers
-# it against this space's data_sources. See docs/GENIE_STANDARDS.md §6.
+# Curated question -> trusted-SQL pairs, used as few-shot examples. OPTIONAL, and
+# the single biggest accuracy lever a space has.
+#
+# The list ships empty, so nothing is sent until you add entries. Each entry pairs
+# a natural-language `question` with the exact single-statement `sql` that answers
+# it against this space's data_sources.
+#
+# Rules that are not obvious:
+#   - The SQL must name ${catalog}.${schema}. — python/validate.py fails the build
+#     on a literal catalog, because it would make stg read dev.
+#   - `id` is minted by python/build_space.py on the first build and written back
+#     into this file. Commit it: it is what makes a redeploy edit the pair in
+#     place rather than dropping it and adding a new one.
+#   - Block scalars are byte-significant. `|` keeps the trailing newline, `|-`
+#     does not, and the payload is compared byte for byte. Do not tidy them.
+#   - The question must be a QUESTION. Pasting the SQL into the question field
+#     teaches Genie nothing and dilutes every other pair.
+#
+# Replace the block below with your own, e.g.
+#
+#   example_queries:
+#     - question: "How many active customers are there by region?"
+#       sql: |-
+#         SELECT region, COUNT(*) AS active_customers
+#         FROM ${catalog}.${schema}.TPLVAR_TABLE_PREFIXcustomers
+#         WHERE status = 'ACTIVE'
+#         GROUP BY region
+#         ORDER BY active_customers DESC
+
 example_queries: []
-  # - question: "How many active customers are there by region?"
-  #   sql: |
-  #     SELECT region, COUNT(*) AS active_customers
-  #     FROM your_catalog.gold.customers
-  #     WHERE status = 'ACTIVE'
-  #     GROUP BY region
-  #     ORDER BY active_customers DESC
-  # - question: "What was total revenue last month?"
-  #   sql: |
-  #     SELECT SUM(amount) AS total_revenue
-  #     FROM your_catalog.gold.orders
-  #     WHERE order_date >= date_trunc('month', current_date - INTERVAL 1 MONTH)
-  #       AND order_date <  date_trunc('month', current_date)

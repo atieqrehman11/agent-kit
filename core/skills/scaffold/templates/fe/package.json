@@ -5,12 +5,11 @@
   "type": "module",
   "description": "TPLVAR_DESCRIPTION",
   "scripts": {
-    "setup": "npm install && npm run ui:init",
-    "ui:init": "shadcn@latest add --yes --overwrite button card badge input label table tabs dialog checkbox progress select dropdown-menu separator skeleton sonner tooltip avatar",
     "dev": "vite",
+    "start": "node server.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview --port 5173",
-    "serve": "node server.mjs",
+    "ui:init": "shadcn@latest add --yes --overwrite button card badge input label table tabs dialog checkbox progress select dropdown-menu separator skeleton sonner tooltip avatar",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -18,10 +17,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "budget": "node scripts/check-bundle-size.mjs",
-    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build && npm run budget"
+    "verify": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build && pnpm run budget"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.1",
@@ -68,5 +67,6 @@
     "workerDirectory": [
       "public"
     ]
-  }
+  },
+  "packageManager": "pnpm@10.34.5"
 }

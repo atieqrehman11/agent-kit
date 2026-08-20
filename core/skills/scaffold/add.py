@@ -4,10 +4,11 @@
 ``new.py`` creates a whole repo. This adds a single slice to a repo you already
 have, including repos this tool never created. Two aspects are choosable:
 
-    deploy the deploy config — databricks.yml + resources/ + run_local.sh
-    gitlab the GitLab pipeline — .gitlab-ci.yml +
-           run_resources.yml + .bundleignore, and on a job repo the
-           config/{DEV,STG,PROD} it reads per target
+    deploy the deploy config — databricks.yml + resources/ + run_local.sh +
+           run_resources.yml (+ .bundleignore where it applies). Which
+           descriptor and resource it resolves depends on the repo type.
+    gitlab the GitLab pipeline — .gitlab-ci.yml: validate, then trigger the
+           shared DAB controller on merge to stg/prod
     api    the use case API surface — GET /v1/health + GET /v1/info
 
 Usage:
@@ -394,7 +395,6 @@ def _print_list():
     # Driven by AUTO rather than written out, so an aspect added to the automatic set
     # cannot be applied by a run and missing from the list that describes the run.
     hint = {
-        "standards": "docs/         the standards for this repo type, each with its conformance sheet",
         "gitignore": ".gitignore    the ignore file for this repo type (Node for fe, "
         "Python / Databricks otherwise)",
         "specs": "docs/specs/   the per-feature spec convention {{cmd:deliver:spec}} reads and writes",

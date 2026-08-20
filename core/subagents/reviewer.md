@@ -139,6 +139,50 @@ Severity: an over-limit function that this diff **adds** is a WARNING; one it me
 note naming the file. It escalates to CRITICAL only when the complexity is itself the cause of a
 correctness or security finding — then report it there, once, not twice.
 
+### 3b. Structure gate — Databricks code
+
+**Run this on every review that touches a job, pipeline, agent or genie surface** — stage files,
+pipeline cells, deploy and build scripts, bundle and resource YAML, view or UC-function DDL.
+Dimension 3 does not cover these: `service-structure` is the contract for a request/response
+service, and its four rows come back `n-a` for a stage file that has no boundary and no
+repository. That is the wrong answer, not a clean one — the two rows that matter most here are
+the ones a bundle can get silently wrong.
+
+**Contract:** `__GUIDELINES_DIR__/conformance/python.md` §*Error handling and configuration* and
+§*Databricks compute*, plus the configuration and idempotency sections of whichever of
+`conformance/{job,pipeline,agent,genie}.md` is in scope.
+
+Four rows, in the order they are actually found:
+
+1. **Environment values.** Every catalog, schema, volume path, warehouse, endpoint name and
+   table prefix reaches the code as a bundle variable, task parameter or pipeline
+   `configuration:` key — never as a literal. This is first because it fails *green*: a literal
+   survives the target override untouched, so a stg run reads dev's data and reports success.
+   Check the target overrides exist too — a declared variable with no per-target value is the
+   same defect one level up.
+2. **Idempotency and write mode.** A retried task or replayed batch must converge, not
+   duplicate: `MERGE` or overwrite-by-partition on a natural key rather than blind `append`,
+   and the mode correct for the layer.
+3. **Prompt, schema and instruction text.** Prompt strings, extraction schemas and routing
+   instructions are versioned artefacts — a file or a config value, not an f-string at a
+   callsite. An AI Function's prompt is covered by this rule exactly as a chat prompt is.
+4. **Run context in logs.** Driver logging carries environment, catalog, table and row counts,
+   so a run can be traced without re-running it. `print()` is acceptable on Databricks compute
+   and is *not* a finding there; a bare `print()` carrying no context is.
+
+Report each of the four as **pass / fail / n-a with a one-line note**, even when all pass.
+
+Severity, so the verdict is not a judgement call:
+
+- A **literal environment value** in code or committed configuration that a target is supposed
+  to override is CRITICAL. It cannot be caught downstream — the run succeeds.
+- A **blind `append` where a replay can double-write**, or a write mode wrong for the layer, is
+  CRITICAL.
+- A **prompt, extraction schema or instruction as a string literal**, and any **secret in
+  source**, is CRITICAL.
+- Missing run context in logging is a WARNING.
+- A violation in code this diff merely touches is a WARNING naming the file, not a blocker.
+
 ### 4. Performance
 Java: N+1 queries, missing indexes, blocking in async contexts
 Python: sync blocking in async FastAPI routes, missing caching for hot data,
@@ -220,6 +264,18 @@ Severity rules for this table, so the verdict is not a judgement call:
 - A **layering violation in code this diff adds** is CRITICAL. The same violation in code the
   diff merely touches is a WARNING — say so, and name the file, rather than expanding the diff.
 - Everything else in dimension 3 is a WARNING unless it also breaks correctness or security.
+
+### Structure gate — Databricks (mandatory when the diff touches a job, pipeline, agent or genie surface)
+
+| Check | Verdict | Note |
+|---|---|---|
+| Environment values | pass / fail / n-a | one line |
+| Idempotency and write mode | pass / fail / n-a | one line |
+| Prompt / schema / instruction text | pass / fail / n-a | one line |
+| Run context in logs | pass / fail / n-a | one line |
+
+Severity rules are in dimension 3b. Emit this table *instead of* the service table when the
+surface has no boundary, service or repository layer, and emit both when a diff spans the two.
 
 ### Critical issues (must fix before proceeding to QA)
 | # | Location | Issue | Risk | Required fix |

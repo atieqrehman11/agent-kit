@@ -1,17 +1,21 @@
-# SKELETON — implement the TODO blocks. See docs/PIPELINE_STANDARDS.md for guidance.
+# SKELETON — implement the TODO blocks.
 # Task 2 — Parse & Extract
 # Pattern: ai_parse_document → VARIANT; ai_extract → typed metadata table
-# Input:   TPLVAR_CATALOG.bronze.TPLVAR_RAW_PREFIX_raw_documents  (same pipeline)
-# Outputs: TPLVAR_CATALOG.silver.TPLVAR_RAW_PREFIX_parsed_documents
-#          TPLVAR_CATALOG.silver.TPLVAR_RAW_PREFIX_document_summary  (NL-to-SQL target)
+# Input:   <catalog>.bronze.TPLVAR_RAW_PREFIX_raw_documents  (same pipeline)
+# Outputs: <catalog>.silver.TPLVAR_RAW_PREFIX_parsed_documents
+#          <catalog>.silver.TPLVAR_RAW_PREFIX_document_summary  (NL-to-SQL target)
 
 # COMMAND ----------
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, DateType
 
-CATALOG       = "TPLVAR_CATALOG"
-TABLE_PREFIX  = "TPLVAR_RAW_PREFIX"
+# Per-environment values come from the pipeline's `configuration:` block
+# (resources/etl.pipeline.yml), never from a literal here — a literal survives the
+# target override untouched, so a stg run would read dev's data and succeed.
+CATALOG      = spark.conf.get("pipeline.catalog")
+SCHEMA       = spark.conf.get("pipeline.schema")
+TABLE_PREFIX = spark.conf.get("pipeline.table_prefix")
 SILVER_SCHEMA = "silver"
 LLM           = "databricks-claude-sonnet-4-6"
 

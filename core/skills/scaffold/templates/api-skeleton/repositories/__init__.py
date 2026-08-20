@@ -3,7 +3,7 @@
 Everything that leaves this process goes through here: the SQL warehouse, object
 storage, external HTTP, and any LLM call. Timeouts, retries and backoff live in this
 layer, and a repository raises a domain exception when it gives up — never a raw
-client error, and never a business decision. See docs/SERVICE_STRUCTURE_STANDARDS.md §1.
+client error, and never a business decision.
 
 A repository never calls a service.
 
@@ -23,7 +23,7 @@ Shape to copy (repositories/record_repository.py):
     class RecordRepository:
         def __init__(self, settings: Settings) -> None:
             # Catalog, schema and table prefix come from configuration — never a
-            # literal here (docs/SERVICE_STRUCTURE_STANDARDS.md §5).
+            # literal here.
             self._table = (
                 f"{settings.databricks_catalog}"
                 f".{settings.databricks_gold_schema}"

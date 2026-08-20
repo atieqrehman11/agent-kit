@@ -131,8 +131,6 @@ you point `--output-dir`.
   .agent-kit-install.json         receipt; drives uninstall
 
 <--output-dir>/ai-<slug>-<type>/  a generated repo. Never inside .claude
-  docs/*_STANDARDS.md             copied from core/guidelines at scaffold time
-  docs/*_CONFORMANCE.md           the audit sheet beside each standard
   docs/specs/README.md            the per-feature spec convention /deliver:* reads and writes
   docs/specs/<feature>/           requirements · design · tasks · report, one folder per feature
   CONFIG.md                       this repo's TODO_SET_* sheet
@@ -243,7 +241,6 @@ $ scaffold:new --type api --slug payments --display-name "Payments API"
 ============================================================
   [api] copied skeleton from templates/api-skeleton/
   [cicd] .gitlab-ci.yml, team_config.yaml, .bundleignore, run_resources.yml
-  [standards] 5 files
   [gitignore] .gitignore
   [config] CONFIG.md — 15 placeholder(s) to fill, then /scaffold:configure
 
@@ -284,7 +281,6 @@ $ scaffold:new --type agent --slug support-agent --display-name "Support Agent"
   Output:      ~/repos/ai-support-agent
 ============================================================
   [agent] copied skeleton from templates/agent/
-  [standards] docs/AGENT_STANDARDS.md, docs/PYTHON_STANDARDS.md
   [gitignore] .gitignore
   [specs] docs/specs/README.md
   [config] CONFIG.md — 2 placeholder(s) to fill, then /scaffold:configure
@@ -366,7 +362,7 @@ $ python src/validate.py
 
 ERROR: supervisor/supervisor.yml: instructions_file 'nope.md' does not resolve to a file
 ERROR: supervisor/supervisor.yml: remove 'supervisor_agent_id'. Deploy state does not belong
-       in the repo — the supervisor is resolved by name (docs/AGENT_STANDARDS.md §3a)
+       in the repo — the supervisor is resolved by name (agent guideline §3a)
 ERROR: supervisor/supervisor.yml: tools[0] is missing description
 ```
 
@@ -419,11 +415,6 @@ $ scaffold:add --repo ~/repos/legacy --aspect api
   [api] added schema/models.py
   [api] added services/__init__.py
   [api] added repositories/__init__.py
-  [standards] added docs/API_STANDARDS.md   (always included)
-  [standards] added docs/PYTHON_STANDARDS.md   (always included)
-  [standards] added docs/API_STANDARDS_CONFORMANCE.md   (always included)
-  [standards] added docs/SERVICE_STRUCTURE_STANDARDS.md   (always included)
-  [standards] added docs/SERVICE_STRUCTURE_STANDARDS_CONFORMANCE.md   (always included)
   [gitignore] added .gitignore   (always included)
   [specs] added docs/specs/README.md   (always included)
   [config-sheet] CONFIG.md — 1 placeholder(s) outstanding
@@ -439,11 +430,11 @@ $ scaffold:add --repo ~/repos/legacy --aspect api
     [api] Configure logging once at startup, from settings:  configure_logging(...)  — then
           remove any basicConfig / setLevel elsewhere, or LOG_LEVEL stops working.
     [api] Add the request context middleware — it generates and echoes X-Request-ID and emits
-          the one access-log line (docs/API_STANDARDS.md §10).
+          the one access-log line (api guideline §10).
     [api] Register the exception handlers — this is what normalizes FastAPI's {'detail': ...}
-          onto the ErrorResponse envelope and installs the catch-all (docs/API_STANDARDS.md §7).
+          onto the ErrorResponse envelope and installs the catch-all (api guideline §7).
     [api] Raise from core/exceptions.py in services and repositories — never HTTPException
-          below the router (docs/SERVICE_STRUCTURE_STANDARDS.md §3).
+          below the router (service-structure guideline §3).
     [api] Set CORS from settings.cors_origins — an allowlist, never ['*'].
 
   Then:
@@ -455,9 +446,11 @@ $ scaffold:add --repo ~/repos/legacy --aspect api
 > `core/handlers.py` in does nothing until something calls `register_exception_handlers(app)`
 > — so the script says so rather than pretending the aspect is finished.
 
-The `[standards]` lines are there because the code the aspect delivers *cites* those docs.
-Without them, adding the api aspect produced a repo with no `docs/` and ten pointers into
-nothing.
+**No standards docs are copied in.** The api aspect's code cites the guidelines by name
+(`api guideline §7`, `service-structure guideline §3`) and those names resolve in agent-kit at
+`~/.claude/guidelines/`, so there is nothing to ship alongside the code. Copying them per repo
+was measured across six repos: six different subsets, every one drifted from source, and
+`/review:mr` never read them anyway — it resolves `core/guidelines/conformance/` directly.
 
 Re-run the same add and nothing is overwritten:
 
@@ -507,8 +500,6 @@ $ scaffold:add --repo ~/repos/legacy-agent --aspect cicd
   [cicd] added .gitlab-ci.yml
   [cicd] added src/validate.py
   [cicd] added src/deploy.py
-  [standards] added docs/AGENT_STANDARDS.md   (always included)
-  [standards] added docs/PYTHON_STANDARDS.md   (always included)
   [gitignore] added .gitignore   (always included)
   [specs] added docs/specs/README.md   (always included)
   [config-sheet] CONFIG.md — 2 placeholder(s) outstanding
@@ -516,8 +507,8 @@ $ scaffold:add --repo ~/repos/legacy-agent --aspect cicd
 
 > **The pipeline brings the scripts it invokes.** Its two jobs are `python src/validate.py`
 > and `python src/deploy.py`, so shipping the `.gitlab-ci.yml` alone would install a pipeline
-> pointing at files that are not there — the same broken-pointer class the `[standards]` lines
-> exist to prevent. On a scaffolded repo that already has them, both are reported `SKIPPED`.
+> pointing at files that are not there — the same broken-pointer class every aspect has to
+> avoid. On a scaffolded repo that already has them, both are reported `SKIPPED`.
 
 Everything available:
 

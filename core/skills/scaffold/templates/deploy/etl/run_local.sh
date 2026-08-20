@@ -31,7 +31,7 @@ fi
 # or `prod` branch and .gitlab-ci.yml triggers the controller. This script
 # refuses any target other than dev on purpose — do not deploy to prod locally.
 #
-# Usage: ./bundle.sh
+# Usage: ./run_local.sh deploy
 # ==============================================================================
 
 BUNDLE_TARGET="${BUNDLE_TARGET:-dev}"
@@ -40,7 +40,7 @@ SOURCE_DIR="$(cd "$(dirname "$0")" && pwd)"
 DATABRICKS_BIN="${DATABRICKS_BIN:-databricks}"
 
 if [ "$BUNDLE_TARGET" != "dev" ]; then
-  echo "ERROR: bundle.sh only deploys to dev. stg/prod go through the CI/CD" >&2
+  echo "ERROR: run_local.sh only deploys to dev. stg/prod go through the CI/CD" >&2
   echo "       controller (merge to the stg/prod branch)." >&2
   exit 1
 fi

@@ -1,0 +1,31 @@
+# Editor settings that are load-bearing, not cosmetic.
+#
+# Several files in these repos are sent BYTE-VERBATIM to a platform API — Genie
+# instructions, an agent's system prompt — and the payload is compared byte for
+# byte on the next deploy. An editor that helpfully adds a trailing newline or
+# strips trailing whitespace turns a no-op deploy into a content change.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{py,pyi}]
+indent_style = space
+indent_size = 4
+
+[*.{yml,yaml,json,md,sql,ts,tsx,js,jsx,mjs,css}]
+indent_style = space
+indent_size = 2
+
+# Prose sent verbatim to an API. Do not let the editor touch either end of it.
+[{src/instructions.md,src/managed/instructions.md}]
+insert_final_newline = false
+trim_trailing_whitespace = false
+
+# Markdown uses trailing double-space as a hard line break.
+[*.md]
+trim_trailing_whitespace = false

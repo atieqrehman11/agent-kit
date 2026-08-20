@@ -1,17 +1,15 @@
-# ============================================================================
-# GITLAB CI/CD — Databricks Asset Bundle deployment via the shared controller
-# ============================================================================
-# This file is CLOUD deployment. It does NOT run `databricks bundle deploy`
-# locally — it triggers the shared DAB CI/CD controller pipeline, which deploys
-# the bundle into the stg / prod workspaces.
+# GITLAB CI/CD — TPLVAR_SLUG
 #
-#   • Local dev loop  → run `./bundle.sh` on your laptop (deploys to DEV only).
-#   • Cloud stg/prod  → merge to the `stg` / `prod` branch → this pipeline fires.
+# Never deploys. Validates the bundle config and triggers the shared DAB CI/CD
+# controller, which deploys the bundle into the stg / prod workspaces.
 #
-# Values already filled by the scaffold: GITLAB_RUNNER, CONTROLLER_PROJECT_ID,
-# BUNDLE_TAG, TEAM_TAG. Set CONTROLLER_TRIGGER_TOKEN in
-# Settings > CI/CD > Variables before the first stg/prod deploy.
-# ============================================================================
+#   dev   local: ./run_local.sh deploy
+#   stg   automatic on merge
+#   prod  manual — play button in Build → Pipelines
+#
+# CONTROLLER_TRIGGER_TOKEN is a protected group variable — stg and prod must stay
+# PROTECTED branches, or the trigger silently receives an empty token and the job
+# still goes green.
 
 stages:
   - validate
@@ -20,32 +18,40 @@ stages:
 variables:
   GITLAB_RUNNER: "TPLVAR_GITLAB_RUNNER"
   CONTROLLER_PROJECT_ID: "TPLVAR_CONTROLLER_PROJECT_ID"
-  BUNDLE_TAG: "TPLVAR_BUNDLE_NAME"           # must match bundle.name in databricks.yml
+  BUNDLE_TAG: "TPLVAR_BUNDLE_NAME"        # must match bundle.name in databricks.yml
   TEAM_TAG: "TPLVAR_TEAM_TAG"
-  CONTROLLER_REPO_URL: "TODO_SET_CONTROLLER_REPO_URL"
+  DATABRICKS_CI_IMAGE: "TODO_SET_CI_IMAGE"
 
-# ── Validate on every push / MR ─────────────────────────────────────────────
+default:
+  tags:
+    - $GITLAB_RUNNER      # an untagged job is never picked up
+
 validate:
   stage: validate
-  tags:
-    - $GITLAB_RUNNER
-  image: TODO_SET_CI_IMAGE
+  image: $DATABRICKS_CI_IMAGE
   script:
     - |-
       if [ ! -f "databricks.yml" ]; then
         echo "ERROR: databricks.yml not found"; exit 1
       fi
     - echo "✓ Bundle configuration exists"
+    # A repo that ships python/validate.py checks its own declaration here — the
+    # offline check is the one that catches a bad spec before the controller
+    # applies it. Repos without one skip this silently.
+    - |-
+      if [ -f "python/validate.py" ]; then
+        pip install --quiet "pyyaml>=6.0"
+        PYTHONPATH=python python3 python/validate.py
+      fi
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH
 
-# ── Trigger the controller ───────────────────────────────────────────────────
 # ref=prod is the CONTROLLER's release branch, not our target env.
 #
-# No `image:` — the databricks-ci image has no CA bundle at the path its curl
-# expects, so a trigger run there dies with `curl: (77)`. The runner default has
-# a working curl.
+# No `image:` here on purpose — the databricks-ci image has no CA bundle at the
+# path its curl expects, so a trigger run there dies with `curl: (77)`. The
+# runner default has a working curl.
 #
 # Two failure modes are checked separately: curl's own exit code (DNS, TLS,
 # connection) and the HTTP status — curl exits 0 on 4xx/5xx, so a rejected
@@ -53,8 +59,6 @@ validate:
 # Green means ACCEPTED; the deploy runs in the controller's pipeline.
 .trigger-controller:
   stage: trigger-deploy
-  tags:
-    - $GITLAB_RUNNER
   script:
     - |-
       rc=0

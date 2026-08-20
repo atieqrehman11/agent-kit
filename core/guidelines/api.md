@@ -8,8 +8,7 @@ description: >
   API is designed, built or reviewed.
 applies_to:
   - "**/routers/**/*.py"
-  - "**/app.yml"
-  - "**/docs/API_STANDARDS.md"
+  - "**/resources/*.app.yml"
 ---
 
 # Gen AI Platform API Standards
@@ -81,6 +80,54 @@ Optional capabilities:
 | `CONVERSATION_CONTEXT` | Service exposes data/actions that the conversational API may call. |
 
 `CHAT` is intentionally not listed as a normal use case capability. Chat belongs in the conversational API standard.
+
+---
+
+## 2a. Deploying As A Databricks App
+
+A use case API deploys as a `resources.apps` resource in an Asset Bundle. Three rules here
+are not preference — each one has a failure mode that deploys green.
+
+**Runtime config lives in the app resource, never in a root `app.yml`.** Databricks Apps
+accepts either, but a root `app.yml` is uploaded **verbatim** — it cannot hold a
+per-environment value. Put `command` and `env` in the `config:` block of
+`resources/*.app.yml`, where `${var.*}` goes through DAB variable resolution and each target
+gets its own warehouse, catalog and CORS origin. With a root `app.yml`, stg and prod quietly
+run against dev's data.
+
+**Every env name maps to a field on `Settings`.** Nothing reads an env var directly, so a
+name with no matching field is silently ignored — which looks exactly like a value that did
+not take effect. Add the field first.
+
+**Permissions are per target, not per resource.** A `permissions:` block at resource level
+applies to *every* target, so a dev group named there reaches prod. Declare grants inside
+each target in `databricks.yml`.
+
+> A front end that reverse-proxies to this API needs `CAN_USE` with its own app identity, or
+> every proxied call 401s. That grant has to be a **resource override nested inside the
+> target** — a target-level `permissions:` entry naming a service principal validates
+> cleanly and creates no ACL at all. Each workspace mints the front end a different
+> principal, which is why it cannot be shared across targets.
+
+**Dependencies ship as committed wheels.** The Apps build environment has no outbound
+network, so nothing installs at deploy time. Both halves are required:
+
+- `wheels/` **tracked in git** — the CI/CD controller clones fresh, and an ignored `wheels/`
+  leaves it with nothing;
+- `sync: include: ["wheels/**"]` in `databricks.yml` — without it the directory never
+  reaches the workspace.
+
+Relying on the sync line alone uploads whatever is on the deploying laptop. Build them for
+the platform, not your machine: `manylinux2014_x86_64`, Python 3.11, `--only-binary=:all:`.
+
+**Do not set `mode: development` on the dev target.** It rejects a shared `root_path` and
+prefixes the app name with `[dev <user>]`, renaming the app away from the name everything
+else points at.
+
+**Deploy is not enough.** `bundle deploy` uploads the source; `bundle run <resource-key>`
+creates the app deployment that makes it live. The controller does the second step only for
+resource keys listed in `run_resources.yml` — omit it and the previous version keeps serving
+while the pipeline reports success.
 
 ---
 

@@ -15,45 +15,42 @@ wired for every type.
 
 | Type | Primary resource | Deploy mechanism | CI/CD |
 |---|---|---|---|
-| `api` | `resources.apps` — FastAPI Databricks App | `bundle deploy` | enterprise controller |
-| `etl` | `resources.pipelines` — Lakeflow declarative pipeline | `bundle deploy` | enterprise controller |
-| `job` | `resources.jobs` — scheduled Databricks Job | `bundle deploy` | enterprise controller |
-| `fe` | `resources.apps` — React (Vite + TS) Databricks App | `bundle deploy`, after `npm run build` | own pipeline: verify → build → deploy |
-| `agent` | Agent Bricks Multi-Agent Supervisor | `supervisor_agents` SDK (`./run_local.sh deploy`) | validate → deploy script |
-| `genie` | Genie space | Genie management API (`createspace`/`updatespace`) | validate → apply DDL → deploy script |
+| `api` | `resources.apps` — FastAPI Databricks App | `bundle deploy` + `run` | shared controller |
+| `etl` | `resources.pipelines` — Lakeflow declarative pipeline | `bundle deploy` | shared controller |
+| `job` | `resources.jobs` — scheduled Databricks Job | `bundle deploy` | shared controller |
+| `fe` | `resources.apps` — React (Vite + TS) Databricks App | `bundle deploy` + `run`, after a build | shared controller |
+| `genie` | `resources.genie_spaces` — Genie space | `bundle deploy` | shared controller |
+| `agent` | Agent Bricks Multi-Agent Supervisor | `bundle deploy` + `run` | shared controller |
 
-> `apps` / `jobs` / `pipelines` are the DAB **schema collection keys** (always plural, even
-> for one resource). The single resource key under them is singular and derived from the slug.
+> `apps` / `jobs` / `pipelines` / `genie_spaces` are the DAB **schema collection keys**
+> (always plural, even for one resource). The single resource key under them is singular and
+> derived from the slug.
 
-**Deployment model:**
-- **Controller types (`api`/`etl`/`job`)** — **dev** is the LOCAL dev loop (`./run_local.sh deploy`,
-  this laptop → dev workspace, dev only); **stg/prod** are CLOUD deploys the shared CI/CD
-  controller runs on merge to the `stg`/`prod` branch. Never run `bundle deploy -t stg|prod`
-  locally.
-- **`fe`** — a DAB bundle like the three above (the same `resources.apps` as `api`), but it
-  deploys **itself**. What ships is `dist/`, a build artifact that is not committed, and the
-  controller deploys from a git checkout without running a Node build — so build and deploy
-  happen in one job. **local**: `./run_local.sh deploy` (npm ci → verify → build → deploy → run, dev
-  only); **stg/prod**: the repo's own `.gitlab-ci.yml`, with its own `DATABRICKS_TOKEN`
-  scoped per branch, manual on each. The workspace host is not a CI variable — it comes from
-  the matching target in `databricks.yml`.
-- **`agent`** — no DAB bundle. A **Multi-Agent Supervisor** created via the Databricks
-  `supervisor_agents` SDK — the scripted equivalent of the Agents-tab UI. `supervisor/`
-  holds the definition (`supervisor.yml`: display_name, description, tools list +
-  `instructions.md`), and `src/deploy.py` reconciles the supervisor, attaches the
-  listed tools, and prints the working query URL. **local**: `./run_local.sh deploy` (dev);
-  **stg/prod**: CI runs `src/deploy.py --env <branch>` on branch merge. (Agent Bricks + the
-  `supervisor_agents` SDK are Public Preview — confirm the service/tool-type names first.)
-- **`genie`** — no DAB bundle. `genie-space/space.yml` is the definition and points to
-  `description.md` + `instructions.md` (long prose kept out of the YAML); `src/deploy.py`
-  assembles the `serialized_space` payload and calls the Genie management API. **local**:
-  `./run_local.sh deploy` (dev); **stg/prod**: CI runs the deploy script on branch merge. (Genie
-  management API is Public Preview — confirm the payload field names before first deploy.)
+**Deployment model — one path, for every type:**
+- **dev** is the LOCAL dev loop: `./run_local.sh deploy`, this laptop → dev workspace, dev
+  only. **stg/prod** are CLOUD deploys the shared CI/CD controller runs on merge to the
+  `stg`/`prod` branch. Never run `bundle deploy -t stg|prod` locally.
+- No type deploys itself, and no repo holds a `DATABRICKS_TOKEN` in CI. The controller
+  reaches project code only through `bundle deploy` and `bundle run`, so a repo running its
+  own deploy script would be a second path into the same workspaces that nobody governs.
 
-> **Both non-bundle types store no deploy state.** Neither `supervisor.yml` nor `space.yml`
-> holds an id; the script resolves the resource by name, `"<display_name|title> [ENV]"`, in
-> the workspace `DATABRICKS_HOST` points at. The sharp edge: renaming that field points the
-> next deploy at a *different* resource. See `AGENT_STANDARDS.md` §3a / `GENIE_STANDARDS.md` §4.
+What differs between the types is the **payload**:
+- **`fe`** ships a committed `dist/`. The Apps build environment cannot resolve
+  `registry.npmjs.org`, so nothing can be built there or in CI.
+- **`genie`** ships a committed `generated/space.<target>.json`, built from `src/` by
+  `python/build_space.py`. The controller clones fresh and runs no project scripts, so the
+  artifact has to be in git — and the catalog is baked in per target, because DAB resolves
+  `${var.*}` inside an inline `serialized_space` but reads a `file_path` payload verbatim.
+- **`agent`** has no DAB resource type, so the bundle's one resource is a **job whose single
+  task runs the reconciler** against `/api/2.1/supervisor-agents`. `run_resources.yml` lists
+  it, and that `bundle run` *is* the deploy. Omit the entry and the deploy uploads a new spec,
+  changes no agent, and reports success.
+
+> **Neither `genie` nor `agent` stores deploy state.** DAB owns the Genie space's identity
+> through its resource key in `resources/genie.yml` — renaming that key destroys and
+> recreates the space, losing every conversation in it. The agent is resolved by
+> `display_name`, set per target, so renaming it points the next deploy at a *different*
+> agent. See the `agent` guideline §3a / the `genie` guideline.
 
 ## Choosing the type
 
@@ -66,8 +63,8 @@ in order and stop at the first match:
 | A **browser UI** — dashboard, console, chat surface | `fe` | `resources.apps` |
 | A set of **Delta tables** built by declarative transforms (ingest → bronze → silver → gold, with data quality) | `etl` | `resources.pipelines` |
 | An **action run on a schedule** — export, orchestration/glue, batch scoring, maintenance, or triggering a pipeline | `job` | `resources.jobs` |
-| A conversational / tool-routing **supervisor agent** given instructions + a list of tools | `agent` | Agent Bricks Multi-Agent Supervisor (SDK) |
-| **Natural-language-to-SQL** over curated tables | `genie` | Genie management API |
+| A conversational / tool-routing **supervisor agent** given instructions + a list of tools | `agent` | Agent Bricks Multi-Agent Supervisor |
+| **Natural-language-to-SQL** over curated tables | `genie` | `resources.genie_spaces` |
 
 ### `api` + `fe` — two repos, one product
 
@@ -192,11 +189,12 @@ checklist.
 ## After scaffolding
 
 - Report the full path of the created repo and the printed next-steps.
-- Docs live in **`docs/`**: the cross-cutting `PYTHON_STANDARDS.md` plus the per-type file
-  (`API_STANDARDS.md` / `PIPELINE_STANDARDS.md` / `JOB_STANDARDS.md` / `AGENT_STANDARDS.md` /
-  `GENIE_STANDARDS.md`), each with its `*_CONFORMANCE.md` sheet. An **`fe`** repo gets
-  `REACT_STANDARDS.md` and **no** `PYTHON_STANDARDS.md` — it is TypeScript end to end,
-  `server.mjs` included. The root `README.md` links into `docs/`. Point the user at them.
+- **Standards are not copied into the repo.** The guidelines live in agent-kit and install to
+  `~/.claude/guidelines/<name>.md`; the repo's code cites them by name (`api guideline §7`) and
+  its `README.md` names the ones that govern it — `python` plus the per-type guideline, or
+  `react` alone for an **`fe`** repo, which is TypeScript end to end, `server.mjs` included.
+  Point the user at `~/.claude/guidelines/`, and say that without agent-kit installed they do
+  not have the standards.
 - **Placeholders** — every deferred input is written as a `TODO_SET_` token (e.g.
   `TODO_SET_DEV_WORKSPACE_HOST`, `TODO_SET_CATALOG`, `TODO_SET_TABLE_PREFIX`,
   `TODO_SET_TEAM_NAME`) and listed in the repo's generated `CONFIG.md`. Tell the user to fill
@@ -231,25 +229,28 @@ checklist.
   differs is the payload: `dist/` is **committed**, because the Apps build environment cannot
   resolve `registry.npmjs.org` and the controller deploys from a fresh clone. Tell the user
   to rebuild and commit `dist/` whenever `src/` changes — a stale one deploys green and
-  serves the previous bundle — and that `npm run verify` is what `./run_local.sh deploy` runs. Full guidance: `docs/REACT_STANDARDS.md`.
-- **agent** — no bundle: a Multi-Agent Supervisor deployed by script. Write the routing
-  guidance in `supervisor/instructions.md`, set `display_name`/`description` and the `tools`
-  list (each: `id`, `type`, `description` + its id) in `supervisor/supervisor.yml`, then
-  `./run_local.sh deploy` to reconcile the supervisor, attach the tools, and print the working
-  query URL (needs `DATABRICKS_HOST` + `DATABRICKS_TOKEN`). For stg/prod, set those two
-  variables per branch in GitLab CI/CD and merge — the deploy job is manual on each. Tell
-  the user that `display_name` **is** the deployed supervisor's identity (no id is stored),
-  so renaming it re-points the deploy. Confirm the `supervisor_agents` SDK
-  service/tool-type names in `src/deploy.py` first (Preview). Full guidance:
-  `docs/AGENT_STANDARDS.md`.
-- **genie** — no dummy content is scaffolded: `views/` and `functions/` ship empty and
-  `example_queries.yml` / `sample_questions` are commented templates. Point
-  `genie-space/space.yml` → `data_sources.tables` at curated gold tables you already own
-  (add a backing view under `views/` only if needed), write `description.md` + `instructions.md`,
-  optionally fill `example_queries.yml` (question→SQL few-shot pairs — the biggest accuracy
-  lever), then `./run_local.sh deploy` (local dev) or merge to stg/prod (CI). Tell the user that
-  `title` **is** the deployed space's identity (no id is stored), so renaming it re-points
-  the deploy. Full walkthrough: `docs/GENIE_STANDARDS.md` §5–§8.
+  serves the previous bundle — and that `pnpm run verify` is what `./run_local.sh deploy` runs. Full guidance: the `react` guideline.
+- **agent** — write the routing guidance in `src/managed/instructions.md`, then set the
+  `tools` list in `src/managed/agent.yml` (each: `tool_id`, `tool_type`, the type-specific
+  spec, and a `description` that says when to route there *and what it does not cover*).
+  `./run_local.sh` validates offline; `./run_local.sh plan` shows what a deploy would add,
+  change or **delete**; `./run_local.sh deploy` does it against dev. Tell the user two
+  things: a tool NOT declared in `agent.yml` is deleted from the live agent, including
+  anything added in the Agents-tab UI — so run `plan` before touching the tool list; and
+  every `${name}` must be set per target in `databricks.yml`, because a Genie space id is
+  workspace-local and the dev value is never valid in stg. Agent Bricks is Preview — confirm
+  the tool-type names first. Full guidance: the `agent` guideline.
+- **genie** — no dummy content is scaffolded: `src/views/` and `src/functions/` ship empty,
+  and `data_sources.yml` / `sql_functions.yml` / `example_queries.yml` ship with empty lists
+  and a worked example in comments. Point `src/data_sources.yml` at curated gold tables you
+  already own, write `src/instructions.md`, then fill `src/example_queries.yml` — the
+  question→SQL few-shot pairs are the biggest accuracy lever a space has. Tell the user
+  three things: every identifier must start with `${catalog}.${schema}.` or a stg deploy
+  silently reads dev (`python/validate.py` enforces it); `./run_local.sh all` must be run and
+  `generated/` committed before promoting, or stg deploys a stale space; and the DDL under
+  `src/{views,functions}/` is **not** deployed by the bundle — apply it to the catalog
+  yourself, or the space deploys clean and answers nothing. Full walkthrough:
+  the `genie` guideline.
 - To score the deployed stack, scaffold `evaluation/` with `{{cmd:eval:new}}`.
 - To add a **single piece** later — or to a repo this command never created — use
   **`{{cmd:scaffold:add}}`**: the `deploy` config, the `gitlab` pipeline, or the `api` surface (`/v1/health` +

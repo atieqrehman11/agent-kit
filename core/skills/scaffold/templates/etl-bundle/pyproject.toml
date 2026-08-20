@@ -1,5 +1,5 @@
 # Ruff config only — etl ships notebook-style task files, not a packaged wheel.
-# Code style per PYTHON_STANDARDS.md (line length 100, Python 3.12+).
+# Line length 100, Python 3.12+.
 [tool.ruff]
 line-length = 100
 target-version = "py312"

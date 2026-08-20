@@ -1,6 +1,6 @@
 """Every model this service exposes, in one place.
 
-docs/SERVICE_STRUCTURE_STANDARDS.md §2: models live under schema/, defined once. A
+Models live under schema/, defined once. A
 request model declared inline in a router is a second source of truth for the same
 contract — put it here instead.
 """
@@ -13,7 +13,7 @@ T = TypeVar("T")
 
 
 class ErrorResponse(BaseModel):
-    """API_STANDARDS §7. Built only by core/handlers.py — never by a route."""
+    """The error envelope. Built only by core/handlers.py — never by a route."""
 
     error_code: str
     message: str
@@ -24,7 +24,7 @@ class ErrorResponse(BaseModel):
 
 
 class Page(BaseModel, Generic[T]):
-    """API_STANDARDS §8 pagination envelope. Every list endpoint returns this."""
+    """The pagination envelope. Every list endpoint returns this."""
 
     items: list[T]
     limit: int
@@ -34,7 +34,7 @@ class Page(BaseModel, Generic[T]):
 
 
 class HealthResponse(BaseModel):
-    """API_STANDARDS §4."""
+    """The info payload."""
 
     status: str = Field(description="OK | DEGRADED | ERROR")
     service_id: str
@@ -45,7 +45,7 @@ class HealthResponse(BaseModel):
 
 
 class InfoResponse(BaseModel):
-    """API_STANDARDS §3."""
+    """The health payload."""
 
     service_id: str
     display_name: str

@@ -6,15 +6,17 @@ description: >
   idempotency. Applies when writing or reviewing a scheduled job.
 applies_to:
   - "**/resources/*.job.yml"
-  - "**/docs/JOB_STANDARDS.md"
+  - "**/src/task_[0-9][0-9]_*.py"
+  - "**/src/ddl/**"
 ---
 
 # Job Standards — __ORG_PREFIX__Scheduled Databricks Job Reference
 
 Best practices for the `job` repo type: a scheduled (or triggered) **Databricks Job**
-(`resources.jobs`) that runs plain PySpark from `src/main.py`.
+(`resources.jobs`) that runs one task per stage from `src/task_0N_*.py`.
 
-Implement domain logic in the `TODO` blocks of `src/main.py` following the patterns here.
+Implement domain logic in the `TODO` blocks of those stage files following the patterns
+here.
 
 ---
 
@@ -30,7 +32,7 @@ graph:
 
 Choose `etl` instead when the work is a medallion pipeline of dependent tables — Auto
 Loader → bronze → silver → gold with AI Functions. That belongs in a Lakeflow pipeline
-(`resources.pipelines`), not a job. See `PIPELINE_STANDARDS.md`.
+(`resources.pipelines`), not a job. See [`pipeline`](./pipeline.md).
 
 ---
 
@@ -38,27 +40,47 @@ Loader → bronze → silver → gold with AI Functions. That belongs in a Lakef
 
 ```
 databricks.yml               bundle name + uuid + dev/stg/prod targets + variables
-resources/job.job.yml        the one job resource (schedule, clusters, tasks)
-src/main.py                  entry point: run(config) — implement the TODO blocks
-config/DEV|STG|PROD/         per-environment task_config.yaml (catalog, params)
-bundle.sh                    LOCAL dev deploy only (this laptop → dev workspace)
-.gitlab-ci.yml               enterprise controller trigger (stg/prod)
-team_config.yaml             controller registration (bundle_name, uuid, url)
-run_resources.yml            empty by default — the job runs on its schedule, not on deploy
+resources/job.job.yml        the one job resource (schedule, tasks, task chain)
+src/task_01_<verb>.py        one file per stage — implement the TODO blocks
+src/task_02_<verb>.py
+run_local.sh                 LOCAL dev deploy only (this laptop → dev workspace)
+.gitlab-ci.yml               controller trigger (stg/prod)
+run_resources.yml            empty — the job runs on its schedule, not on deploy
 ```
+
+**One task per stage, chained with `depends_on`.** A failed run then resumes from the task
+that failed rather than re-running everything before it, and the run page shows which stage
+is slow. A single task doing five things is one opaque success-or-failure.
+
+Name the files for what they do and number them for the order they run in — the numbering is
+what makes the DAG legible next to the resource file that wires it.
 
 ---
 
-## 3. Config: one file per environment
+## 3. Config: explicit parameters, not a config file
 
-The job reads `${var.config_dir}/task_config.yaml`, and `config_dir` resolves to
-`config/DEV`, `config/STG`, or `config/PROD` per target. **Never hard-code the catalog or
-environment-specific values in `src/main.py`** — put them in the per-env config so the same
-code runs unchanged in dev, stg, and prod.
+Every per-environment value is a **bundle variable** in `databricks.yml`, passed to each
+task as a `base_parameters` entry and read by the stage as a widget:
 
-- Keep secrets out of config files — read them from a Databricks secret scope at runtime.
-- The `--config` path is passed by the job task; `main.py` should load it and fail loudly
-  if a required key is missing.
+```python
+dbutils.widgets.text("catalog", "myapp_dev")
+CATALOG = dbutils.widgets.get("catalog")
+```
+
+**Never hard-code a catalog, schema or workspace path in a stage file** — that is what makes
+the same file run unchanged in dev, stg and prod.
+
+Why parameters rather than a per-environment `task_config.yaml`: the values a run actually
+used are then visible **in the run itself**, on the task's own page. With a config file you
+are reading a file in the workspace and inferring which one the run picked up — and a
+`config_dir` pointing at the wrong target is invisible until the output is wrong.
+
+- Declare each parameter as a widget with a sensible dev default, so the notebook is also
+  runnable interactively.
+- Keep secrets out of parameters — read them from a Databricks secret scope at runtime.
+- `config_dir` and `policy_id` stay **declared but unused** in `databricks.yml`: the CI/CD
+  controller passes both on every deploy, and `bundle deploy` errors on an undeclared
+  `--var`.
 
 ---
 
@@ -74,15 +96,32 @@ code runs unchanged in dev, stg, and prod.
 
 ---
 
-## 5. Clusters & policy
+## 5. Compute
 
-- Use a **job cluster** (created per run, torn down after) — not an all-purpose cluster.
-- `policy_id` (`${var.policy_id}`) is required so the run-as principal is allowed to create
-  the cluster; set the real policy id per environment in `databricks.yml`.
+**Default to serverless.** No `job_clusters` block, no `policy_id`, no cluster to size and
+no start-up wait before the first stage runs. Most of these jobs are Delta reads and writes
+plus some SQL or AI-function calls, which is exactly what serverless is for.
+
+Reach for a **classic job cluster** only when serverless genuinely cannot do the work — a
+pinned runtime version, an init script, a library the serverless environment will not
+resolve, or a workload that needs specific instance types. Then:
+
+- A **job cluster** (created per run, torn down after) — never an all-purpose cluster.
+- `policy_id` (`${var.policy_id}`) becomes required: the run-as principal cannot create a
+  cluster without a policy that permits it. Set the real id per environment.
 - `data_security_mode: SINGLE_USER` for Unity Catalog access under the job's service
   principal.
-- Right-size with `autoscale` (min/max workers). Start small; a batch job rarely needs a
-  large fixed cluster.
+- Right-size with `autoscale` (min/max workers). Start small.
+
+Record *why* in a comment when you take the classic path. "It has always been a cluster" is
+how a job keeps paying for a five-minute cold start it stopped needing two runtimes ago.
+
+## 5a. Concurrency
+
+- `max_concurrent_runs: 1` unless the job is genuinely safe to run twice at once. Two runs
+  writing the same table is a corruption incident, not a throughput win.
+- `queue.enabled: true` so a trigger that fires while the previous run is still going waits
+  instead of being dropped.
 
 ---
 

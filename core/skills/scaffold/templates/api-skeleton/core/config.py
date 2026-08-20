@@ -1,8 +1,7 @@
 """Every value this service reads, in one validated place.
 
-docs/SERVICE_STRUCTURE_STANDARDS.md §5: configuration is loaded and validated once at
-startup, into a typed settings object, and fails loudly on a missing key. Nothing else
-in this repo calls os.getenv.
+Configuration is loaded and validated once at startup, into a typed settings object,
+and fails loudly on a missing key. Nothing else in this repo calls os.getenv.
 """
 
 from functools import lru_cache
@@ -23,7 +22,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # ── Identity — feeds GET /v1/info (API_STANDARDS §3) ──────────────────────
+    # ── Identity — feeds GET /v1/info ────────────────────────────────────────
     service_id: str = "TPLVAR_SLUG"
     display_name: str = "TPLVAR_DISPLAY_NAME"
     description: str = "TPLVAR_DESCRIPTION"
@@ -40,13 +39,17 @@ class Settings(BaseSettings):
 
     # ── Boundary ──────────────────────────────────────────────────────────────
     # An allowlist. Empty means same-origin only — never "*" in a deployed
-    # environment (API_STANDARDS §10). Set as JSON: CORS_ORIGINS='["https://…"]'
+    # environment. Set as JSON: CORS_ORIGINS='["https://…"]'
     cors_origins: list[str] = Field(default_factory=list)
     max_page_size: int = 500
     max_request_bytes: int = 10 * 1024 * 1024
     request_timeout_seconds: float = 30.0
 
-    # ── Data sources — values come from app.yml ───────────────────────────────
+    # ── Data sources — values come from resources/api.app.yml ─────────────────
+    # Every env name set there must have a field here. Nothing reads an env var
+    # directly, so a name with no field is silently ignored — which looks exactly
+    # like a value that did not take effect.
+    databricks_warehouse_id: str = ""
     databricks_http_path: str = ""
     databricks_catalog: str = ""
     databricks_gold_schema: str = "gold"

@@ -13,8 +13,9 @@ applies_to:
 
 Cross-cutting **code** standard for every repo. This is the *how to write
 Python here* layer; pair it with your repo's **resource** standard
-(`API_STANDARDS.md` / `PIPELINE_STANDARDS.md` / `JOB_STANDARDS.md` / `AGENT_STANDARDS.md` /
-`GENIE_STANDARDS.md`), which covers *how to build this resource type*. The two layers do not
+([`api`](./api.md) / [`pipeline`](./pipeline.md) / [`job`](./job.md) /
+[`agent`](./agent.md) / [`genie`](./genie.md)), which covers *how to build this resource
+type*. The two layers do not
 overlap — style and structure live here, domain patterns live there.
 
 > **Service code also follows [`service-structure`](./service-structure.md)** — the layer
@@ -205,7 +206,7 @@ asserts nothing raised is not a test; assert the value.
   see [`service-structure`](./service-structure.md) §4.
 - **Unity Catalog access:** use the three-level namespace `catalog.schema.table`; rely on
   managed identities for access; use `spark.sql()` for DDL; query `information_schema` for
-  metadata. (Table **naming** conventions live in `PIPELINE_STANDARDS.md`.)
+  metadata. (Table **naming** conventions live in [`pipeline`](./pipeline.md).)
 
 ---
 

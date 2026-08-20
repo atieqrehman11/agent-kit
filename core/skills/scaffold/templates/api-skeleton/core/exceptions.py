@@ -1,8 +1,8 @@
 """One exception hierarchy for the whole service.
 
-docs/SERVICE_STRUCTURE_STANDARDS.md §3: domain code raises, the boundary translates,
+Domain code raises, the boundary translates,
 nothing in between builds an error body. Every exception here carries a stable
-error_code from the API_STANDARDS §7 table.
+error_code from the platform error table.
 
 Services and repositories raise these. They never raise HTTPException — that would
 tie the logic to being called over HTTP, and this code should also be reachable from
@@ -92,7 +92,7 @@ class UpstreamTimeoutError(AppError):
 
 
 # TODO: add service-specific exceptions here. Prefix their error_code with this
-# service's id, upper-cased with underscores, per API_STANDARDS §7 — so a caller
+# service's id, upper-cased with underscores — so a caller
 # can tell a platform error from one of ours. e.g. for service_id "kpi-reporting":
 #
 # class ReportExpiredError(AppError):

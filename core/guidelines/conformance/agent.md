@@ -10,15 +10,18 @@ This is payload, not a guideline: it carries no frontmatter and is never invocab
 
 Layout and deploy:
 
-- [ ] The supervisor is defined by `supervisor.yml` plus `instructions.md` — no per-agent Python and no hand-written tool loop.
-- [ ] CI holds no logic of its own; each stage runs `validate.py` or `deploy.py`, so every gating check also runs locally.
-- [ ] `deploy.py` calls the same `validate.check()` before touching a workspace.
-- [ ] Tool attachment falls back from `create_tool` to `update_tool`, so a redeploy converges instead of erroring.
+- [ ] The supervisor is defined by `src/managed/agent.yml` plus `src/managed/instructions.md` — no per-agent Python and no hand-written tool loop.
+- [ ] CI holds no logic of its own; the validate stage runs `python/validate.py`, so every gating check also runs locally.
+- [ ] `deploy_agent.py` runs the same `check()` before touching a workspace.
+- [ ] The deploy is a bundle: `resources/deploy.job.yml` runs the reconciler, and `run_resources.yml` lists that job — without the entry the deploy changes no agent and still reports success.
+- [ ] No `DATABRICKS_TOKEN` in CI. Auth is the job's `run_as` principal.
+- [ ] Tool comparison is declared-is-a-subset-of-live, not equality — server-added fields must not read as drift, or every deploy deletes and recreates every tool.
+- [ ] Every `${name}` in `agent.yml` is declared as a bundle variable and set per target; an unresolved one or a surviving `TODO_SET_*` fails the deploy rather than reaching the API.
 - [ ] Deploy prints the working query URL.
 
 Identity:
 
-- [ ] The repo stores **no supervisor id** — identity is `display_name` plus the authenticated workspace.
+- [ ] The repo stores **no supervisor id** — identity is `display_name` plus the target's workspace.
 - [ ] Every environment is name-suffixed, prod included.
 - [ ] Deploy resolves by name: one match updates, none creates, more than one is a hard failure.
 

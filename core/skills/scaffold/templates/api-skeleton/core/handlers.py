@@ -1,6 +1,6 @@
 """The one place an error response is built.
 
-docs/SERVICE_STRUCTURE_STANDARDS.md §3. No route builds an error body by hand; if you
+No route builds an error body by hand; if you
 find yourself returning a JSONResponse with an error_code in it, raise an AppError
 instead and add a case here.
 
@@ -25,7 +25,7 @@ from schema.models import ErrorResponse
 
 logger = logging.getLogger(__name__)
 
-# API_STANDARDS §7 — the code returned for a framework-raised status.
+# The code returned for a framework-raised status.
 _STATUS_CODES = {
     400: "INVALID_REQUEST",
     401: "UNAUTHENTICATED",

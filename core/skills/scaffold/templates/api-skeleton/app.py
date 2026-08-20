@@ -44,7 +44,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# An allowlist from configuration. Never ["*"] — API_STANDARDS §10.
+# An allowlist from configuration. Never ["*"].
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

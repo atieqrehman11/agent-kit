@@ -16,15 +16,15 @@ including repos the scaffold never created. Two aspects are choosable:
 
 | Aspect | What the repo gains | Repo types |
 |---|---|---|
-| `deploy` | How the repo deploys, independent of CI provider: `databricks.yml` + `resources/` + `run_local.sh` + `run_resources.yml` + `.bundleignore`. `fe` ships a committed `dist/` and a sync block that keeps `package.json` out of the app root. `genie`/`agent` are not bundles: they get `run_local.sh` + `src/validate.py` + `src/deploy.py` and no descriptor. A `job` repo also gets `config/{DEV,STG,PROD}/task_config.yaml`. | `api` `etl` `job` `fe` `genie` `agent` |
+| `deploy` | How the repo deploys: `databricks.yml` + `resources/` + `run_local.sh` + `run_resources.yml` (+ `.bundleignore` where it applies). Every type gets a bundle descriptor; which descriptor and resource it resolves differs per type. `fe` also gets the sync block that keeps `package.json` out of the app root; `genie` gets `python/build_space.py`; `agent` gets the reconciler under `python/`. | `api` `etl` `job` `fe` `genie` `agent` |
 | `gitlab` | The GitLab pipeline: `.gitlab-ci.yml`. Bundle types trigger the shared DAB controller on merge to `stg`/`prod`; `genie`/`agent` validate their declaration, then run their own deploy script. The GitLab project setup it needs is `gitlab/setup-group.sh` (once per group) and `gitlab/setup-repo.sh` (per repo) — kit tooling, not repo files. | `api` `etl` `job` `fe` `genie` `agent` |
-| `api` | The use case API surface: `routers/platform.py` + `config.py` — `GET /v1/health` and `GET /v1/info`, the two endpoints every use case API must expose (API_STANDARDS §3–4). | `api` |
+| `api` | The use case API surface: `routers/platform.py` + `config.py` — `GET /v1/health` and `GET /v1/info`, the two endpoints every use case API must expose (api guideline §3–4). | `api` |
 
 **Not choices** — these come with any add, wherever they are missing, and are never asked
 about: the **`.gitignore`** for the repo's type (Node on an `fe` repo, Python / Databricks
 everywhere else), and a regenerated **`CONFIG.md`** (which keeps every value already filled
-in). Standards docs (`docs/*_STANDARDS.md`) ship with `{{cmd:scaffold:new}}` per repo
-type. Evaluation is its own command — **`{{cmd:eval:new}}`** — because the spec belongs to the use
+in). There are no standards docs to ship: the guidelines live in agent-kit, and repo code
+cites them by name. Evaluation is its own command — **`{{cmd:eval:new}}`** — because the spec belongs to the use
 case, not the scaffold.
 
 `all` is not a third aspect: it means **bring this repo up to what `{{cmd:scaffold:new}}` would have
@@ -95,7 +95,7 @@ python3 __SKILL_DIR__/add.py \
 Everything else is inferred, in the same precedence order `{{cmd:scaffold:new}}` uses — **CLI flag >
 the repo's own files > the install profile > a `TODO_SET_*` placeholder**:
 
-- **type** — from `genie-space/space.yml`, `supervisor/supervisor.yml`, a `package.json`
+- **type** — from `src/space.yml`, `src/managed/agent.yml`, a `package.json`
   beside a `vite.config.*` (`fe` — checked before the resource scan, since a front end is
   also an `apps` resource and `.app.yml` alone cannot tell it from an `api` repo),
   `resources/*.{app,pipeline,job}.yml`, an inline `resources: apps:|pipelines:|jobs:` in
@@ -133,7 +133,7 @@ half-filled sheet, it only appends the placeholders the new files brought in.
 → [picker] Add the CI/CD pipeline?   Proceed / Cancel
 ✓ Proceed → add.py --repo <path> --aspect deploy --aspect gitlab
    added .gitlab-ci.yml, .bundleignore, run_resources.yml,
-         config/{DEV,STG,PROD}/task_config.yaml, .gitignore
+         .gitignore, .editorconfig
    CONFIG.md — 20 placeholders outstanding → fill it, then {{cmd:scaffold:configure}}
    wiring: set CONTROLLER_TRIGGER_TOKEN in GitLab CI/CD variables; confirm BUNDLE_TAG
            matches bundle.name in databricks.yml; add config_dir + policy_id variables

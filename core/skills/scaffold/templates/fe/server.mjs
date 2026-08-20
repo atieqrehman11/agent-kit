@@ -3,9 +3,9 @@
 //
 // Node built-ins only, on purpose. Nothing is installed when the app starts, so
 // a cold start cannot fail on the npm registry — dist/ was built in CI (or by
-// ./bundle.sh) and deployed as an artifact.
+// ./run_local.sh deploy) and deployed as an artifact.
 //
-// Two rules this file exists to enforce (docs/REACT_STANDARDS.md):
+// Two rules this file exists to enforce:
 //
 //   1. The browser calls a SAME-ORIGIN path. The backend's URL and any token
 //      needed to reach it live here, in the server process, and never reach the
@@ -94,7 +94,7 @@ async function preflight() {
     await stat(INDEX)
   } catch {
     problems.push(
-      `dist/index.html is missing — the app was deployed without a build. Run \`npm ci && npm run build\` before \`databricks bundle deploy\` (./bundle.sh does both).`,
+      `dist/index.html is missing — the app was deployed without a build. Run \`npm ci && npm run build\` before \`databricks bundle deploy\` (./run_local.sh deploy does both).`,
     )
   }
 

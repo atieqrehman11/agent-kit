@@ -1,0 +1,36 @@
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# ── Tool caches — machine-local, regenerated on every run ─────────────────────
+.ruff_cache/
+.pytest_cache/
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── Databricks Asset Bundles ──────────────────────────────────────────────────
+.databricks/
+bundle/
+
+# wheels/ IS committed — see wheels/README.md. The Apps build environment has no
+# network, so every dependency ships as a wheel in the repo. Ignoring it and
+# relying on the `sync: include: wheels/**` line in databricks.yml alone uploads
+# whatever is on the deploying laptop, and leaves the CI/CD controller — which
+# clones fresh — with nothing to install.
+
+# ── Secrets / local config ────────────────────────────────────────────────────
+.env
+.env.*
+*.local
+
+# ── Editor / OS ───────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

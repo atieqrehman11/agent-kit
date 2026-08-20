@@ -7,29 +7,29 @@ A React front end deployed as a **Databricks App**. The app resource is
 that what gets deployed is a *build artifact*, so the build has to happen before
 every deploy.
 
-Standards: [`docs/REACT_STANDARDS.md`](docs/REACT_STANDARDS.md). Audit list:
-[`docs/REACT_STANDARDS_CONFORMANCE.md`](docs/REACT_STANDARDS_CONFORMANCE.md). Read the first, walk the second
-before opening a merge request.
-
 ## Getting started
 
 ```bash
-nvm use                 # Node 20+ (see .nvmrc)
-npm run setup           # npm install + vendors the shadcn/ui components into src/shared/ui/
-npm run dev             # http://localhost:5173
+nvm use                 # Node 22+ (see .nvmrc)
+pnpm install            # dependencies
+pnpm run ui:init        # vendors the shadcn/ui components into src/shared/ui/
+pnpm run dev            # http://localhost:5173
 ```
 
-`npm run setup` is `npm install` followed by `npm run ui:init`. The second step writes the
-shadcn/ui components into `src/shared/ui/` — they are **vendored, not a dependency**, which
-is why that folder is excluded from linting and formatting. Re-run `ui:init` to add more.
+pnpm, not npm: `pnpm-lock.yaml` is the lockfile and Databricks Apps picks its package
+manager from it.
+
+`ui:init` writes the shadcn/ui components into `src/shared/ui/` — they are **vendored, not a
+dependency**, which is why that folder is excluded from linting and formatting. Re-run it to
+add more.
 
 To point the dev server at a backend:
 
 ```bash
-BACKEND_API_UPSTREAM=https://<api-host> npm run dev
+BACKEND_API_UPSTREAM=https://<api-host> pnpm run dev
 # a deployed Databricks App also needs a token, since the platform answers 401
 # before the request reaches the app:
-BACKEND_API_UPSTREAM=https://<api-host> BACKEND_API_TOKEN=$(databricks auth token --host <host> | jq -r .access_token) npm run dev
+BACKEND_API_UPSTREAM=https://<api-host> BACKEND_API_TOKEN=$(databricks auth token --host <host> | jq -r .access_token) pnpm run dev
 ```
 
 Without `BACKEND_API_UPSTREAM` the `/api` route is not registered at all and those calls
@@ -45,9 +45,12 @@ src/
   styles/        globals.css — the ONLY file that knows brand colours
   test/          vitest setup + the MSW server
 server.mjs       production server: serves dist/, proxies /api  (no dependencies)
-app.yml          Databricks App runtime spec — command + env
-databricks.yml   the bundle; resources/fe.app.yml declares the app
-bundle.sh        local dev-loop deploy (build → validate → deploy → run)
+databricks.yml   the bundle — per-environment values, one set per target
+resources/fe.app.yml   declares the app AND its runtime spec (command + env).
+                 There is deliberately no root app.yml: it would upload verbatim
+                 and could not hold a per-environment value.
+.env.example     the names to copy into .env.local for local development
+run_local.sh     local dev loop and dev deploy (build → validate → deploy → run)
 ```
 
 ### Adding a feature
@@ -63,14 +66,33 @@ URL reaches the 404 surface like any other unknown path.
 Features may not import one another — `no-restricted-imports` enforces it. They talk through
 `@/shared` and `@/app`, and reach their own files by relative path.
 
+## Configuration
+
+Every deferred value ships as a `TODO_SET_*` placeholder listed in `CONFIG.md`. Fill that
+sheet and apply it in one pass with `{{cmd:scaffold:configure}}`. The one specific to this
+repo type is `TODO_SET_BACKEND_API_URL` in `app.yml` — the use case API this front end
+proxies to.
+
+**The brand accent is not a placeholder.** `src/styles/globals.css` ships a working neutral
+indigo, and light and dark need *different* lightness values for the same hue, so no single
+substituted token could set both. Change the two `--primary` values together and re-check
+contrast.
+
+`globals.css` is the only file that knows brand colours: raw values are CSS custom
+properties declared in **both** themes, republished to Tailwind with `@theme inline`. A
+literal colour in a component is a bug. Contrast is checked in both themes — dark is where
+WCAG AA quietly fails.
+
 ## Verify
 
 ```bash
-npm run verify   # format:check → lint → typecheck → test → build → budget
+pnpm run verify   # format:check → lint → typecheck → test → build → budget
 ```
 
-That is exactly what CI runs and what `./bundle.sh` runs before it deploys anything. Two
-parts of it are load-bearing:
+`./run_local.sh deploy` runs it before deploying anything, and `SKIP_VERIFY=1` bypasses it.
+**CI runs no Node job at all**, so that local run is the only place a broken build is caught
+before it reaches a workspace — a deploy that skips verify has nothing behind it. Two parts of
+it are load-bearing:
 
 - **a11y findings are errors.** `eslint-plugin-jsx-a11y` is wired as `error`, not `warn` — a
   rule nobody's build fails on is a preference, not a standard.
@@ -122,38 +144,24 @@ that boots and then 502s on first use has turned a deploy-time failure into a us
 **Local dev loop:**
 
 ```bash
-./bundle.sh          # npm ci → verify → build → bundle validate/deploy/run → apps get
+./run_local.sh deploy          # pnpm install → verify → build → bundle validate/deploy/run
 ```
 
 Deploys to the **dev** workspace only, and refuses any other target.
 
-**stg / prod:** merge to the `stg` or `prod` branch and run the manual job in
-`.gitlab-ci.yml`. That job builds and then runs `databricks bundle deploy` itself.
+**stg / prod:** merge to the `stg` branch (automatic) or `prod` (manual — play in
+Build → Pipelines). This repo's pipeline never deploys; it validates the bundle config and
+triggers the shared DAB CI/CD controller, exactly like every other bundle type. There is no
+`DATABRICKS_TOKEN` in CI — set `CONTROLLER_TRIGGER_TOKEN` (protected + masked) instead, and
+keep `stg` and `prod` protected or the trigger posts an empty token and still goes green.
 
-> **Why this repo does not use the shared DAB controller.** The controller deploys from a git
-> checkout and runs no Node build, so it would deploy a repo whose `dist/` does not exist —
-> and `dist/` is a build artifact that must not be committed. Building and deploying therefore
-> have to happen in the same job, which is why this pipeline needs its own `DATABRICKS_TOKEN`
-> (masked, scoped to the `stg` and `prod` branches **separately**) instead of a controller
-> trigger token. If your controller gains a Node build stage, swap the deploy jobs for the
-> controller-trigger form the other bundle types use; nothing else in the repo changes.
+> **`dist/` is committed, and that is what makes this work.** The controller deploys from a
+> fresh clone and runs no Node build, and the Apps build environment cannot resolve
+> `registry.npmjs.org` (`getaddrinfo EAI_AGAIN`), so nothing can install or build on the
+> platform either. The built artifact therefore has to be in the repo. **Rebuild and commit
+> `dist/` whenever `src/` changes**, or stg serves a stale bundle — `run_local.sh deploy`
+> builds it for you, but only committing it gets it to stg. `package.json` is also kept out
+> of the app root on purpose: its presence makes the Apps platform attempt an install.
 
 The workspace host is **not** a CI variable — it comes from the matching target in
 `databricks.yml`, so there is one answer to "which workspace is stg".
-
-## Configuration
-
-Every deferred value ships as a `TODO_SET_*` placeholder listed in `CONFIG.md`. Fill that
-sheet and apply it in one pass with `{{cmd:scaffold:configure}}`. The one specific to this
-repo type is `TODO_SET_BACKEND_API_URL` in `app.yml` — the use case API this front end
-proxies to.
-
-**The brand accent is not a placeholder.** `src/styles/globals.css` ships a working neutral
-indigo, and light and dark need *different* lightness values for the same hue, so no single
-substituted token could set both. Change the two `--primary` values together and re-check
-contrast.
-
-`globals.css` is the only file that knows brand colours: raw values are CSS custom
-properties declared in **both** themes, republished to Tailwind with `@theme inline`. A
-literal colour in a component is a bug. Contrast is checked in both themes — dark is where
-WCAG AA quietly fails.
