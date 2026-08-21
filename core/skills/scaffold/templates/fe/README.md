@@ -1,11 +1,17 @@
-# TPLVAR_DISPLAY_NAME
+# TPLVAR_APP_NAME
 
 TPLVAR_DESCRIPTION
 
-A React front end deployed as a **Databricks App**. The app resource is
-`resources.apps` in a DAB bundle, exactly like the `api` type — the difference is
-that what gets deployed is a *build artifact*, so the build has to happen before
-every deploy.
+---
+
+## Stack
+
+Vite · React 19 · TypeScript (strict) · React Router · TanStack Query ·
+Tailwind CSS v4 · shadcn/ui (vendored into `src/shared/ui/`) · lucide-react.
+
+The deployment server ([server.mjs](server.mjs)) is Node with **zero
+dependencies** — `node:http`, `node:fs` and global `fetch`. The whole repo is
+one language.
 
 ## Getting started
 
@@ -45,8 +51,8 @@ src/
   styles/        globals.css — the ONLY file that knows brand colours
   test/          vitest setup + the MSW server
 server.mjs       production server: serves dist/, proxies /api  (no dependencies)
-databricks.yml   the bundle — per-environment values, one set per target
-resources/fe.app.yml   declares the app AND its runtime spec (command + env).
+databricks.yml   the bundle — one set of per-environment values per target
+resources/fe.app.yml   declares the app AND its runtime spec (command + env)
                  There is deliberately no root app.yml: it would upload verbatim
                  and could not hold a per-environment value.
 .env.example     the names to copy into .env.local for local development
@@ -66,22 +72,25 @@ URL reaches the 404 surface like any other unknown path.
 Features may not import one another — `no-restricted-imports` enforces it. They talk through
 `@/shared` and `@/app`, and reach their own files by relative path.
 
+### Styling
+
+Tailwind v4 with the design tokens declared in `src/styles/globals.css` — the only
+file that knows brand colours. Reach for the existing tokens rather than literal
+values, and use `--shadow-soft` plus a fill for separation instead of borders.
+
 ## Configuration
 
-Every deferred value ships as a `TODO_SET_*` placeholder listed in `CONFIG.md`. Fill that
-sheet and apply it in one pass with `{{cmd:scaffold:configure}}`. The one specific to this
-repo type is `TODO_SET_BACKEND_API_URL` in `app.yml` — the use case API this front end
-proxies to.
+One rule covers most of it: **no environment's URL is in this repo's code.** The browser
+calls the same-origin `/api` path and something proxies it — `server.mjs` when deployed,
+the Vite dev proxy locally. Per-target values are bundle variables in `databricks.yml`,
+read by the server at runtime, so repointing an environment is a variable edit and a
+redeploy with no rebuild.
 
-**The brand accent is not a placeholder.** `src/styles/globals.css` ships a working neutral
-indigo, and light and dark need *different* lightness values for the same hue, so no single
-substituted token could set both. Change the two `--primary` values together and re-check
-contrast.
-
-`globals.css` is the only file that knows brand colours: raw values are CSS custom
-properties declared in **both** themes, republished to Tailwind with `@theme inline`. A
-literal colour in a component is a bug. Contrast is checked in both themes — dark is where
-WCAG AA quietly fails.
+- There is **no build-time knob.** `src/shared/api/client.ts` hardcodes `/api`, so no
+  environment URL can be baked into the shipped JavaScript.
+- Runtime, per target — `backend_api_url`, `backend_api_auth` and `log_level` in
+  `databricks.yml`, turned into the App's env by `resources/fe.app.yml`.
+- Local development — `.env.local`, copied from `.env.example`.
 
 ## Verify
 
@@ -100,7 +109,7 @@ it are load-bearing:
   JS + CSS against a fixed ceiling. Raise it in a commit that says why; front-end bundles only
   ever grow, one reasonable-looking dependency at a time.
 
-## How it is served
+## Backend
 
 The browser calls the **same-origin** path `/api/*`. Nothing else. `server.mjs` proxies that
 to `BACKEND_API_URL`, so the backend's host — and the credential needed to reach it — exist
@@ -110,14 +119,15 @@ only in the server process and never in `dist/`. Grep the build output if you wa
 `server.mjs` has **no dependencies** — Node built-ins only. Nothing is installed when the app
 starts, so a cold start cannot fail on the npm registry. That is also what makes
 `.bundleignore` able to exclude `node_modules/` and `src/`: the deployed app is `dist/` +
-`server.mjs` + `app.yml` and nothing else. Add a runtime dependency and that trade changes —
+`server.mjs` + the app spec and nothing else. Add a runtime dependency and that trade changes —
 make it deliberately.
 
 The backend API is the **only** thing this front end calls. Not Databricks SQL, not a model
 endpoint, not a second service — everything the UI needs comes through `/api`. That is what
 makes one proxy and one auth decision enough.
 
-The proxy authenticates per `BACKEND_API_AUTH` in `app.yml`:
+The proxy authenticates per `BACKEND_API_AUTH`, set in the `env` block of
+`resources/fe.app.yml`:
 
 | Mode | What the backend sees | Needs |
 |---|---|---|
@@ -136,12 +146,12 @@ arrive as environment variables the platform sets. Locally, `BACKEND_API_TOKEN` 
 the exchange so a laptop run needs no client secret either.
 
 The server **exits at startup** if `dist/index.html` is missing, if `BACKEND_API_URL` is still
-a `TODO_SET_` placeholder, or if `sp` mode is on without the credentials to use it. A server
+unset, or if `sp` mode is on without the credentials to use it. A server
 that boots and then 502s on first use has turned a deploy-time failure into a user-facing one.
 
-## Deploy
+## Deployment
 
-**Local dev loop:**
+### Dev — local loop
 
 ```bash
 ./run_local.sh deploy          # pnpm install → verify → build → bundle validate/deploy/run
@@ -149,7 +159,9 @@ that boots and then 502s on first use has turned a deploy-time failure into a us
 
 Deploys to the **dev** workspace only, and refuses any other target.
 
-**stg / prod:** merge to the `stg` branch (automatic) or `prod` (manual — play in
+### stg / prod — the CI/CD controller
+
+Merge to the `stg` branch (automatic) or `prod` (manual — play in
 Build → Pipelines). This repo's pipeline never deploys; it validates the bundle config and
 triggers the shared DAB CI/CD controller, exactly like every other bundle type. There is no
 `DATABRICKS_TOKEN` in CI — set `CONTROLLER_TRIGGER_TOKEN` (protected + masked) instead, and
@@ -165,3 +177,27 @@ keep `stg` and `prod` protected or the trigger posts an empty token and still go
 
 The workspace host is **not** a CI variable — it comes from the matching target in
 `databricks.yml`, so there is one answer to "which workspace is stg".
+
+### What the server reads
+
+Everything comes from the environment; the server holds no URLs of its own and
+**exits at startup** if `BACKEND_API_URL` is unset, so a misconfigured deploy is
+loud in the App logs instead of looking healthy and answering nothing.
+
+There is **no `app.yaml`**. A synced one is uploaded verbatim — DAB does not
+interpolate it — so it cannot hold a per-environment value. The App's `command`
+and `env` are declared in `resources/fe.app.yml` under `config:`, fed by bundle
+variables each target can override.
+
+| Env var             | Set in                     | Default | Purpose                             |
+| ------------------- | -------------------------- | ------- | ----------------------------------- |
+| `BACKEND_API_URL`   | `${var.backend_api_url}`   | —       | Backend to proxy to (**required**)  |
+| `BACKEND_API_AUTH`  | `${var.backend_api_auth}`  | `sp`    | `sp` \| `obo` \| `none`             |
+| `LOG_LEVEL`         | `${var.log_level}`         | `info`  | `debug` logs one line per proxy hop |
+| `PORT`              | platform                   | `8000`  | Listen port                         |
+
+## Related repos
+
+| Repo | Relationship |
+|---|---|
+| `TPLVAR_SLUG-api` | Upstream. The backend this front end proxies to; its App URL is the `backend_api_url` variable per target, and it must grant this app's service principal `CAN_USE`. |

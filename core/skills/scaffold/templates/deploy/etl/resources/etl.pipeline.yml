@@ -1,26 +1,12 @@
-# ── ETL (Lakeflow) resource ──────────────────────────────────────────────────
-# `resources.pipelines` is the DAB schema collection key (always plural, even for
-# one pipeline). TPLVAR_RESOURCE_KEY_pipeline is the single resource key.
-#
-# catalog and target are ${var.*}, NOT literals. Every target overrides them in
-# databricks.yml, and a literal here would survive that untouched — a stg deploy
-# would write into the dev catalog and report success.
-#
-# Library paths are relative to THIS file's directory (resources/), so the task
-# notebooks under pipeline/ are referenced as ../pipeline/taskN_*.py
-#
-# No `tags:` block: unlike jobs, a pipeline resource has no tags field, so the
-# controller's governance check does not look for one here. Ownership comes from
-# the bundle's own tags and the target's permissions.
+# catalog/target must stay ${var.*}: a literal survives the target override and
+# points a stg deploy at the dev catalog. Library paths are relative to this file.
 resources:
   pipelines:
-    TPLVAR_RESOURCE_KEY_pipeline:
+    TPLVAR_RESOURCE_KEY:
       name: "TPLVAR_SLUG-etl"
       catalog: ${var.catalog}
       target: ${var.schema}
-      # The ONLY channel by which a per-environment value reaches a task. A task
-      # reads these with spark.conf.get(...) — a literal in the task file would
-      # survive the target override untouched and point stg at dev's volume.
+      # The only channel a per-environment value reaches a task by (spark.conf.get).
       configuration:
         pipeline.catalog: ${var.catalog}
         pipeline.schema: ${var.schema}

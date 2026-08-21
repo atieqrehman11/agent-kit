@@ -167,7 +167,11 @@ def main(argv=None):
     # so say which profile they came from — up here, before the files, for the same
     # reason `new` does it: a wrongly-branded repo is cheap to prevent and expensive
     # to notice later. Not a "heads-up" note at the end; those come after the writing.
-    _p, _s, _sh = profilelib._profile_path()
+    # Resolved from the TARGET repo, not the CWD: --repo can point into a different
+    # tree than the shell happens to sit in, and the tree is what decides team, CI
+    # controller and branding. Resolving from the CWD silently applies the wrong
+    # client's sheet whenever you run this from a parent directory.
+    _p, _s, _sh = profilelib._profile_path(repo)
     for line in profilelib.report(_p, _s, _sh, profilelib.load(_p), prefix="  "):
         print(line)
     print("=" * 66)
@@ -296,11 +300,13 @@ def _build_vars(args, repo, rtype, bundle_name, bundle_uuid, keys=()):
     the caller must be told (e.g. a bundle uuid had to be invented) — raised only
     for the aspects that actually depend on the value.
     """
-    profile, _origin = _load_profile()
+    # From the target repo, matching the banner — a CWD-resolved sheet made the
+    # banner report one profile while the values came from another.
+    profile, _origin = _load_profile(repo)
     notes = []
 
     slug = args.slug or _slug_from_repo(repo)
-    resource_key = slug.replace("-", "_")
+    resource_key = f"{slug}-{rtype}".replace("-", "_")
     display_name = args.display_name or slug.replace("-", " ").title()
 
     def pick(arg_val, key, todo):
@@ -318,7 +324,7 @@ def _build_vars(args, repo, rtype, bundle_name, bundle_uuid, keys=()):
     # BUNDLE_TAG), so only it needs to hear about a missing databricks.yml.
     bundle_matters = "deploy" in keys and rtype in aspects.BUNDLE_TYPES
     if not bundle_name:
-        bundle_name = f"{resource_key}_{rtype}"
+        bundle_name = resource_key
         if bundle_matters:
             notes.append(
                 f"No databricks.yml found — BUNDLE_TAG/bundle_name was set to "
@@ -336,10 +342,22 @@ def _build_vars(args, repo, rtype, bundle_name, bundle_uuid, keys=()):
     org = (profile.get("org") or "").strip()
     vars_ = {
         "TPLVAR_SLUG": slug,
+        "TPLVAR_APP_NAME": f"{slug}-{rtype}",
         "TPLVAR_RESOURCE_KEY": resource_key,
+        # Without this, run_resources.yml is written with an empty list for EVERY type.
+        # On api/fe/agent that is a silent failure: `bundle deploy` uploads the new
+        # bundle, nothing runs to make it live, and the deploy reports success while the
+        # previous version keeps serving.
+        "TPLVAR_RUN_RESOURCE_KEY": aspects.run_resource_key(rtype, resource_key),
         "TPLVAR_DISPLAY_NAME": display_name,
-        "TPLVAR_DESCRIPTION": args.description or "TODO_SET_DESCRIPTION",
-        "TPLVAR_WORKSPACE_URL": "TODO_SET_DEV_WORKSPACE_HOST",
+        "TPLVAR_DESCRIPTION": (
+            args.description
+            or _description_from_repo(repo)
+            or "TODO_SET_DESCRIPTION"
+        ),
+        "TPLVAR_WORKSPACE_URL": pick(
+            None, "dev_workspace_host", "TODO_SET_DEV_WORKSPACE_HOST"
+        ),
         "TPLVAR_CATALOG": args.catalog or "TODO_SET_CATALOG",
         "TPLVAR_TABLE_PREFIX": prefix_us,
         "TPLVAR_RAW_PREFIX": prefix_raw,
@@ -349,7 +367,7 @@ def _build_vars(args, repo, rtype, bundle_name, bundle_uuid, keys=()):
         "TPLVAR_TEAM_EMAIL": pick(args.team_email, "team_email", "TODO_SET_TEAM_EMAIL"),
         "TPLVAR_TEAM_TAG": pick(args.team_name, "team_name", "TODO_SET_TEAM_NAME"),
         "TPLVAR_PROJECT": profile.get("project") or "ai-apps",  # workspace root folder
-        "TPLVAR_PROJECT_TAG": slug,
+        "TPLVAR_PROJECT_TAG": slug.replace("-", "_"),
         "TPLVAR_GITLAB_RUNNER": pick(
             args.gitlab_runner, "gitlab_runner", "TODO_SET_GITLAB_RUNNER"
         ),
@@ -367,6 +385,67 @@ def _build_vars(args, repo, rtype, bundle_name, bundle_uuid, keys=()):
         if profile.get(key):
             vars_[tok] = profile[key]
     return vars_, notes
+
+
+def _description_from_repo(repo):
+    """The repo's own one-line description, or "" if it has none worth reusing.
+
+    `new` is given a description and writes it into the repo; `add` writes the deploy
+    aspect, which needs the same sentence for the resource's ``description:``. Asking
+    for it again would be asking for something the repo already knows — and leaving it
+    as a placeholder ships a resource whose description is the literal word TODO.
+
+    Read in order of how structured the source is: package.json (fe) and pyproject.toml
+    (python types) hold it as a field; README line 3 is the paragraph under the title,
+    which every template writes. An unsubstituted token is treated as absent.
+    """
+    root = os.path.abspath(repo)
+
+    pkg = os.path.join(root, "package.json")
+    if os.path.isfile(pkg):
+        try:
+            import json
+
+            with open(pkg, encoding="utf-8") as fh:
+                got = (json.load(fh).get("description") or "").strip()
+            if got and "TPLVAR" not in got and "TODO_SET" not in got:
+                return got
+        except (OSError, ValueError):
+            pass
+
+    pyproj = os.path.join(root, "pyproject.toml")
+    if os.path.isfile(pyproj):
+        try:
+            with open(pyproj, encoding="utf-8") as fh:
+                for line in fh:
+                    m = re.match(r'\s*description\s*=\s*"(.*)"\s*$', line)
+                    if m:
+                        got = m.group(1).strip()
+                        if got and "TPLVAR" not in got and "TODO_SET" not in got:
+                            return got
+                        break
+        except OSError:
+            pass
+
+    readme = os.path.join(root, "README.md")
+    if os.path.isfile(readme):
+        try:
+            with open(readme, encoding="utf-8") as fh:
+                lines = fh.read().splitlines()
+            # Title, blank, description — the shape every template README opens with.
+            for line in lines[1:6]:
+                got = line.strip()
+                if (
+                    got
+                    and not got.startswith(("#", ">", "|", "-", "`"))
+                    and "TPLVAR" not in got
+                    and "TODO_SET" not in got
+                ):
+                    return got
+        except OSError:
+            pass
+
+    return ""
 
 
 def _slug_from_repo(repo):

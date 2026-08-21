@@ -114,8 +114,8 @@ def _resolve_output_dir(cli_value, profile=None):
 # they came from, because "which profile" is a decision this script must not make
 # silently: the same machine scaffolds for more than one client, and these values are
 # the ones that differ between them.
-def _load_profile():
-    path, scope, shadowed = profilelib._profile_path()
+def _load_profile(start=None):
+    path, scope, shadowed = profilelib._profile_path(start)
     return profilelib.load(path), (path, scope, shadowed)
 
 
@@ -132,15 +132,9 @@ CONTROLLER_TYPES = aspects.CONTROLLER_TYPES
 ALL_TYPES = aspects.ALL_TYPES
 
 # Resource key the controller must `bundle run` for the deploy to be complete.
-# Types not listed here ship an empty run_resources.yml — see
-# aspects.run_resources_yaml for why that is a per-type fact, not a preference.
-#   api/fe  the app deployment that makes an upload live
-#   agent   the reconciler job, which IS the deploy
-RUN_RESOURCE_BY_TYPE = {
-    "api": "TPLVAR_RESOURCE_KEY",
-    "fe": "TPLVAR_RESOURCE_KEY",
-    "agent": "deploy_agent",
-}
+# Defined in aspects.py so {{cmd:scaffold:add}} resolves the identical key — see
+# aspects.run_resources_yaml for why it is a per-type fact, not a preference.
+RUN_RESOURCE_BY_TYPE = aspects.RUN_RESOURCE_BY_TYPE
 
 # Org-wide values that appear as bare TODO_SET_ tokens in templates (not TPLVAR_).
 # The install profile ({{cmd:scaffold:profile}}) fills these at scaffold time when present;
@@ -150,6 +144,15 @@ _PROFILE_TODO_TOKENS = {
     "owner": "TODO_SET_OWNER",
     "support_email": "TODO_SET_SUPPORT_EMAIL",
     "developers_group": "TODO_SET_DEVELOPERS_GROUP",
+    # Identical for every repo in a tree, so they belong to the tree's profile
+    # rather than being retyped into each repo's CONFIG.md.
+    "dev_workspace_host": "TODO_SET_DEV_WORKSPACE_HOST",
+    "stg_workspace_host": "TODO_SET_STG_WORKSPACE_HOST",
+    "prod_workspace_host": "TODO_SET_PROD_WORKSPACE_HOST",
+    "stg_service_principal": "TODO_SET_STG_SERVICE_PRINCIPAL",
+    "prod_service_principal": "TODO_SET_PROD_SERVICE_PRINCIPAL",
+    "stg_developers_group": "TODO_SET_STG_DEVELOPERS_GROUP",
+    "prod_developers_group": "TODO_SET_PROD_DEVELOPERS_GROUP",
     "prod_admin": "TODO_SET_PROD_ADMIN_USER",
     "ci_image": "TODO_SET_CI_IMAGE",
     "policy_id": "TODO_SET_POLICY_ID",
@@ -243,14 +246,30 @@ def main(argv=None):
         )
         sys.exit(1)
 
-    resource_key = slug.replace("-", "_")
+    resource_key = f"{slug}-{args.type}".replace("-", "_")
 
     # Org/project profile (set up via {{cmd:scaffold:profile}}; see profile.py). It fills the
     # values constant across every repo a team scaffolds. Precedence:
     #   CLI arg  >  profile  >  TODO_SET_ placeholder (left for {{cmd:scaffold:configure}}).
     # `origin` is reported in the banner — a repo is about to be stamped with an org,
     # a team and a CI controller, and which profile supplied them is not a detail.
-    profile, origin = _load_profile()
+    # An explicitly named target chooses the profile, because --output-dir (or
+    # $SCAFFOLD_OUTPUT_DIR) can point into a different tree than the CWD, and the tree
+    # is what decides team, CI controller and branding. Only when no target is named
+    # does the CWD decide — and then the profile's own output_dir applies, so the two
+    # agree by construction.
+    _target = args.output_dir or os.environ.get("SCAFFOLD_OUTPUT_DIR")
+    profile, origin = _load_profile(
+        os.path.expanduser(os.path.expandvars(_target)) if _target else None
+    )
+    # If the target sits in no project at all, it resolves to the install-wide sheet —
+    # which on a multi-client machine is ANOTHER client's. Working inside a project is
+    # the stronger signal, so prefer its sheet over the machine's. Only a target that
+    # has a project profile of its own overrides where you are standing.
+    if _target and origin[1] == "global":
+        cwd_profile, cwd_origin = _load_profile()
+        if cwd_origin[1] == "project":
+            profile, origin = cwd_profile, cwd_origin
 
     # Loaded before the folder name because repo_prefix comes from it. "ai" only when the
     # profile is silent; an explicit blank in the sheet means no prefix, so the lookup
@@ -271,7 +290,9 @@ def main(argv=None):
     else:
         table_prefix_us = table_prefix_raw = "TODO_SET_TABLE_PREFIX"
     catalog = args.catalog or "TODO_SET_CATALOG"
-    ws = (args.workspace_url or "TODO_SET_DEV_WORKSPACE_HOST").rstrip("/")
+    ws = _pick(
+        args.workspace_url, "dev_workspace_host", "TODO_SET_DEV_WORKSPACE_HOST"
+    ).rstrip("/")
     # Org-wide values — arg overrides profile overrides placeholder.
     team_name = _pick(args.team_name, "team_name", "TODO_SET_TEAM_NAME")
     team_email = _pick(args.team_email, "team_email", "TODO_SET_TEAM_EMAIL")
@@ -287,12 +308,10 @@ def main(argv=None):
     org = (profile.get("org") or "").strip()
     org_prefix = f"{org} " if org else ""
 
-    bundle_name = f"{resource_key}_{args.type}"
+    bundle_name = resource_key
     # Resource key the controller runs after deploy, per type. The token form is
     # resolved against resource_key below so this table stays declarative.
-    run_resource_key = RUN_RESOURCE_BY_TYPE.get(args.type, "").replace(
-        "TPLVAR_RESOURCE_KEY", resource_key
-    )
+    run_resource_key = aspects.run_resource_key(args.type, resource_key)
 
     repo_dir = os.path.join(_resolve_output_dir(args.output_dir, profile), repo_name)
     if os.path.exists(repo_dir):
@@ -304,6 +323,7 @@ def main(argv=None):
 
     vars_ = {
         "TPLVAR_SLUG": slug,
+        "TPLVAR_APP_NAME": f"{slug}-{args.type}",
         "TPLVAR_RESOURCE_KEY": resource_key,
         "TPLVAR_DISPLAY_NAME": args.display_name,
         "TPLVAR_DESCRIPTION": args.description,
@@ -317,7 +337,7 @@ def main(argv=None):
         "TPLVAR_TEAM_EMAIL": team_email,
         "TPLVAR_TEAM_TAG": team_name,
         "TPLVAR_PROJECT": project,  # workspace root folder
-        "TPLVAR_PROJECT_TAG": slug,  # per-repo bundle tag
+        "TPLVAR_PROJECT_TAG": slug.replace("-", "_"),  # per-repo bundle tag
         "TPLVAR_GITLAB_RUNNER": gitlab_runner,
         "TPLVAR_CONTROLLER_PROJECT_ID": controller_project_id,
         "TPLVAR_DATA_SENSITIVITY": args.data_sensitivity,
@@ -335,11 +355,10 @@ def main(argv=None):
     # is the same one {{cmd:scaffold:add}} can put into a repo later — see aspects.py.
     _scaffold(args.type, repo_dir)
     vars_["TPLVAR_RUN_RESOURCE_KEY"] = run_resource_key or ""
-    for key in aspects.DEFAULT_BY_TYPE[args.type]:
+    for key in aspects.NEW_SET_BY_TYPE[args.type]:
         _apply_aspect(key, repo_dir, args.type, vars_)
 
     _patch_tree(repo_dir, vars_)
-    _write_config_sheet(repo_dir, args.display_name)
     _print_next_steps(repo_dir, args.type, bundle_name, resource_key)
 
 
@@ -375,7 +394,10 @@ def _scaffold(rtype: str, repo_dir: str) -> None:
 # ─── Aspects layered onto the skeleton ──────────────────────────────────────────
 
 # Which aspects a fresh repo of each type gets is defined once, in aspects.py
-# (DEFAULT_BY_TYPE) — the same set {{cmd:scaffold:add}} restores in an older repo.
+# (NEW_SET_BY_TYPE). It is narrower than that module's DEFAULT_BY_TYPE, which is what
+# {{cmd:scaffold:add}} restores: `new` writes the application code and holds back
+# deploy, gitlab and specs, because none of the three can be answered correctly at
+# scaffold time. See the comment on NEW_SET_BY_TYPE for the reason per aspect.
 
 
 def _apply_aspect(key: str, repo_dir: str, rtype: str, vars_: dict) -> None:
@@ -390,28 +412,6 @@ def _apply_aspect(key: str, repo_dir: str, rtype: str, vars_: dict) -> None:
         print(f"  [{key}] {shown}")
     for path in skipped:
         print(f"  [{key}] kept the skeleton's own {path}")
-
-
-def _write_config_sheet(repo_dir: str, display_name: str) -> None:
-    """Emit CONFIG.md — the one-page sheet of every TODO_SET_* the repo still
-    contains. Run after _patch_tree so the scan sees final, resolved content.
-    Generation + apply live in configure.py (the {{cmd:scaffold:configure}} command)."""
-    import configure
-
-    _, present = configure.generate(repo_dir, display_name)
-    n = len(present)
-    if n:
-        # Not an f-string on the marker half: inside one, {{…}} collapses to {…}
-        # and the adapter never resolves it.
-        print(
-            f"  [config] CONFIG.md — {n} placeholder(s) to fill, then "
-            "{{cmd:scaffold:configure}}"
-        )
-    else:
-        print("  [config] CONFIG.md — no placeholders to fill")
-
-
-# ─── Placeholder patching (walk the whole tree) ─────────────────────────────────
 
 
 def _patch_tree(repo_dir: str, vars_: dict) -> None:
@@ -457,13 +457,10 @@ def _print_next_steps(
     print(f"\n  Created: {repo_dir}\n")
     print("  Next steps:")
 
-    steps = [
-        [
-            "CONFIG.md — fill the placeholder sheet (workspace hosts, service",
-            "principals, developer groups, catalogs), then apply it with",
-            "{{cmd:scaffold:configure}}.  The bundle uuid is already generated.",
-        ]
-    ]
+    # No CONFIG.md step here: the placeholders it lists arrive with the deploy and
+    # gitlab aspects, which this command no longer applies. It is named in the tail
+    # step that adds them, where filling it is actually the next thing to do.
+    steps = []
     steps += {
         "api": [
             ["schema/models.py — domain schemas; then implement routers/ + services/"],
@@ -502,7 +499,10 @@ def _print_next_steps(
                 "src/example_queries.yml — curated question -> SQL pairs. The single",
                 "biggest accuracy lever a space has.",
             ],
-            ["generated/ — `./run_local.sh all` builds it; COMMIT the result."],
+            [
+                "generated/ — `./run_local.sh all` builds it; COMMIT the result.",
+                "(run_local.sh arrives with the deploy aspect — see the last step)",
+            ],
         ],
         "agent": [
             [
@@ -512,19 +512,11 @@ def _print_next_steps(
             ["src/managed/instructions.md — routing guidance (sent byte-verbatim)"],
             [
                 "./run_local.sh plan — shows what a deploy would add, change or",
-                "delete, before it does it",
+                "delete, before it does it (arrives with the deploy aspect below)",
             ],
         ],
     }[rtype]
 
-    steps += [
-        ["Local dev deploy — ./run_local.sh deploy   (deploys to DEV only)"],
-        [
-            "Cloud deploy — set CONTROLLER_TRIGGER_TOKEN in GitLab CI/CD vars, then",
-            "merge to the stg / prod branch. Both belong to the controller — never",
-            "`databricks bundle deploy -t stg|prod` by hand.",
-        ],
-    ]
     if rtype in ("api", "genie", "agent"):
         steps.append(["Scaffold the evaluation suite with {{cmd:eval:new}}"])
 
@@ -532,6 +524,36 @@ def _print_next_steps(
         print(f"    {n}. {lines[0]}")
         for cont in lines[1:]:
             print(f"       {cont}")
+
+    _print_add_next(rtype)
+
+
+# The aspects `new` holds back, as a short standing list: the command, and the one
+# condition that has to be true before it is worth running. Kept separate from the
+# numbered build steps above because it answers a different question — not "what do I
+# write now" but "what is this repo still missing, and when do I add it".
+def _print_add_next(rtype: str) -> None:
+    print("\n  Then, when each prerequisite is met:")
+    rows = [
+        (
+            "deploy",
+            "databricks.yml, resources/, run_local.sh",
+            "bundle name + uuid registered, stg/prod SPs created",
+        ),
+        (
+            "gitlab",
+            ".gitlab-ci.yml + setup scripts",
+            "CI/CD onboarding done, group CONTROLLER_TRIGGER_TOKEN set",
+        ),
+    ]
+    for n, (aspect, brings, when) in enumerate(rows, 1):
+        print(f"    {n}. " + "{{cmd:scaffold:add}}" + f" --aspect {aspect}")
+        print(f"       brings  {brings}")
+        print(f"       when    {when}")
+    print(
+        "\n    Each add writes CONFIG.md — fill it, then apply {{cmd:scaffold:configure}}.\n"
+        "    Local dev is ./run_local.sh deploy (DEV only) — stg/prod are the controller's."
+    )
     print()
 
 

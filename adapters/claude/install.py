@@ -536,7 +536,60 @@ def verify(target, written, arts, profile_before, dry_run):
         after = _profile_hash(target)
         if profile_before != after:
             fails.append("the profile sheet changed during install (obligation 7)")
+        fails.extend(_comment_budget(target))
     return fails, declared
+
+
+# Scaffolded files are read by whoever inherits the repo, so a comment there earns its
+# place. The rule is one line each — a run of them is a wall of text that crowds out the
+# config. Two are allowed for a wrapped sentence. Enforced rather than documented,
+# because the budget was blown three times by hand-edits that each looked fine alone.
+#
+# Percentage is deliberately NOT the measure: the genie src/ stubs ship as empty lists
+# with a worked example in comments, so they are ~90% comments and correct.
+MAX_COMMENT_RUN = 2
+
+
+def _comment_budget(target):
+    fails = []
+    root = os.path.join(target, "skills", "scaffold", "templates")
+    for r, _, fs in os.walk(root):
+        for f in fs:
+            if not f.endswith((".yml", ".yaml")):
+                continue
+            p = os.path.join(r, f)
+            try:
+                lines = open(p, encoding="utf-8").read().splitlines()
+            except Exception:
+                continue
+            # A stub is all example — the rule is about comments displacing config.
+            content = [ln for ln in lines if ln.strip() and not ln.strip().startswith("#")]
+            if len(content) < 8:
+                continue
+            run = start = 0
+            worst = (0, 0)
+            for i, ln in enumerate(lines, 1):
+                body = ln.strip()[1:].strip() if ln.strip().startswith("#") else None
+                # A commented-out example (`# - tool_id: x`, `# key: value`) is
+                # scaffolding to uncomment, not prose. Only prose is capped.
+                is_prose = body is not None and not (
+                    body.startswith("- ")
+                    or (":" in body and not body.endswith(".") and " " not in body.split(":")[0])
+                )
+                if is_prose:
+                    if not run:
+                        start = i
+                    run += 1
+                    if run > worst[0]:
+                        worst = (run, start)
+                else:
+                    run = 0
+            if worst[0] > MAX_COMMENT_RUN:
+                fails.append(
+                    f"{os.path.relpath(p, target)}:{worst[1]} has a "
+                    f"{worst[0]}-line comment block (max {MAX_COMMENT_RUN})"
+                )
+    return fails
 
 
 def _profile_hash(target):

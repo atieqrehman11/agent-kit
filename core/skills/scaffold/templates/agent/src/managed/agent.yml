@@ -1,32 +1,25 @@
 # The managed (Agent Bricks) supervisor agent — SOURCE OF TRUTH.
-#
-# python/managed.py reconciles the live agent to this file. Anything edited in
-# the Databricks UI is overwritten on the next deploy; edit here instead.
-#
-# ${...} placeholders are substituted from the deploy job's --var parameters,
-# which databricks.yml fills per environment. Nothing here names an environment,
-# and an unresolved ${name} fails the deploy rather than reaching the API.
+# UI edits are overwritten on the next deploy; edit here instead.
+
+# ${...} comes from the deploy job's --var, filled per target in databricks.yml.
+# An unresolved ${name} fails the deploy rather than reaching the API.
 
 display_name: ${display_name}
 
 description: >-
   TPLVAR_DESCRIPTION
 
-# Sent byte-verbatim as the supervisor's system prompt. Kept in its own file so a
-# diff of the prompt is a diff of one file, and so an editor cannot reflow it as
-# part of a YAML string. See .editorconfig.
+# Sent byte-verbatim as the system prompt. Its own file so a diff is one file and
+# an editor cannot reflow it as a YAML string.
 instructions_file: instructions.md
 
-# Reconciled by tool_id: declared tools are created, patched or replaced, and any
-# tool on the live agent that is NOT declared here is DELETED. A tool's spec is
-# immutable — only description can be patched — so changing a space id replaces
-# the tool. tool_id is a stable logical name, so that replacement reuses the id.
-#
-# `description` is not documentation: it is what the supervisor reads to decide
-# when to route to this tool. Write it as routing guidance, and say what the tool
-# does NOT cover — that is what stops a wrong route.
-#
-# Confirm the tool_type names and their spec fields for your workspace:
+# Reconciled by tool_id: a tool on the live agent that is NOT declared here is
+# DELETED. A spec is immutable, so changing it replaces the tool.
+
+# `description` is routing guidance the supervisor reads, not documentation —
+# say what the tool does NOT cover, or it gets wrong routes.
+
+# Confirm tool_type names for your workspace:
 # https://docs.databricks.com/aws/en/generative-ai/agent-bricks/multi-agent-supervisor
 tools:
   - tool_id: TODO-rename-me

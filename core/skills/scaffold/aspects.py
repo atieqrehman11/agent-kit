@@ -69,6 +69,29 @@ GUIDELINE_NAMES = {
 _IGNORE = {"__pycache__", ".ruff_cache", ".pytest_cache", ".DS_Store"}
 
 
+# Resource key the controller must `bundle run` for the deploy to be complete, per type.
+# Lives here rather than in new.py because BOTH commands need it: `new` writes the deploy
+# aspect for a fresh repo and `{{cmd:scaffold:add}}` writes it for an existing one, and a
+# repo that got its run_resources.yml from the second must not differ from one that got it
+# from the first. "TPLVAR_RESOURCE_KEY" is substituted with the repo's own resource key.
+#
+#   api/fe  the app deployment that makes an upload live
+#   agent   the reconciler job, which IS the deploy
+# Types absent here ship an empty list on purpose — see run_resources_yaml below.
+RUN_RESOURCE_BY_TYPE = {
+    "api": "TPLVAR_RESOURCE_KEY",
+    "fe": "TPLVAR_RESOURCE_KEY",
+    "agent": "deploy_agent",
+}
+
+
+def run_resource_key(rtype: str, resource_key: str) -> str:
+    """The `bundle run` target for ``rtype``, or "" when the type needs none."""
+    return RUN_RESOURCE_BY_TYPE.get(rtype, "").replace(
+        "TPLVAR_RESOURCE_KEY", resource_key
+    )
+
+
 def run_resources_yaml(vars_) -> str:
     """``run_resources.yml`` — resource keys the controller runs after deploy.
 
@@ -390,7 +413,10 @@ ASPECTS = {
             "(requirements / design / tasks / report) the deliver skill reads and writes"
         ),
         "applies_to": ALL_TYPES,
-        "selectable": False,
+        # Selectable, and NOT applied by `new`: the spec convention is a choice about
+        # how a team works, not a property of the repo type. A repo that never runs
+        # the deliver skill gets a folder it does not use.
+        "selectable": True,
         "files": [("common/specs-README.md", "docs/specs/README.md")],
     },
     "config-sheet": {
@@ -427,7 +453,7 @@ SELECTABLE = [k for k in ORDER if ASPECTS[k].get("selectable")]
 # The code these aspects ship states its rules plainly and cites nothing — a section
 # number in a comment goes stale the moment a guideline is renumbered. The README
 # pointer each template carries is the one place that names the guidelines.
-AUTO = ["gitignore", "editorconfig", "specs", "config-sheet"]
+AUTO = ["gitignore", "editorconfig", "config-sheet"]
 
 # Keys that are not choices, mapped to where that work lives now — so anyone who
 # reaches for one gets a pointer instead of "unknown aspect".
@@ -444,7 +470,6 @@ MERGED = {
     ),
     "gitignore": ".gitignore is applied automatically wherever it is missing.",
     "editorconfig": ".editorconfig is applied automatically wherever it is missing.",
-    "specs": "docs/specs/README.md is applied automatically wherever it is missing.",
     "config-sheet": "CONFIG.md is regenerated automatically after every add.",
 }
 
@@ -466,6 +491,31 @@ MERGED = {
 # README.md likewise ships inside each template dir (tokens patched by _patch_tree).
 _STANDARD_SET = ("deploy", "gitlab", "gitignore", "editorconfig", "specs")
 DEFAULT_BY_TYPE = {t: _STANDARD_SET for t in ALL_TYPES}
+
+# What `new` applies to a FRESH tree — deliberately narrower than the standard set.
+#
+# `new` produces the application code and nothing that commits the repo to an
+# environment. Three aspects are held back, each for its own reason:
+#
+#   deploy   the bundle descriptor names workspace hosts, service principals and a
+#            registered bundle uuid. None of that is known at scaffold time, and a
+#            repo carrying a databricks.yml full of TODO_SET_ values looks deployable
+#            when it is not — registration with the platform team is a prerequisite.
+#   gitlab   the pipeline belongs to the CI/CD onboarding step, which is a separate
+#            conversation with the platform team (group trigger token, registry entry).
+#            Shipping it early means a repo whose first push fires a pipeline that
+#            cannot pass governance.
+#   specs    the docs/specs/ convention is a choice about how a team works, not a
+#            property of the repo type.
+#
+# All three are restored on demand — `{{cmd:scaffold:add}} --aspect deploy|gitlab|specs`,
+# or `--aspect all` for the full standard set. `is_default` still reports them as
+# standard for the type, so `--detect` lists them as missing rather than as extras.
+# .gitignore only, and only where the type's own template does not ship one: without
+# it an `fe` repo commits node_modules/ on the first add. Everything else a repo
+# eventually needs is an explicit `{{cmd:scaffold:add}}` away.
+_NEW_SET = ("gitignore",)
+NEW_SET_BY_TYPE = {t: _NEW_SET for t in ALL_TYPES}
 
 
 def is_default(key, rtype):

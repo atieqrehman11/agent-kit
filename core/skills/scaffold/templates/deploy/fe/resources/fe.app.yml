@@ -1,54 +1,31 @@
-# No app.yml — it would upload verbatim and could not hold a per-environment
-# value; `config:` here goes through variable resolution, so the backend URL can
-# differ between stg and prod.
-#
-# source_code_path is the app root in the workspace, so it must be the folder
-# holding server.mjs.
-#
-# No permissions here: a resource-level block applies to every target, so a dev
-# group named here would reach prod. Grants live per target in databricks.yml.
-#
-# Renaming TPLVAR_RESOURCE_KEY recreates the app with a new client id and URL —
-# and the API this front end calls grants CAN_USE to the OLD principal.
+# Grants live per target in databricks.yml — a block here would reach prod.
+# Renaming TPLVAR_RESOURCE_KEY recreates the app with a new client id and URL.
 resources:
   apps:
     TPLVAR_RESOURCE_KEY:
-      name: "TPLVAR_SLUG"
+      name: "TPLVAR_APP_NAME"
       description: "TPLVAR_DESCRIPTION"
       source_code_path: ${workspace.file_path}
 
       config:
-        # server.mjs has no dependencies — Node built-ins only, serving the
-        # prebuilt dist/ and proxying /api. Nothing installs at startup.
         command:
           - node
           - server.mjs
 
         env:
-          # Databricks Apps routes to a fixed port; a mismatch causes 502s.
+          # Apps routes to a fixed port; a mismatch causes 502s.
           - name: PORT
             value: "8000"
 
-          # The only service this front end calls. The browser never sees it:
-          # it calls same-origin /api/*, and server.mjs proxies here.
           - name: BACKEND_API_URL
             value: ${var.backend_api_url}
 
-          # sp   — mint a token for THIS app's own service principal from the
-          #        client id + secret Apps injects. The API must grant that
-          #        principal CAN_USE, or every call is 401.
-          # obo  — forward the signed-in user's token; also needs
-          #        user_api_scopes below and a backend that authorizes per user.
-          # none — send no Authorization header.
+          # sp = this app's own principal (needs CAN_USE on the API) | obo | none
           - name: BACKEND_API_AUTH
             value: ${var.backend_api_auth}
 
           - name: LOG_LEVEL
             value: ${var.log_level}
 
-      # Requesting a scope is what makes the platform inject
-      # X-Forwarded-Access-Token, which server.mjs already forwards. Confirm the
-      # scope names your workspace exposes before uncommenting.
-      #
-      # user_api_scopes:
-      #   - sql
+      # For obo: requesting a scope is what injects X-Forwarded-Access-Token.
+      # user_api_scopes: [sql]

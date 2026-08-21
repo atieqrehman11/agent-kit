@@ -1,38 +1,11 @@
-# ── Job resource ─────────────────────────────────────────────────────────────
-# `resources.jobs` is the DAB schema collection key (always plural, even for one
-# job). TPLVAR_RESOURCE_KEY is the single resource key —
-# `databricks bundle run TPLVAR_RESOURCE_KEY` targets it.
-#
-# Notebook paths are relative to THIS file's directory (resources/), so the task
-# notebooks under src/ are referenced as ../src/task_0N_*.py
-#
-# ── Why serverless notebook tasks ────────────────────────────────────────────
-# No job_clusters block, so no policy_id and no cluster to size or wait for. Each
-# task declares what it needs through base_parameters rather than reading a
-# config file, so the parameters a run used are visible in the run itself.
-#
-# If this job genuinely needs a classic cluster — a custom runtime, an init
-# script, a library the serverless environment cannot resolve — add:
-#
-#   job_clusters:
-#     - job_cluster_key: job_cluster
-#       new_cluster:
-#         spark_version: 15.4.x-scala2.12
-#         node_type_id: i3.xlarge
-#         data_security_mode: SINGLE_USER
-#         policy_id: ${var.policy_id}
-#         autoscale: { min_workers: 1, max_workers: 4 }
-#
-# and put `job_cluster_key: job_cluster` on each task. Then set policy_id per
-# target in databricks.yml — the run-as principal cannot create a cluster without
-# a policy that allows it.
+# Notebook paths are relative to this file. Serverless, so no policy_id; tasks
+# take explicit base_parameters, so a run shows the parameters it used.
 resources:
   jobs:
     TPLVAR_RESOURCE_KEY:
-      name: "TPLVAR_SLUG"
+      name: "TPLVAR_APP_NAME"
 
-      # Each task reads and writes Delta and is idempotent, so the job can be
-      # re-run or resumed from a failed task safely.
+      # Tasks are idempotent, so a failed run can be resumed.
       max_concurrent_runs: 1
       queue:
         enabled: true
@@ -42,17 +15,15 @@ resources:
         timezone_id: "America/Denver"
         pause_status: PAUSED
 
-      # environment, team and ci_commit_sha are mandatory on every taggable
-      # resource — the controller's governance check rejects the bundle without
-      # them. `commit_sha` (no ci_ prefix) is NOT the key it looks for.
+      # environment/team/ci_commit_sha are mandatory — governance rejects the
+      # bundle without them, and `commit_sha` is not the key it looks for.
       tags:
         environment: ${bundle.target}
         team: ${var.team_tag}
         ci_commit_sha: ${var.commit_sha}
         project: ${var.project_tag}
 
-      # One task per stage, chained with depends_on. A failed run resumes from the
-      # task that failed rather than re-running the whole job.
+      # One task per stage, chained with depends_on.
       tasks:
         - task_key: ingest
           notebook_task:

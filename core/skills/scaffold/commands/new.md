@@ -3,15 +3,33 @@ name: new
 kind: command
 description: >
   Create a new Databricks repo of a single type — ETL bundle, job bundle, API skeleton,
-  React front end, agent or Genie space — with CI/CD wired for that type. Use when starting
-  a repo from nothing.
+  React front end, agent or Genie space. Writes the application code only; deploy config and
+  CI/CD are added later with scaffold:add. Use when starting a repo from nothing.
 arguments: "[repo type and name; prompted if omitted]"
 ---
 
 # Scaffold a new Databricks repo (type-driven wizard)
 
-Creates one repo of a **single type**. The type selects the primary resource; CI/CD is
-wired for every type.
+Creates one repo of a **single type**: the application code for that type, and nothing
+that commits it to an environment.
+
+**What it does NOT write.** Three aspects are held back, because none can be answered
+correctly at scaffold time — each is one `{{cmd:scaffold:add}}` away:
+
+| Held back | What it would bring | Add it when |
+|---|---|---|
+| `deploy` | `databricks.yml`, `resources/`, `run_local.sh`, `run_resources.yml` | the bundle name + uuid are registered with the platform team and the stg/prod service principals exist |
+| `gitlab` | `.gitlab-ci.yml`, the project setup scripts | CI/CD onboarding is done and the group-level `CONTROLLER_TRIGGER_TOKEN` is set |
+| `specs` | `docs/specs/README.md` | the team decides to use the per-feature spec convention |
+
+Do not add them pre-emptively, and do not tell the user the repo is deployable: a
+`databricks.yml` full of `TODO_SET_` values looks deployable and is not, and a pipeline
+pushed before registration fails the controller's governance stage rather than the repo's
+own. `CONFIG.md` is **not** written either — the sheet exists to resolve the placeholders
+those aspects bring, so it is created by the first `{{cmd:scaffold:add}}`, not here.
+
+The table below is what the type means **once `deploy` and `gitlab` are added** — the
+resource each type owns and how it reaches stg/prod.
 
 | Type | Primary resource | Deploy mechanism | CI/CD |
 |---|---|---|---|
@@ -121,6 +139,10 @@ team) is written as a `TODO_SET_` placeholder that `{{cmd:scaffold:configure}}` 
 pass from the generated `CONFIG.md`. **Do not** ask a separate "which optional inputs to set
 now?" screen — that work is deferred to `configure` by design.
 
+The **output directory is the one exception** and is confirmed on the Step 2 screen. It is a
+local path, not a repo value, so no `TODO_SET_` token exists for it and `configure` can never
+fix it — once the repo is written to the wrong root, the only remedy is moving it by hand.
+
 **Step 1 — One form (AskUserQuestion, one screen, four questions).** Ask **Type**, **Slug**,
 **Repo name**, and **Description** together on a single screen:
 
@@ -150,8 +172,21 @@ now?" screen — that work is deferred to `configure` by design.
 The **display name is not asked** — derive it from the slug (Title Case). That is the *only*
 input screen; everything else is deferred to `{{cmd:scaffold:configure}}`.
 
-**Step 2 — Confirm (AskUserQuestion, one screen).** Echo the full resolved config (type, slug,
-repo name, derived display name, description) and ask a single **Proceed / Cancel** confirm.
+**Step 2 — Confirm (AskUserQuestion, one screen, two questions).** Echo the full resolved
+config (type, slug, repo name, derived display name, description, **and the resolved output
+directory**), then ask:
+
+- **Output directory** — resolve it first (`$SCAFFOLD_OUTPUT_DIR`, else the profile's
+  `output_dir`, else CWD), state which source it came from, and ask whether to **keep it or
+  override**. Offer the resolved default as the first option and any sibling directories that
+  plausibly own a repo as the others, plus "Other" to type a path. Never treat the profile's
+  `output_dir` as settled just because it is set: one profile serves a whole client tree, and
+  a tree with more than one repo root (e.g. a prototyping folder and a production folder) has
+  no single correct default. Showing the path without offering the override is the failure
+  mode — the repo lands in the wrong root and looks correct. Pass the result as
+  `--output-dir` whenever it differs from the resolved default.
+- **Proceed / Cancel.**
+
 On confirm, run the scaffold.
 
 Optional (sensible defaults; only ask to override): `--gitlab-runner` (`devops-ci-new`),
@@ -204,12 +239,16 @@ checklist.
 - **api** — domain schemas live in `schema/models.py`; runtime `command`/`env` live in
   `app.yml` (single source of truth — the app resource in `resources/api.app.yml` no longer
   duplicates them).
-- **Controller types (`api`/`etl`/`job`)** — remind the user to fill the `TODO_SET_*` values
-  in `databricks.yml` (stg/prod hosts, service principals, policy ids) before the first
-  cloud deploy. Registration with the platform team is a **prerequisite**, not something
-  the scaffold produces: the bundle name + uuid must already be in the team registry and
-  the stg/prod service principals already created, or the controller's governance stage
-  rejects the deploy. GitLab setup is `gitlab/setup-group.sh` then `gitlab/setup-repo.sh`. Local dev testing: `./run_local.sh deploy`.
+- **Deploy and CI/CD are not in the repo yet.** Say so plainly rather than printing deploy
+  instructions for absent files: there is no `databricks.yml`, no `resources/`, no
+  `run_local.sh` and no `.gitlab-ci.yml` until the matching aspect is added.
+  - `{{cmd:scaffold:add}} --aspect deploy` — once the bundle name + uuid are in the team
+    registry and the stg/prod service principals exist. Registration is a **prerequisite**,
+    not something the scaffold produces; without it the controller's governance stage
+    rejects the deploy. Then fill the `TODO_SET_*` values it brings (stg/prod hosts, service
+    principals, policy ids) via `CONFIG.md` + `{{cmd:scaffold:configure}}`.
+  - `{{cmd:scaffold:add}} --aspect gitlab` — at CI/CD onboarding. GitLab project setup is
+    then `gitlab/setup-group.sh` followed by `gitlab/setup-repo.sh`.
 - **api** also: set `TODO_SET_WAREHOUSE_ID` / `TODO_SET_CHAT_GATEWAY_URL` in `app.yml`
   (the runtime env), and register the domain with the shared chat gateway service
   (its `domain_configs/`).
@@ -269,7 +308,8 @@ Every step is an `AskUserQuestion` picker — no inline text prompts:
     job and agent named in the            ai-signal-quality-etl |
     Type question → Other)                Monitors cable signal health…
    (display name auto-derived: Signal Quality)
-→ [picker] Confirm?                      Proceed / Cancel
+→ [picker] Output dir? / Confirm?        <profile output_dir> (keep) | <sibling root> | Other
+   (states which source the default came from)   + Proceed / Cancel
 ✓ Confirm → runs new.py --type etl --slug signal-quality --display-name "Signal Quality" \
               --repo-name ai-signal-quality-etl --description "…"
    (workspace/catalog/table-prefix/team NOT passed → TODO_SET_ placeholders in CONFIG.md;

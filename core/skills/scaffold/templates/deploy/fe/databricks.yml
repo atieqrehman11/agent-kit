@@ -9,8 +9,7 @@ bundle:
 include:
   - resources/*.yml
 
-# api_* become the App's env (see resources/fe.app.yml). The rest exist only
-# because the controller passes them and deploy errors on an undeclared --var.
+# The unused ones exist because deploy errors on an undeclared --var.
 variables:
   backend_api_url:
     description: "Use case API this front end proxies to"
@@ -41,17 +40,8 @@ variables:
   commit_sha:
     default: "local"
 
-# Every target ships prebuilt dist/ + server.mjs only: package.json must not
-# reach the app root, or the Apps platform runs an install. That install needs
-# registry.npmjs.org, which the Apps build environment cannot resolve
-# (getaddrinfo EAI_AGAIN). dist/ is committed so the controller's fresh clone
-# has it — see .gitignore.
-#
-# run_as is required by the controller on stg/prod. dev has none — Apps reject a
-# run_as that differs from the deploying identity, and you deploy dev yourself.
-#
-# root_path: dev is shared so the team manages one app; stg/prod use the
-# principal's own folder, as /Workspace/Shared is writable by every user.
+# sync ships dist/ + server.mjs only: package.json in the app root triggers an
+# npm install the Apps build cannot reach. run_as is stg/prod only.
 targets:
   # `mode: development` would reject the shared root_path.
   dev:

@@ -35,7 +35,7 @@ fi
 # ==============================================================================
 
 BUNDLE_TARGET="${BUNDLE_TARGET:-dev}"
-PIPELINE_KEY="TPLVAR_RESOURCE_KEY_pipeline"
+PIPELINE_KEY="TPLVAR_RESOURCE_KEY"
 SOURCE_DIR="$(cd "$(dirname "$0")" && pwd)"
 DATABRICKS_BIN="${DATABRICKS_BIN:-databricks}"
 

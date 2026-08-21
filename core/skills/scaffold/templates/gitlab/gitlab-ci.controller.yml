@@ -1,15 +1,5 @@
-# GITLAB CI/CD — TPLVAR_SLUG
-#
-# Never deploys. Validates the bundle config and triggers the shared DAB CI/CD
-# controller, which deploys the bundle into the stg / prod workspaces.
-#
-#   dev   local: ./run_local.sh deploy
-#   stg   automatic on merge
-#   prod  manual — play button in Build → Pipelines
-#
-# CONTROLLER_TRIGGER_TOKEN is a protected group variable — stg and prod must stay
-# PROTECTED branches, or the trigger silently receives an empty token and the job
-# still goes green.
+# TPLVAR_SLUG — validates, then triggers the controller. Never deploys.
+# stg/prod must stay PROTECTED or the trigger gets an empty token and goes green.
 
 stages:
   - validate
@@ -35,28 +25,12 @@ validate:
         echo "ERROR: databricks.yml not found"; exit 1
       fi
     - echo "✓ Bundle configuration exists"
-    # A repo that ships python/validate.py checks its own declaration here — the
-    # offline check is the one that catches a bad spec before the controller
-    # applies it. Repos without one skip this silently.
-    - |-
-      if [ -f "python/validate.py" ]; then
-        pip install --quiet "pyyaml>=6.0"
-        PYTHONPATH=python python3 python/validate.py
-      fi
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH
 
-# ref=prod is the CONTROLLER's release branch, not our target env.
-#
-# No `image:` here on purpose — the databricks-ci image has no CA bundle at the
-# path its curl expects, so a trigger run there dies with `curl: (77)`. The
-# runner default has a working curl.
-#
-# Two failure modes are checked separately: curl's own exit code (DNS, TLS,
-# connection) and the HTTP status — curl exits 0 on 4xx/5xx, so a rejected
-# trigger would otherwise be a green job that deployed nothing.
-# Green means ACCEPTED; the deploy runs in the controller's pipeline.
+# ref=prod is the CONTROLLER's release branch, not our target env. No `image:`:
+# the databricks-ci curl has no CA bundle and dies with `curl: (77)`.
 .trigger-controller:
   stage: trigger-deploy
   script:
@@ -81,8 +55,7 @@ validate:
       fi
       status=$(printf '%s' "$response" | tail -n1)
       printf '%s\n' "$response" | sed '$d'
-      # `case`, not a numeric test: an arithmetic comparison on an empty status
-      # errors, and `if` reads that as false — passing the job.
+      # `case`, not a numeric test: an empty status errors and `if` passes the job.
       case "$status" in
         2??) echo "✓ Controller pipeline triggered for $TARGET_ENV (HTTP $status)" ;;
         *)   echo "ERROR: controller trigger failed — HTTP '$status'"

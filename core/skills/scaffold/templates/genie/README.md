@@ -12,6 +12,23 @@ anything tuned in the Genie UI is overwritten on the next deploy. All
 answer-quality work — instructions, example queries, the backing views — lives
 here.
 
+## What is in this repo, and what is not
+
+`{{cmd:scaffold:new}}` writes the application code and nothing that binds the repo to a
+workspace. The deploy descriptor and the pipeline are added later, each once its
+prerequisite is actually met — they are not missing by accident:
+
+| Add | Brings | When |
+|---|---|---|
+| `{{cmd:scaffold:add}} --aspect deploy` | `databricks.yml`, `resources/`, `run_local.sh`, `run_resources.yml` | the bundle name + uuid are in the platform team's registry and the stg/prod service principals exist |
+| `{{cmd:scaffold:add}} --aspect gitlab` | `.gitlab-ci.yml` and the GitLab project setup scripts | CI/CD onboarding is done and the group-level `CONTROLLER_TRIGGER_TOKEN` is set |
+| `{{cmd:scaffold:add}} --aspect specs` | `docs/specs/README.md` | the team adopts the per-feature spec convention |
+
+Sections below marked *(deploy aspect)* describe the repo **after** that add. Until then
+there is nothing to deploy and no pipeline to fire — which is deliberate: a `databricks.yml`
+full of `TODO_SET_` values looks deployable and is not, and a pipeline pushed before
+registration fails the controller's governance stage rather than this repo's own.
+
 ## Layout
 
 ```
@@ -27,8 +44,8 @@ python/
 ├── build_space.py         assembles src/ into the artifact
 └── validate.py            checks src/ — no credentials, no network
 generated/               built, COMMITTED, never hand-edited
-resources/genie.yml      the DAB resource — title, warehouse_id, description
-databricks.yml           per-environment values; every target's catalog
+resources/genie.yml      (deploy aspect) the DAB resource — title, warehouse_id
+databricks.yml           (deploy aspect) per-environment values; per-target catalog
 docs/                    changelog — standards live in agent-kit
 ```
 

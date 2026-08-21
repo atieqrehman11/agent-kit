@@ -10,6 +10,23 @@ The **repo is authoritative**. Anything changed in the Agents-tab UI is
 overwritten on the next deploy — including tools added there, which are deleted
 because they are not declared here.
 
+## What is in this repo, and what is not
+
+`{{cmd:scaffold:new}}` writes the application code and nothing that binds the repo to a
+workspace. The deploy descriptor and the pipeline are added later, each once its
+prerequisite is actually met — they are not missing by accident:
+
+| Add | Brings | When |
+|---|---|---|
+| `{{cmd:scaffold:add}} --aspect deploy` | `databricks.yml`, `resources/`, `run_local.sh`, `run_resources.yml` | the bundle name + uuid are in the platform team's registry and the stg/prod service principals exist |
+| `{{cmd:scaffold:add}} --aspect gitlab` | `.gitlab-ci.yml` and the GitLab project setup scripts | CI/CD onboarding is done and the group-level `CONTROLLER_TRIGGER_TOKEN` is set |
+| `{{cmd:scaffold:add}} --aspect specs` | `docs/specs/README.md` | the team adopts the per-feature spec convention |
+
+Sections below marked *(deploy aspect)* describe the repo **after** that add. Until then
+there is nothing to deploy and no pipeline to fire — which is deliberate: a `databricks.yml`
+full of `TODO_SET_` values looks deployable and is not, and a pipeline pushed before
+registration fails the controller's governance stage rather than this repo's own.
+
 ## Layout
 
 ```
@@ -20,8 +37,8 @@ python/
 ├── deploy_agent.py      the job task entry point
 ├── managed.py           the reconciler
 └── validate.py          checks the spec — no credentials, no network
-resources/deploy.job.yml the job that IS the deploy
-databricks.yml           per-environment values, passed to the job as --var
+resources/deploy.job.yml (deploy aspect) the job that IS the deploy
+databricks.yml           (deploy aspect) per-env values, passed as --var
 ```
 
 ## Configuration
