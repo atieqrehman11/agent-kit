@@ -41,6 +41,27 @@ Gather everything answerable from the code first, ask **one** batched round, the
 
 ---
 
+## Step 0 — Scope discipline (do this before discovery)
+
+Write down, and keep visible: the sentence the user asked for; the exact deliverable shape they
+named (sheet count, page count, format); and a stated order-of-magnitude sanity check for the size
+of the answer. Plan that sentence. If the finished plan lands far outside the sanity check, the
+plan is wrong — go back and cut.
+
+Every task must be required by the request, not by an idea of best practice nobody asked for.
+Hardening, backup, rate limiting, accessibility programmes, monitoring and versioning conventions
+are the standard ways a small feature becomes a programme: put them in one short paragraph of
+recommendations after the plan, not as priced rows.
+
+Deliver one sheet at a time: build it, show it, stop, and continue only when asked. Reserve a
+complete workbook for an explicit request for the full plan. Build in gate order — the task list
+first, because every other sheet derives from it — and say so when the user named a different sheet
+as their first.
+
+Scale the process to the ask. A handful of tasks and one page for a small feature; the full
+machinery only when the work is genuinely programme-sized. Do not run an adversarial review pass
+on a ten-task plan.
+
 ## Step 1 — Discovery (async, parallel) — Gate 1
 
 Fan out `Explore` subagents in a single message, one per area, each returning findings only:
@@ -92,6 +113,14 @@ inputs, chasing every dependency on an open decision, and walking the data flow 
 the stage that moves each artefact.
 
 ## Step 4 — Adversarial review, BEFORE pricing anything (async, a fresh agent) — Gate 3
+
+**Only run this step if the plan is programme-sized.** On a small plan, read the list once
+yourself against Gate 0 and move on.
+
+The review finds gaps and overlaps **within the requested scope** — it does not set the scope, and
+an independent reviewer will reliably try to expand it. Triage every finding against Gate 0 before
+accepting it, and report what you declined and why. Accepting a review wholesale is the same
+failure as skipping it.
 
 Spawn a **separate** subagent whose only job is to attack the list. Never let the authoring agent
 review its own work.

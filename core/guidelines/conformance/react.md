@@ -19,6 +19,12 @@ Components and complexity:
 - [ ] Components render and hooks decide — no fetch, business rule or derived-state maths in JSX.
 - [ ] No component both fetches and lays out; no hook is named for two concerns; components over ~150 lines were examined for a hook-shaped seam.
 
+Naming:
+
+- [ ] Every file and folder added is `kebab-case` — including a file holding a single component.
+- [ ] Component and type exports are `PascalCase`; functions and hooks `camelCase`; constants `SCREAMING_SNAKE_CASE`.
+- [ ] A test sits beside its subject under the same stem (`thing-card.tsx` / `thing-card.test.tsx`).
+
 States:
 
 - [ ] Every data-fetching component handles loading, error **and** empty.

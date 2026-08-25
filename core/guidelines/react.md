@@ -55,12 +55,38 @@ The shell is generic; features are the only thing that grows.
 
 ```
 src/features/<feature>/
-  components/    UI components (Component.tsx + Component.test.tsx side by side)
+  components/    UI components (thing-card.tsx + thing-card.test.tsx side by side)
   hooks/         custom hooks — data fetching + state
   api/           API call functions, Zod-typed
   types/         shared interfaces
   index.ts       the public entry the registry lazy-loads
 ```
+
+### Naming
+
+File names and export names are governed by different things — the filesystem and the
+JavaScript grammar — so they are two rules, not one:
+
+- **Files and folders are `kebab-case`**, always: `thing-card.tsx`, `use-thing-data.ts`,
+  `error-boundary.tsx`, `globals.css`. No exceptions, including for a file that holds a
+  single component.
+- **Exports are cased for what they are.** `PascalCase` for components and types,
+  `camelCase` for functions and hooks, `SCREAMING_SNAKE_CASE` for constants. So
+  `thing-card.tsx` exports `ThingCard`.
+
+Two reasons the file half is kebab rather than matching the component:
+
+1. **shadcn/ui writes kebab and overwrites it.** `shadcn add` emits `dropdown-menu.tsx`,
+   `alert-dialog.tsx` into `src/shared/ui/`, and re-running it replaces those files
+   wholesale — they cannot be renamed and kept. PascalCase elsewhere buys a permanently
+   mixed tree rather than a consistent one.
+2. **macOS and Windows filesystems are case-insensitive.** A rename that only changes case
+   needs two commits to land, and the import that resolved locally 404s on a
+   case-sensitive CI runner.
+
+PascalCase on the export is not a preference. JSX resolves `<Thing />` to a variable and
+`<thing />` to the string `"thing"`, so a lowercase component silently renders an unknown
+DOM element instead of erroring. `react/jsx-pascal-case` enforces it.
 
 ## Components
 
@@ -68,7 +94,7 @@ src/features/<feature>/
 - Custom hooks for business logic — one hook per concern, named `use<Thing><Action>`
 - **Components render; hooks decide.** No fetch, no business rule, no derived-state maths
   in JSX
-- Co-locate `Component.tsx` with `Component.test.tsx`
+- Co-locate `thing-card.tsx` with `thing-card.test.tsx`
 - Loading, error **and** empty states are mandatory for every data-fetching component. An
   empty result renders as empty, not as an error
 

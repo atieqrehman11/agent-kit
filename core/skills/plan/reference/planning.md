@@ -1,12 +1,13 @@
 # Release & Delivery Planning Guidelines
 
 Applies to **every** plan, WBS, release plan, roadmap or estimate, in any project, any format
-(xlsx, md, docx). These are nine ordered **gates**, not a menu. Do not start a later gate before
+(xlsx, md, docx). These are ten ordered **gates**, not a menu. Do not start a later gate before
 the earlier one passes. If the user asks for a Gantt chart on day one, the honest answer is that
 the task list has to be complete, reviewed and estimated first — say so, then do the gates in
 order.
 
 ```
+0  Scope discipline      plan the request, at the size of the request  ← most often failed
 1  Requirements          from code or specs, never assumption
 2  Task list             complete, including the unglamorous work
 3  Review                gaps, overlaps, phase triage           ← before you spend effort pricing
@@ -37,6 +38,92 @@ number would have travelled into a management deck. **A model's assumptions must
 than its outputs.**
 
 ---
+
+---
+
+## Gate 0 — Plan the thing that was asked for, and nothing else
+
+**This gate exists because it is the one most often failed, and failing it wastes everyone's
+time while looking like diligence.** A plan that is twice the size of the request is not more
+thorough, it is wrong — and it is harder to correct than a plan that is too small, because every
+inflated number has to be argued down one at a time.
+
+Before Gate 1, write down three things and keep them visible while planning:
+
+1. **The sentence the user actually said.** Quote it. Plan that sentence.
+2. **The deliverable shape they asked for.** If they said three sheets, produce three sheets. If
+   they said one page, produce one page. Supporting material is not free: every extra artefact is
+   something the reader has to triage, and producing seven unrequested sheets buries the four they
+   wanted.
+3. **A size sanity-check, stated before the tasks are written.** Say out loud what a reasonable
+   order of magnitude is for this request — days, a couple of weeks, a quarter. If the finished
+   plan lands far outside it, the plan is wrong, not the intuition. Go back and cut.
+
+### The proportionality test
+
+Apply it to every task before it goes in the list:
+
+> **Is this task required by the request, or by an idea of best practice the user never asked
+> for?**
+
+Required stays. The rest is a *recommendation*, not a task — and a recommendation belongs in one
+short paragraph after the plan, not as a priced row with a dependency graph. Backup strategies,
+rate limiting, accessibility remediation programmes, versioning conventions, monitoring stacks and
+audit tooling are all real engineering concerns and all standard ways to inflate a small feature
+into a programme. If the user asked for an edit form, plan an edit form.
+
+**The scale must match the ask.** A small feature is a small plan: a handful of tasks, a few
+weeks, one page. Reserve the full nine-gate machinery — 100-task backlogs, adversarial review
+passes, resource-levelled Gantts — for work that is genuinely programme-sized. Running heavy
+process over a light request produces a heavy answer, and the weight itself reads as a
+misunderstanding of what was wanted.
+
+### Build one sheet at a time
+
+**Do not produce a whole workbook in one pass.** Build the first sheet, show it, and stop. Only
+continue when the user asks for the next one. Produce a complete multi-sheet plan only when they
+explicitly ask for the full plan.
+
+The reason is cheapness of correction. A wrong assumption in sheet one is carried into every sheet
+derived from it, so a full workbook built on a misread request has to be rebuilt entirely — and the
+user has to review a large artefact to find the one thing that was wrong. One sheet is a small
+thing to reject.
+
+Build order follows the gates, not the presentation order the user listed. The task list is the
+source of truth and everything else derives from it, so it is built first even when the user names
+milestones as sheet one. Say that when you show it.
+
+After each sheet: state what it contains, what the next sheet would add, and stop.
+
+### Legibility is part of the deliverable
+
+An artefact nobody can read has not been delivered. Body text at 11pt or above, generous row
+heights, and no more sheets than were asked for. Shrinking the font to fit more in is the wrong
+trade every time — cut the content instead.
+
+---
+
+## Gate 3 has a ceiling, and the reviewer does not set the scope
+
+The adversarial review at Gate 3 exists to find **gaps in what was asked for** and **overlaps
+that inflate it**. It does not exist to expand the mandate, and an independent reviewer with no
+stake in the size of the plan will reliably try to. That is its bias, exactly as the author's bias
+is to under-review.
+
+So the review's findings are **evidence, not instructions.** Triage every one against Gate 0
+before accepting it:
+
+- **Accept** a finding that shows something in the requested scope is missing, wrong, or
+  double-counted. These are the reason the gate exists.
+- **Record as a recommendation** a finding that adds capability, hardening or assurance the user
+  never asked for — however correct it is on its own terms.
+- **Reject** a finding whose only argument is that a mature system would have it.
+
+Accepting a review wholesale is the same failure as skipping it. On one plan, accepting every
+finding from a single review pass added 27 days to a request the client had described as small,
+and the client's response was that the whole artefact no longer made sense — which was correct.
+**Report what the review found and what you did not act on, with the reason.** A finding
+consciously declined is a decision; a finding silently absorbed is scope creep with a citation.
 
 ## Gate 1 — Requirements, from code or specs. Never from assumption.
 

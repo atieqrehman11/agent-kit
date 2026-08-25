@@ -98,11 +98,22 @@ async function preflight() {
     )
   }
 
+  // Rule 2 of this file: exit at startup on missing configuration. An unset
+  // upstream otherwise boots fine and 404s every /api call at request time, which
+  // turns a deploy-time fault into a user-facing one — the exact conversion this
+  // preflight exists to prevent. Drop this check only if the app has a genuinely
+  // useful no-backend mode; one whose every view reads from the API does not.
+  if (!UPSTREAM) {
+    problems.push(
+      `BACKEND_API_URL is not set — the app has no backend to proxy to. Set it in the app's env (resources/*.app.yml -> var.backend_api_url), or BACKEND_API_UPSTREAM for a local prod-mode run.`,
+    )
+  }
+
   // A placeholder left unfilled is not "no backend configured", it is a repo
   // that was deployed before {{cmd:scaffold:configure}} ran. Fail loudly.
   if (UPSTREAM.includes('TODO_SET_')) {
     problems.push(
-      `BACKEND_API_URL is still the placeholder ${UPSTREAM} — fill CONFIG.md and run {{cmd:scaffold:configure}}, or clear the value in app.yml to run with no backend.`,
+      `BACKEND_API_URL is still the placeholder ${UPSTREAM} — fill CONFIG.md and run {{cmd:scaffold:configure}}.`,
     )
   }
 
@@ -187,9 +198,10 @@ async function authorization(req) {
 
 async function proxy(req, res, url) {
   if (!UPSTREAM) {
-    // Same behaviour as the Vite dev proxy with no BACKEND_API_UPSTREAM set: the
-    // route does not exist. A 404 says "nothing is wired" — a 502 would say "the
-    // backend is down", which is a different and wrong diagnosis.
+    // Unreachable: preflight() exits when UPSTREAM is empty. Kept as a backstop so
+    // this function stays correct if it is ever called without that preflight — a
+    // 404 says "nothing is wired", where a 502 would wrongly claim the backend is
+    // down.
     return send(res, 404, 'no backend configured\n')
   }
 
