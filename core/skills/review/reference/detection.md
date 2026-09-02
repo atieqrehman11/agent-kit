@@ -120,10 +120,22 @@ In order:
 4. **Merge the structure gates** by shape, worst verdict per row. The service gate and the
    Databricks gate are separate tables with different rows — never fold one into the other. A row
    no reviewer assessed is `n-a`, never blank; a table no reviewer emitted is omitted, not printed
-   as four `n-a` rows.
-5. **Order by severity, then by file.** Critical first. Within critical, security before
-   correctness before structure.
-6. **Fix prompt** — one block, concatenating every critical issue across surfaces, deduped.
+   as four `n-a` rows. **Both tables carry a Complexity row** (`reviewer` §3a) — it is the row most
+   often dropped, because a reviewer that finds no complexity problem tends to say nothing rather
+   than `pass`.
+5. **Map severities to priorities, then order by them.** `CRITICAL` → **P1** (blocks the merge),
+   `WARNING` → **P2** (fix before the change reaches the next environment), `SUGGESTION` → **P3**.
+   Order by priority, then by path. Within P1, security before correctness before structure. The
+   emitted review uses P1/P2/P3 as its labels, not the subagent's bucket names — a reader sorting
+   a list of twenty findings needs a rank, and "Warnings" is a heading, not a rank.
+6. **Every finding opens with `path:line`.** Rule 2 above uses `path:line` to decide what to keep;
+   this decides what the reader sees first. A finding whose location is described in prose
+   ("the dev target lost its host") gets rewritten to lead with `databricks.yml:129` before it is
+   emitted.
+7. **One line per finding plus one for the fix.** Add evidence — a reproduction, a quoted rule, a
+   sibling-repo comparison — only where the finding would otherwise be disbelieved. Never drop a
+   finding to hit a length; tighten it, or split it, instead.
+8. **Fix prompt** — one block, concatenating every P1 across surfaces, deduped.
 
 ## The scope line
 

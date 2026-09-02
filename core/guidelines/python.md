@@ -45,6 +45,23 @@ notebook idioms.
   ships in `pyproject.toml` (`line-length = 100`, `target-version = "py312"`). Run
   `ruff check` and `ruff format` before every commit.
 
+### Comments
+
+**A comment earns its place by saying why.** The code already says what it does, and a comment
+that repeats it is not neutral — it is a second copy that drifts, and a wrong comment outlives
+the reader's suspicion of it far longer than wrong code survives a test.
+
+Write: the constraint that is not visible locally, the reason a workaround exists, the issue or
+spec a decision came from, a docstring where the signature does not convey the behaviour.
+
+Do not write: a restatement of the next line (`# increment the counter` over `i += 1`); a
+docstring that only re-spells the signature; commented-out code; a `TODO`/`FIXME` with no ticket
+or owner; banner or box-drawing separators, or a header block repeating the file name and author.
+
+The failure being named here is **narration**, not documentation. Sparse code with three comments
+that each explain a non-obvious decision is the target — not comment-free code, and not a comment
+per line.
+
 ## Import organization
 
 Group and separate with blank lines: standard library, third-party, then local.

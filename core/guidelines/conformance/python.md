@@ -19,6 +19,14 @@ Complexity — the limits are numbers, so these are pass/fail, not judgement:
 - [ ] Error conditions use guard clauses and early return rather than a nested `else`.
 - [ ] No collapsible `if` nesting that `SIM102` would flag; no `if/elif` chain over a value where a dict or `match` dispatch fits.
 
+Comments — scope to comments this diff adds or edits:
+
+- [ ] No comment restates the line below it, and no docstring only re-spells the signature.
+- [ ] No commented-out code, and no `TODO`/`FIXME` without a ticket or an owner.
+- [ ] No banner, box-drawing or decoration comments, and no header block repeating the file name or author.
+- [ ] Every comment the diff adds says *why* — a constraint, a workaround's reason, or a spec reference.
+- [ ] No comment contradicts the code it sits on.
+
 Single responsibility:
 
 - [ ] No function or method name contains `and` or `or`, and none takes a flag parameter that selects between two behaviours.

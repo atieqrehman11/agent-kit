@@ -139,6 +139,31 @@ Severity: an over-limit function that this diff **adds** is a WARNING; one it me
 note naming the file. It escalates to CRITICAL only when the complexity is itself the cause of a
 correctness or security finding — then report it there, once, not twice.
 
+**Report this dimension as a `Complexity` row in whichever gate table you emit, always — `pass`
+when you found nothing.** This dimension is the one most often thought about and least often
+written down: two reviewers on the same change both walked it and neither said a word, because
+their output had no row for it, and the consolidator can only merge rows that exist. A silent
+dimension is indistinguishable from an unchecked one.
+
+### 3c. Comment quality
+
+**Scope this to comments the diff adds or edits.** Existing comments are not this review's problem.
+
+A comment earns its place by saying *why*. Flag, as WARNING:
+
+- A comment restating what the next line already says — `# increment the counter` over `i += 1`,
+  or a docstring that only re-spells the signature.
+- Commented-out code, and `TODO`/`FIXME` with no ticket or owner.
+- Banner and decoration comments — `# ====== SECTION ======`, box-drawing separators, a header
+  block repeating the file name and the author.
+- A comment that has drifted from the code it sits on. This is the expensive one: a wrong comment
+  outlives the reader's suspicion of it.
+
+Do not flag: a comment explaining a non-obvious constraint, a workaround with its reason, a
+reference to an issue or a spec, or a docstring on a public function whose behaviour the signature
+does not convey. The failure mode being corrected here is *narration*, not documentation — say
+which of the two you are looking at when you raise one.
+
 ### 3b. Structure gate — Databricks code
 
 **Run this on every review that touches a job, pipeline, agent or genie surface** — stage files,
@@ -255,6 +280,8 @@ VERDICT: PASS | PASS_WITH_CONDITIONS | FAIL
 | Exception handling | pass / fail / n-a | one line |
 | Logging | pass / fail / n-a | one line |
 | Hardcoded values | pass / fail / n-a | one line |
+| Complexity / SRP | pass / fail / n-a | one line — never omitted, see 3a |
+| Comment quality | pass / fail / n-a | one line — see 3c |
 
 Severity rules for this table, so the verdict is not a judgement call:
 
@@ -273,15 +300,20 @@ Severity rules for this table, so the verdict is not a judgement call:
 | Idempotency and write mode | pass / fail / n-a | one line |
 | Prompt / schema / instruction text | pass / fail / n-a | one line |
 | Run context in logs | pass / fail / n-a | one line |
+| Complexity / SRP | pass / fail / n-a | one line — never omitted, see 3a |
+| Comment quality | pass / fail / n-a | one line — see 3c |
 
 Severity rules are in dimension 3b. Emit this table *instead of* the service table when the
 surface has no boundary, service or repository layer, and emit both when a diff spans the two.
 
 ### Critical issues (must fix before proceeding to QA)
-| # | Location | Issue | Risk | Required fix |
+| # | `path:line` | Issue | Risk | Required fix |
+
+Lead every row with `path:line`, not a prose location — the consolidator emits it verbatim and
+the reader opens the file from it.
 
 ### Warnings (should fix — will not block QA)
-| # | Location | Issue | Recommendation |
+| # | `path:line` | Issue | Recommendation |
 
 ### Suggestions (optional improvements)
 [Bulleted list — low priority]
