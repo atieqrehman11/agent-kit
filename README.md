@@ -25,15 +25,15 @@ you scaffold anything.
 
 ## What's in it
 
-**14 guidelines** — constraints that apply from context, never invoked.
+**15 guidelines** — constraints that apply from context, never invoked.
 
 | | |
 |---|---|
-| language / framework | `python` `python-llm` `java` `react` `streamlit` `chainlit` |
+| language / framework | `python` `python-llm` `java` `react` `streamlit` `chainlit` `ios` |
 | repo type | `api` `chat-api` `pipeline` `job` `agent` `genie` |
 | practice | `design` `service-structure` |
 
-Ten of them ship an audit list at `conformance/<name>.md` — split out so whoever is
+Eleven of them ship an audit list at `conformance/<name>.md` — split out so whoever is
 *writing* code loads the rules and whoever is *auditing* loads the checklist. A count is
 the thing that goes stale here, so derive it: `ls core/guidelines/conformance/`. See
 [`STANDARD.md`](STANDARD.md) §1.2 for why it is a subdirectory and not a
