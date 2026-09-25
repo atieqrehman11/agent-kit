@@ -326,6 +326,10 @@ def render_fm(fm, kind):
     out += f"description: {scalar(desc)}\n"
     if kind in ("skill", "command") and fm.get("arguments"):
         out += f"argument-hint: {scalar(fm['arguments'])}\n"
+    # `access: read-only` is the tool-agnostic declaration; the tool names are this adapter's.
+    # Bash stays in because `git show` / `git grep` are how a reviewer reads post-change content.
+    if kind == "subagent" and fm.get("access") == "read-only":
+        out += "tools: Bash, Read, Grep, Glob\n"
     return out + "---\n\n"
 
 
@@ -563,7 +567,9 @@ def _comment_budget(target):
             except Exception:
                 continue
             # A stub is all example — the rule is about comments displacing config.
-            content = [ln for ln in lines if ln.strip() and not ln.strip().startswith("#")]
+            content = [
+                ln for ln in lines if ln.strip() and not ln.strip().startswith("#")
+            ]
             if len(content) < 8:
                 continue
             run = start = 0
@@ -574,7 +580,11 @@ def _comment_budget(target):
                 # scaffolding to uncomment, not prose. Only prose is capped.
                 is_prose = body is not None and not (
                     body.startswith("- ")
-                    or (":" in body and not body.endswith(".") and " " not in body.split(":")[0])
+                    or (
+                        ":" in body
+                        and not body.endswith(".")
+                        and " " not in body.split(":")[0]
+                    )
                 )
                 if is_prose:
                     if not run:

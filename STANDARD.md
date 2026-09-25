@@ -188,6 +188,7 @@ arguments: "[path or branch; default = current diff]"   # hint for entry points 
 requires:
   bin: [drawio]               # adapter warns, never blocks, when missing
   python: [openpyxl]
+access: read-only             # subagents only — the adapter maps it to its read-only tool set
 applies_to:                   # guidelines only — file patterns that should trigger loading
   - "**/*.py"
 ```

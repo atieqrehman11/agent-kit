@@ -1,148 +1,91 @@
-# Surface detection and consolidation
+# Detection, admissibility and consolidation
 
-Payload for `review`. Read after matching the guidelines' `applies_to` globs against the changed
-files — this covers what the globs cannot express, and how several reviewers become one verdict.
+Payload for `review`. `resolve.py` implements §1 and §2 — they are written here so the rules
+have one prose home and so a review without the script can apply them by hand. §3 and §4 are
+the consolidator's rules, and the reviewer applies §3 to its own output before it emits.
 
----
+## 1. What the globs miss
 
-## What the globs miss
+The guidelines' `applies_to` globs are the mapping; nothing keeps a repo-to-standard table. Four
+additions the globs cannot express:
 
-Three additions. Nothing else is hardcoded: the globs remain the mapping.
-
-**1. Language baselines have no useful glob of their own.**
-
-| Changed files include | Add |
-|---|---|
-| any `.py` | `python` |
-| any `.java` | `java` |
-| any `.tsx` / `.jsx` | already matched by `react` |
-
-`python-llm` deliberately carries no `**/*.py` glob — it would fire on every Python file
-alongside `python`. So it is added by detection, below.
-
-**2. `service-structure` whenever service code is touched.**
-
-Its own globs cover `routers/`, `services/`, `repositories/`, `controller/`, `service/`,
-`repository/`, so this mostly falls out of step 2. State it explicitly anyway: it is the contract
-for the reviewer's structure gate, and that gate is not optional.
-
-**3. `python-llm` when the diff contains a model call.**
-
-Detected from the diff content, never from the repository name. Grep the added lines for any of:
-
-```
-anthropic  openai  bedrock  langchain  langgraph  litellm  mlflow
-ChatDatabricks  databricks_langchain  deploy_client
-ai_query  ai_extract  ai_classify  ai_parse_document  ai_prep_search
-ai_similarity  ai_gen  ai_summarize  ai_translate  ai_analyze_sentiment  ai_mask
-ChatCompletion  invoke_model  messages.create  embeddings
-vector_search  VectorSearchClient  similarity_search
-serving_endpoint  foundation_model
-```
-
-**Grep `.sql` as well as `.py`.** A Databricks AI function is as often called from view or
-UC-function DDL as from a stage file, and a retrieval surface reached only through SQL is still a
-retrieval surface.
-
-A hit anywhere in the added lines puts `python-llm` in scope for the surface that contains it.
-Prefer a false positive here: the cost of loading it unnecessarily is a few hundred tokens, and
-the cost of missing it is an unreviewed prompt-injection surface.
-
-The list needs the retrieval half, not only the generation half. A vector-index stage that calls
-no model directly still decides what reaches one later, and it trips none of the generation
-names above.
-
-**4. `python/validate.py` — the one path a glob cannot resolve.**
-
-Both the agent and the genie repo type ship a validator at exactly this path, so no glob can put
-the right guideline in scope for it. Resolve it from what else the repo holds, and add the
-guideline as well as choosing the group:
-
-| Repo also holds | Add | Group as |
+| Signal | Adds | Why |
 |---|---|---|
-| `src/managed/` | `agent` | Agent |
-| `src/space.yml` | `genie` | Genie |
+| any `.py` / any `.java` | `python` / `java` | language baselines carry no useful glob |
+| a model or retrieval call in an **added** `.py` or `.sql` line (`LLM_TOKENS` in `resolve.py`: `ai_query`, `anthropic`, `openai`, `vector_search`, `embeddings`, …) | `python-llm` | a retrieval stage that calls no model still decides what reaches one; a false positive costs a few hundred tokens, a miss is an unreviewed prompt-injection surface |
+| `python/*.py` in a repo holding `src/managed/` → agent; holding `src/space.yml` → genie | that guideline, and that surface | `python/validate.py` is CI's gating check in both repo types, and its name does not say which |
+| a service group exists | `service-structure` | it is the contract for the service structure gate |
 
-This matters most for the diff that touches *only* the validator. That file is the gating check —
-CI's first stage runs it and the deploy script calls the same `check()` — so a change to it
-changes what is allowed to deploy. Reviewed with only the `python` baseline in scope, a loosened
-check reads as a tidy-up.
+Docs-and-config-only files are reviewed against the repo-type guideline (`agent`, `genie`, or
+`api` for a service) — deploy-time breakage lives in `databricks.yml` and CI config.
 
-Record it in the scope line as added by detection, like `python-llm`.
+## 2. Surfaces
 
-## Grouping files into surfaces
-
-One reviewer per group. A file belongs to exactly one group — the first that matches:
+First match wins:
 
 | Surface | Signal |
 |---|---|
-| Genie space | `src/space.yml`, `src/{data_sources,sql_functions,example_queries}.yml`, `src/instructions.md`, `src/{views,functions}/**`, `resources/genie*.yml`, `generated/space.*.json`, `python/build_space.py` |
-| Agent | `src/managed/**`, `python/{deploy_agent,managed}.py`, and the `resources/deploy.job.yml` whose task runs the reconciler |
-| Front end | `*.tsx`, `*.jsx`, `*.css`, front-end config |
-| Pipeline | `pipeline/**`, `*.pipeline.yml` |
-| Job | `*.job.yml`, the `src/task_NN_*.py` stage files a job resource names, and `src/ddl/**` |
-| Service | `routers/**`, `services/**`, `repositories/**`, `schema/**`, `resources/*.app.yml` |
-| Other Python | any remaining `.py` |
-| Docs / config | everything else |
+| genie | `src/space.yml`, `src/{data_sources,sql_functions,example_queries}.yml`, `src/instructions.md`, `src/{views,functions}/**`, `resources/genie*.yml`, `generated/space.*.json`, `python/build_space.py` |
+| agent | `src/managed/**`, `python/{deploy_agent,managed}.py`, a `resources/*.job.yml` that runs the reconciler |
+| frontend | `*.tsx`, `*.jsx`, `*.css`, front-end config |
+| pipeline | `pipeline/**`, `*.pipeline.yml` |
+| job | `*.job.yml`, `src/task_NN_*.py`, `src/ddl/**` |
+| service | `routers/**`, `services/**`, `repositories/**`, `schema/**`, `resources/*.app.yml` |
+| python | any remaining `.py` — folds into the largest code surface when one exists |
+| docs-config | everything else |
 
-**The build and deploy scripts under `python/` belong to the surface they deploy, not to
-"Other Python".** They are where the identity, drift and templating rules in the agent and
-genie checklists are actually implemented — name-based resolution, declared-is-a-subset-of-live
-tool comparison, `${catalog}` substitution — so a reviewer holding only the `python` baseline
-cannot assess them. `python/validate.py` exists in both repo types and its name does not say
-which: assign it by what else the repo holds — `src/managed/` makes it Agent, `src/space.yml`
-makes it Genie. Resolve this before applying the first-match rule above, or the Genie row
-claims an agent repo's validator.
+- **Tests are not a surface.** Every reviewer receives `tests.patch`; coverage is judged per
+  surface against it.
+- A surface under three files folds into the largest one.
+- **Fan-out** only when the diff exceeds 400 changed lines *and* more than one surface remains.
+  Otherwise one reviewer holds every contract.
+- **Prose is a surface.** `instructions.md`, a tool `description`, `example_queries.yml` are
+  behaviour changes with no compile step; the agent and genie rows catch them, and the eval and
+  benchmark gates in those sheets are their only check.
 
-**Prose is a reviewable surface.** `src/instructions.md`, `src/managed/instructions.md`, a tool
-`description` and `example_queries.yml` are behaviour changes with no compile step and no test to
-break. Route them to their own surface — never to Docs / config — because the eval and benchmark
-gates that are the only check on them live in the agent and genie checklists.
+## 3. What is not a finding
 
-**Docs-and-config-only changes get one reviewer, not none** — a changed `databricks.yml`,
-`.gitlab-ci.yml` or per-environment config is where deploy-time breakage lives. Review it against
-the repo-type guideline alone.
+Applied before anything is ordered. Each row was reported at least once on a review whose reader
+then judged the whole document padded.
 
-Collapse a group with fewer than ~3 changed files into the nearest related group. Five reviewers
-over two files each costs more than it finds.
+| Not a finding | Why |
+|---|---|
+| A convention the sibling repo also follows | the siblings are the statement of the convention |
+| A style rule the same file already breaks elsewhere | a sweep, not a review finding |
+| Pre-existing, in a file the diff merely touches | one P3 naming the file, never ranked higher |
+| Service-wide and not introduced here | an architecture ticket, not this author's defect |
+| A latent hazard with no reachable failure | one clause under Verified, or nothing |
+| Longer to explain than to fix | a comment, not a finding |
+| A restatement of another finding's cause | fold it into that finding's fix line |
 
-## Consolidation
+The bar never drops a finding for being awkward. Density above about one finding per hundred
+changed lines means the bar was not applied, not that the change is unusually bad.
 
-In order:
+## 4. Consolidation
 
-1. **Verdict** — worst wins. Any `FAIL` → `FAIL`. Any `PASS_WITH_CONDITIONS` and no `FAIL` →
-   `PASS_WITH_CONDITIONS`.
-2. **Discard unsupported standards findings.** A standards finding must quote the rule it breaks
-   and name the file and line. One that does neither is dropped, not downgraded — the reviewer's
-   own instructions require it, so a finding without them is an invention.
-3. **Dedupe by file and line.** Keep the more specific statement; if two reviewers disagree on
-   severity, keep the higher and note both surfaces.
-4. **Merge the structure gates** by shape, worst verdict per row. The service gate and the
-   Databricks gate are separate tables with different rows — never fold one into the other. A row
-   no reviewer assessed is `n-a`, never blank; a table no reviewer emitted is omitted, not printed
-   as four `n-a` rows. **Both tables carry a Complexity row** (`reviewer` §3a) — it is the row most
-   often dropped, because a reviewer that finds no complexity problem tends to say nothing rather
-   than `pass`.
-5. **Map severities to priorities, then order by them.** `CRITICAL` → **P1** (blocks the merge),
-   `WARNING` → **P2** (fix before the change reaches the next environment), `SUGGESTION` → **P3**.
-   Order by priority, then by path. Within P1, security before correctness before structure. The
-   emitted review uses P1/P2/P3 as its labels, not the subagent's bucket names — a reader sorting
-   a list of twenty findings needs a rank, and "Warnings" is a heading, not a rank.
-6. **Every finding opens with `path:line`.** Rule 2 above uses `path:line` to decide what to keep;
-   this decides what the reader sees first. A finding whose location is described in prose
-   ("the dev target lost its host") gets rewritten to lead with `databricks.yml:129` before it is
-   emitted.
-7. **One line per finding plus one for the fix.** Add evidence — a reproduction, a quoted rule, a
-   sibling-repo comparison — only where the finding would otherwise be disbelieved. Never drop a
-   finding to hit a length; tighten it, or split it, instead.
-8. **Fix prompt** — one block, concatenating every P1 across surfaces, deduped.
+1. **Merge by `path:line`.** Keep the more specific statement and the higher priority.
+2. **Discard a standards finding that does not quote its rule and name its line.** Dropped, not
+   downgraded — the reviewer was required to, so one without them is an invention.
+3. **Apply §3**, and record the count for the `Dropped` row.
+4. **Derive the verdict.** Any P1 → `FAIL`; P2 and no P1 → `PASS_WITH_CONDITIONS`; else `PASS`.
+5. **Budget.** At most five P1+P2 in the fix table. Beyond that, the weakest become P3
+   one-liners — a coverage P1 counts like any other and is never lowered to make room.
+6. **Gates.** One `Gates` line naming each table a reviewer emitted; only non-pass rows are spelled
+   out. The Complexity and Comments rows are never dropped; a row no reviewer assessed is `n-a`
+   and the scope line says so. Service and Databricks tables are never folded into each other.
+7. **Coverage.** Union of the three items across reviewers; severity is the maximum reported.
+8. **Comments.** Union of the reviewers' tables.
+9. **Every finding opens with `path:line`**, one line in the table; a Problem/Fix block for P1
+   and P2 only, with code only where the fix is not obvious from prose.
+10. **Order** by priority, then by path. Within P1: security, correctness, structure.
 
-## The scope line
+## 5. The scope line
 
 ```
-Scope  api, service-structure, python, python-llm · base main (assumed) · 14 files, 2 surfaces
+Scope  api, service-structure, python, python-llm (detected) · base main (assumed) · 14 files, +310/−42
+       · 2 surfaces · reviewed for the dev deploy · round 2: 5 closed, 1 partly, 1 not done
 ```
 
-Mark **`(assumed)`** on the base whenever the target branch was not read from the forge API, and
-name any guideline that was added by detection rather than by a glob match. Someone reading the
-review a month later needs to know what was actually checked and what was guessed.
+`(assumed)` whenever the target was not read from the forge API; `(detected)` on every guideline
+added by §1 rather than a glob. Someone reading the review a month later needs to know what was
+checked and what was guessed.

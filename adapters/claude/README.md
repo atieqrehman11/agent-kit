@@ -20,7 +20,7 @@ All three. Nothing is skipped, so the §2.2 subset clause is not exercised here.
 |---|---|---|
 | **guideline** | `guidelines/<name>.md` — canonical copy, what `__GUIDELINES_DIR__` points at<br>`skills/<name>/SKILL.md` — registration copy, `applies_to` folded into the description | Model-invoked from context. **No slash command** — a constraint is not something you run |
 | **skill** | `skills/<name>/` — `SKILL.md` plus all payload; `__SKILL_DIR__` resolves here<br>`commands/<name>/<verb>.md` — one file per declared command | `/<name>:<verb>`, plus model-invoked via `SKILL.md` |
-| **subagent** | `agents/<name>.md` | Dispatched by the Agent tool under its `name` |
+| **subagent** | `agents/<name>.md` | Dispatched by the Agent tool under its `name`. `access: read-only` renders as `tools: Bash, Read, Grep, Glob` |
 
 A guideline is written **twice on purpose**: once in canonical form for skills that read it
 as a file, once in Claude's registration format. Both are generated and both are replaced
